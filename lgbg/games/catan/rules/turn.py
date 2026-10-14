@@ -5,9 +5,9 @@ card first, from K-042), and the action phase, in which they build and trade and
 turn. The dice are two independent draws, never one draw of a total, because the distributions
 differ and because a recorded draw has to be replayable semantically (ARCHITECTURE.md 5.4).
 
-Production itself - which hexes pay, and what the bank can cover - arrives with K-023. What is
-here is the shape of the turn: the roll is asked for, it consumes the two draws RULES.md 3.1
-pins, the dice become visible, the phase closes, and a seven opens the discard phase instead.
+The roll pays production through rules/production.py before the phase closes, so a recorded roll
+is a complete account of what happened: the draws, the total, and every player's cards. The bank
+shortage rule of RULES.md 4.6 arrives with K-024.
 """
 
 from __future__ import annotations
@@ -20,6 +20,7 @@ from lgbg.core.game import Applied, ApplyResult, Rejected
 from lgbg.core.rng import Purpose, RandomSource
 from lgbg.core.types import Action, Event
 from lgbg.games.catan import phases
+from lgbg.games.catan.rules import production
 from lgbg.games.catan.state import CatanState, Phase
 
 DICE_DIE_1: Final[Purpose] = "dice_die_1"
@@ -46,18 +47,17 @@ def roll_dice(state: CatanState, action: Action, rng: RandomSource) -> ApplyResu
 
     first = rng.randint(1, DIE_FACES, purpose=DICE_DIE_1)
     second = rng.randint(1, DIE_FACES, purpose=DICE_DIE_2)
+    total = first + second
     rolled = replace(state, dice=(first, second))
+    paid, production_events = production.produce(rolled, total)
     return Applied(
-        state=rolled,
+        state=paid,
         events=[
             Event(
                 type="dice_rolled",
-                payload={
-                    "player": action.player,
-                    "dice": [first, second],
-                    "total": first + second,
-                },
-            )
+                payload={"player": action.player, "dice": [first, second], "total": total},
+            ),
+            *production_events,
         ],
     )
 

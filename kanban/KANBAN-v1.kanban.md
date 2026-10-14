@@ -13,20 +13,6 @@
 
 
 
-### K-023 · Implement dice and production
-
-  - tags: [slice-3, rules, production, rng, fr-10]
-  - priority: high
-  - workload: Normal
-  - steps:
-      - [ ] Two independent d6 recorded as draws
-      - [ ] Production grants 1 per settlement and 2 per city on matching, unblocked hexes
-      - [ ] A production event names every recipient and amount so replay can verify it
-    ```md
-    - **Cuts through:** rules/production, core/rng, events, projection, replay
-    - **Depends on:** K-022
-    - **PRD:** FR-10.2, FR-10.3
-    ```
 
 ### K-024 · Handle bank-limited production
 
@@ -1160,4 +1146,24 @@
     - **The cost was paid deliberately and now:** the phase name is part of the encoded state and therefore of every hash, so the golden fixture was regenerated in the same change (20 records; the initial hash moved from `ef8474ab042614f9` to `e3d0eb448c320086`) and the plugin's `rules_version` was bumped to `catan-rules-2`, which RULES.md section 1.2 records with the reason. Doing this at 1 golden game rather than at 7 is the whole argument for pinning the vocabulary early.
     - **One transition function:** `phases.begin` is now the only place a phase is entered, so a phase cannot be reached without a `phase_started` event - not by advancing, and not by an action that moves the game on, which is how `end_turn` opens the next seat's turn.
     - **What arrives with later cards:** production itself and the bank limits (K-023, K-024); the discard action, so a seven currently opens a phase whose requests cannot yet be answered (K-025); the robber (K-026); `play_dev_card` before the roll, which is why FR-10.1 is only partly satisfied here (K-042); and the rest of the action phase (K-030 onwards).
+    ```
+
+### K-023 · Implement dice and production
+
+  - tags: [slice-3, rules, production, rng, fr-10]
+  - priority: high
+  - workload: Normal
+  - steps:
+      - [x] Two independent d6 recorded as draws
+      - [x] Production grants 1 per settlement and 2 per city on matching, unblocked hexes
+      - [x] A production event names every recipient and amount so replay can verify it
+    ```md
+    - **Cuts through:** rules/production, core/rng, events, projection, replay
+    - **Depends on:** K-022
+    - **PRD:** FR-10.2, FR-10.3
+    - **Evidence:** tests/games/test_catan_production.py (11 tests), lgbg/games/catan/rules/production.py. The two dice draws were already in place from K-022 (draws D6 and D7, two independent randint(1,6), asserted there); this card pays them out. Every hex showing the rolled total, and not holding the robber, pays one card per settlement on it and two per city, into the corresponding resource.
+    - **The demand is computed before anything is paid** (RULES.md 4.5 item 4), which is what makes K-024's bank-shortage rule meaningful: 'the players affected' is only well defined if the whole demand is known before distribution starts. The event therefore carries both `granted` and `shortfall`, and a test starves the bank to show the demand reported rather than silently shared out.
+    - **Until K-024, production never overdraws the bank.** The cap used here keeps resource conservation and non-negativity true at every step; K-024 replaces the cap with the pinned rule - all-or-nothing per resource, with a partial grant only when exactly one player is affected (RULES.md correction D-2).
+    - **A seven pays nothing at all** (FR-10.5): the roll emits the dice event and no production event, and the phase machine takes the turn to the discard phase. Both branches are asserted from the same roll.
+    - **Production is a fold, not engine instrumentation** (ARCHITECTURE.md section 14): the rules module is a pure function of the state and the total, so any metric over production can be recomputed from a record after the fact.
     ```

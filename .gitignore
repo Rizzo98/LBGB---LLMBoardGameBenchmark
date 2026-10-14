@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Tool caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Test scaffolding created by the tooling guard test
+.probe/
+
+# Run artefacts: game records are data, not source
+runs/
+
+# Editors / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

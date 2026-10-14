@@ -1,0 +1,65 @@
+[project]
+name = "lgbg"
+version = "0.1.0"
+description = "LBGB - LLM Board Game Benchmark: game engine core and verifiable replay"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "mypy>=1.14",
+    "pytest>=8.3",
+    "pytest-cov>=6.0",
+    "ruff>=0.9",
+]
+
+[tool.uv]
+# The library is used from the repository root, not installed as a distribution.
+package = false
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-q --strict-markers --strict-config"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["lgbg", "tests", "scripts"]
+# Documents are normative and their code samples are illustrative: never touch them.
+extend-exclude = ["*.md", "prd", "kanban"]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "N",   # pep8-naming
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+    "SIM", # flake8-simplify
+    "C4",  # flake8-comprehensions
+    "PT",  # flake8-pytest-style
+    "S",   # flake8-bandit
+    "RUF", # ruff-specific
+    "TID", # flake8-tidy-imports
+]
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"random".msg = "Ambient randomness is unreproducible. Inject a RandomSource from lgbg.core.rng instead (PRD-v1 FR-2.1, FR-2.7)."
+
+[tool.ruff.lint.per-file-ignores]
+# The one module permitted to seed a local random.Random (ARCHITECTURE.md section 5.4).
+"lgbg/core/rng.py" = ["TID251", "S311"]
+# The fuzz driver owns a seeded driver RNG, separate from the game RNG (PRD-v1 FR-22.1).
+"lgbg/adapters/**" = ["TID251", "S311"]
+"scripts/**" = ["TID251", "S311"]
+"tests/**" = ["S101", "TID251", "S311"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+files = ["lgbg", "tests", "scripts"]

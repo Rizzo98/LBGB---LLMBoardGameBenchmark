@@ -1,0 +1,1091 @@
+# KANBAN-v1 · PRD-v1 · horizontal slices
+
+## Todo
+### K-001 · Pin Catan rules in games/catan/RULES.md
+
+  - tags: [slice-0, docs, rules, fr-6, sc-12]
+  - priority: high
+  - workload: Normal
+  - defaultExpanded: true
+  - steps:
+      - [ ] Every rule area in PRD-v1 section 8 is stated and cited to the official rulebook
+      - [ ] All eight listed ambiguities resolved with chosen interpretation AND the alternative considered
+      - [ ] Board composition, costs, deck composition and VP values confirmed against the rulebook, not copied from the PRD
+      - [ ] Reviewed against PRD-v1 section 8 before any rules code is written
+    ```md
+    - **Cuts through:** rules authority, PRD section 11, every later rules card
+    - **Depends on:** nothing
+    - **PRD:** section 11, SC-12
+    - **Why:** First because every rules card downstream is unverifiable without it. A wrong rule is the one defect that cannot be detected later.
+    ```
+
+### K-002 · Scaffold repo, tooling, CI and lockfile
+
+  - tags: [slice-1, infra, fr-6]
+  - priority: high
+  - workload: Normal
+  - steps:
+      - [ ] ruff and mypy run in CI and locally
+      - [ ] Custom ruff rule banning import random outside core/rng.py is active and demonstrated to fire on a deliberate violation
+      - [ ] Fresh clone runs the full test suite with one documented command
+      - [ ] Lockfile pinned; Python 3.12+ declared
+    ```md
+    - **Cuts through:** packaging, lint, typing, CI, the random-import ban
+    - **Depends on:** nothing
+    - **PRD:** NFR-4, NFR-5, NFR-6, NFR-7, NFR-8
+    ```
+
+### K-003 · Implement canonical JSON and state hashing
+
+  - tags: [slice-1, core, fr-1]
+  - priority: high
+  - workload: Easy
+  - steps:
+      - [ ] to_canonical_json is the single serialisation path used for hashing and replay
+      - [ ] Sorted keys, no insignificant whitespace, ensure_ascii true
+      - [ ] hash_state returns a truncated SHA-256 digest from one named width constant
+      - [ ] A fixed test vector pins the exact bytes so accidental changes are caught
+    ```md
+    - **Cuts through:** core/canonical, core/types, the fixture game encoder
+    - **Depends on:** K-002
+    - **PRD:** FR-1.1 to FR-1.5
+    - **Open question:** Q2, confirm the hash width before the constant is relied on.
+    ```
+
+## In Progress
+
+## Blocked
+
+## Backlog
+
+### K-004 · Implement the RNG trio and recorded draws
+
+  - tags: [slice-1, core, rng, fr-2]
+  - priority: high
+  - workload: Normal
+  - steps:
+      - [ ] Seeded, Replay and Null sources behave per ARCHITECTURE section 5.4
+      - [ ] Purpose labels come from module constants, never inline strings
+      - [ ] Replay with a reordered draw fails, naming the action, draw index, expected purpose and actual purpose
+      - [ ] NullRandomSource raises on any draw
+    ```md
+    - **Cuts through:** core/rng, core/types, determinism tests
+    - **Depends on:** K-003
+    - **PRD:** FR-2.1 to FR-2.7
+    ```
+
+### K-005 · Implement RunConfig and strict key validation
+
+  - tags: [slice-1, core, config, fr-5]
+  - priority: medium
+  - workload: Easy
+  - steps:
+      - [ ] Config round-trips through the header record exactly
+      - [ ] assist defaults to L1; rejection_detail defaults to the matching tier but is independently overridable
+      - [ ] Unknown or misspelled keys are rejected with a clear error rather than silently ignored
+    ```md
+    - **Cuts through:** core/config, the log header, CLI arguments
+    - **Depends on:** K-003
+    - **PRD:** FR-5.1 to FR-5.4
+    ```
+
+### K-006 · Define the Game protocol and plugin registry
+
+  - tags: [slice-1, core, registry, fr-6]
+  - priority: high
+  - workload: Normal
+  - steps:
+      - [ ] Protocol of ARCHITECTURE section 7.1 exists in full
+      - [ ] register_game decorator registers by name
+      - [ ] Entry-point discovery via importlib.metadata group lgbg.games works
+      - [ ] A test asserts lgbg.core never imports lgbg.games
+    ```md
+    - **Cuts through:** core/game, every game plugin, the layering test
+    - **Depends on:** K-003
+    - **PRD:** FR-6.1 to FR-6.6
+    ```
+
+### K-007 · Build the fixture game as a permanent test canary
+
+  - tags: [slice-1, test, registry, fr-6]
+  - priority: medium
+  - workload: Easy
+  - defaultExpanded: true
+  - steps:
+      - [ ] A minimal toy game with two or three action types, one random draw, and a terminal condition
+      - [ ] Implemented purely as a test asset, not shipped as a real game
+      - [ ] Exercises the full protocol without any real rules
+      - [ ] Retained permanently after slice 1 and re-run by the slice-8 harness
+    ```md
+    - **Cuts through:** the registry, every core component, all later integration tests
+    - **Depends on:** K-004, K-005, K-006
+    - **PRD:** FR-6.1
+    - **Why:** Deliberate exception to horizontal slicing. It isolates pipeline defects from rules defects: a hash mismatch here is in the machinery; a hash mismatch in slice 2 could be either, and by then the machinery is already proven.
+    ```
+
+### K-008 · Implement the log writer and reader
+
+  - tags: [slice-1, core, log, fr-3]
+  - priority: high
+  - workload: Normal
+  - steps:
+      - [ ] Header, action and terminal records written in order with a monotonic seq
+      - [ ] Rejected actions produce a record whose state_hash equals state_hash_prev
+      - [ ] A truncated file reports truncation rather than raising an opaque parse error
+      - [ ] Unknown schema major version is rejected clearly
+      - [ ] No timestamp, hostname or pid appears in the god log; they go to the sidecar
+    ```md
+    - **Cuts through:** core/log, core/canonical, the fixture game, the sidecar split
+    - **Depends on:** K-003, K-007
+    - **PRD:** FR-3.1 to FR-3.9
+    ```
+
+### K-009 · Implement replay, verify and projection replay
+
+  - tags: [slice-1, core, replay, fr-4]
+  - priority: high
+  - workload: Hard
+  - defaultExpanded: true
+  - steps:
+      - [ ] replay rebuilds state after every record and verifies both hashes
+      - [ ] verify checks the chain without materialising intermediate states
+      - [ ] projection_replay rebuilds one player's observation sequence
+      - [ ] Every failure kind reports the offending seq and the reason: hash mismatch, RNG purpose mismatch, RNG exhaustion, event mismatch, unknown action
+    ```md
+    - **Cuts through:** core/replay, core/log, core/rng, the fixture game
+    - **Depends on:** K-008
+    - **PRD:** FR-4.1 to FR-4.7
+    - **Why:** The heart of the release. Everything downstream is computed from records this card makes trustworthy.
+    ```
+
+### K-010 · Wire the CLI skeleton against the fixture game
+
+  - tags: [slice-1, cli, fr-20, fr-21]
+  - priority: medium
+  - workload: Normal
+  - steps:
+      - [ ] new, play, replay and verify work end to end against the fixture game
+      - [ ] verify exits non-zero and names the seq on failure
+      - [ ] Expected failures print a message, never a Python traceback
+    ```md
+    - **Cuts through:** CLI, config, log, replay, the registry
+    - **Depends on:** K-009
+    - **PRD:** FR-20.1 to FR-20.4, FR-20.7
+    ```
+
+### K-011 · Add determinism and tamper-detection tests
+
+  - tags: [slice-1, test, replay, fr-4, sc-3, sc-4]
+  - priority: high
+  - workload: Normal
+  - steps:
+      - [ ] Identical inputs produce identical hash chains across two processes with different PYTHONHASHSEED
+      - [ ] Parametrised tamper test mutates a record action, a draw value, a draw purpose, an event payload, state_hash_prev and state_hash
+      - [ ] Each mutation fails verification at the correct seq
+    ```md
+    - **Cuts through:** determinism contract, CLI, log, replay
+    - **Depends on:** K-010
+    - **PRD:** SC-3, SC-4
+    - **Why:** Slice 1 exit: play then verify on the fixture game passes, and the tamper suite catches every mutation site.
+    ```
+
+### K-012 · Derive board topology and assert structural invariants
+
+  - tags: [slice-2, board, test, fr-7, sc-7]
+  - priority: high
+  - workload: Extreme
+  - defaultExpanded: true
+  - steps:
+      - [ ] Vertices and edges derived from hex axial coordinates; no authored adjacency or incidence tables anywhere
+      - [ ] Exactly 19 hexes, 54 vertices, 72 edges, with symmetric adjacency
+      - [ ] Integer identifiers assigned by canonical sort of derived coordinates, and the derivation documented
+      - [ ] Self-check asserts counts, adjacency symmetry, degree distribution, coast versus interior classification
+      - [ ] Self-check runs as a test at import under test
+    ```md
+    - **Cuts through:** board/topology, the coordinate model, the structural invariant test
+    - **Depends on:** K-002
+    - **PRD:** FR-7.1, FR-7.2, FR-7.3, FR-6.10, SC-7
+    - **Why:** Largest card in slice 2 and on the critical path for slices 2 through 6. Identifiers get frozen here: they appear in every recorded action, so changing the derivation invalidates every existing record.
+    - **Open question:** Q3, confirm the identifier derivation before it is frozen.
+    ```
+
+### K-013 · Build board layout, ports, number tokens and one curated board
+
+  - tags: [slice-2, board, fr-7]
+  - priority: high
+  - workload: Normal
+  - steps:
+      - [ ] Canonical hex arrangement implemented
+      - [ ] 9 ports placed with the 4 by 3:1 and 5 by 2:1 distribution
+      - [ ] Number placement follows the rule pinned in RULES.md
+      - [ ] One curated fixed board loads from JSON data
+      - [ ] Random generation consumes recorded draws
+    ```md
+    - **Cuts through:** board/layout, board/generation, curated board data loading
+    - **Depends on:** K-012
+    - **PRD:** FR-7.4, FR-7.5, FR-7.6
+    - **Why:** Blocked by open question Q1: how many curated boards, and chosen for what property.
+    ```
+
+### K-014 · Define CatanState and its serialisation
+
+  - tags: [slice-2, state, core, fr-1]
+  - priority: high
+  - workload: Normal
+  - steps:
+      - [ ] Frozen, slotted dataclasses; integers only; no floats, sets or unordered iteration
+      - [ ] encode_state is total: every reachable state serialises without error
+      - [ ] The initial state hashes deterministically for a given seed and board
+    ```md
+    - **Cuts through:** state.py, core/canonical, the hash chain
+    - **Depends on:** K-013, K-003
+    - **PRD:** FR-1.5
+    ```
+
+### K-015 · Build projection v0 for board and pieces
+
+  - tags: [slice-2, projection, board, fr-16]
+  - priority: medium
+  - workload: Normal
+  - steps:
+      - [ ] observe returns the board, the robber position and every player's placed pieces
+      - [ ] Built from an explicit allow-list, never a deny-list
+      - [ ] NullRandomSource proves observe consumes no randomness
+      - [ ] Resource hands are deliberately absent; they arrive in slice 3
+    ```md
+    - **Cuts through:** projection.py, state, the observation schema sketch, CLI inspect
+    - **Depends on:** K-014
+    - **PRD:** FR-16.5, FR-16.7
+    ```
+
+### K-016 · Implement the phase machine and decision requests
+
+  - tags: [slice-2, phases, core, fr-9]
+  - priority: high
+  - workload: Hard
+  - defaultExpanded: true
+  - steps:
+      - [ ] Phases produce decision requests rather than driving control flow
+      - [ ] Several requests can be open simultaneously
+      - [ ] Resolution order is deterministic and independent of arrival order
+      - [ ] Every transition emits a phase_started event and a phase record
+    ```md
+    - **Cuts through:** phases.py, pending_decisions, state, events, the log's phase records
+    - **Depends on:** K-014
+    - **PRD:** FR-9.1 to FR-9.4
+    - **Why:** The decision queue is the central abstraction. A turn counter cannot express concurrent or out-of-turn decisions, and special-casing them is where rule bugs live.
+    ```
+
+### K-017 · Implement the setup snake draft
+
+  - tags: [slice-2, rules, setup, fr-8]
+  - priority: high
+  - workload: Normal
+  - steps:
+      - [ ] Order 0,1,2,3,3,2,1,0
+      - [ ] Each selection is a settlement placement followed by an adjacent road
+      - [ ] Distance rule and connectivity enforced with specific game rejection codes
+      - [ ] Setup expressed entirely as decision requests, with no special-cased code path
+    ```md
+    - **Cuts through:** rules/setup, phase machine, projection, rejection codes
+    - **Depends on:** K-016
+    - **PRD:** FR-8.1, FR-8.2, FR-8.3, FR-8.5
+    ```
+
+### K-018 · Implement the bank and starting endowment
+
+  - tags: [slice-2, rules, setup, fr-8]
+  - priority: medium
+  - workload: Easy
+  - steps:
+      - [ ] Bank holds 19 of each resource
+      - [ ] Second settlement grants one of each adjacent non-desert resource, limited by bank supply
+      - [ ] Total resources conserve across the transaction
+    ```md
+    - **Cuts through:** rules/setup, bank state, projection, the conservation invariant sketch
+    - **Depends on:** K-017
+    - **PRD:** FR-8.4
+    ```
+
+### K-019 · Implement notation v0 for board rendering
+
+  - tags: [slice-2, notation, cli, fr-19]
+  - priority: medium
+  - workload: Normal
+  - steps:
+      - [ ] A full and a compact rendering of a projection, both stable and deterministic
+      - [ ] Both are consumed by the CLI so a human can follow a game without reading JSON
+      - [ ] The renderer is the single source used later by prompts and MCP resources
+    ```md
+    - **Cuts through:** notation.py, projection, CLI, later the prompt
+    - **Depends on:** K-015
+    - **PRD:** FR-19.4
+    ```
+
+### K-020 · Run the CLI against real Catan
+
+  - tags: [slice-2, cli, fr-20, fr-21]
+  - priority: medium
+  - workload: Normal
+  - steps:
+      - [ ] lgbg new --game catan prints the opening decision
+      - [ ] play accepts a scripted file and drives the draft
+      - [ ] inspect --board renders the board
+      - [ ] Scripted driver resolves an unambiguous request without an explicit request_id and errors when ambiguous
+    ```md
+    - **Cuts through:** CLI, registry, config, phases, notation, log, replay
+    - **Depends on:** K-017, K-019
+    - **PRD:** FR-20.5, FR-21.1 to FR-21.4
+    - **Open question:** Q6, whether play records interactive sessions into a scripted file in this release.
+    ```
+
+### K-021 · Commit golden game 1: setup through terminal
+
+  - tags: [slice-2, test, acceptance, sc-1]
+  - priority: medium
+  - workload: Easy
+  - steps:
+      - [ ] A scripted setup-only game is committed as a fixture
+      - [ ] Its god log replays with every hash verified
+      - [ ] It fails loudly if any rule in slice 2 regresses
+    ```md
+    - **Cuts through:** everything in slice 2
+    - **Depends on:** K-020
+    - **PRD:** SC-1
+    - **Why:** Slice 2 exit: replay with --print-states renders the board after each of the eight opening placements and every hash verifies.
+    ```
+
+### K-022 · Open the turn with a roll decision
+
+  - tags: [slice-3, phases, rules, fr-10]
+  - priority: medium
+  - workload: Easy
+  - steps:
+      - [ ] A turn opens a decision offering the roll
+      - [ ] The phase closes correctly and advances to resolution
+    ```md
+    - **Cuts through:** phase machine, phases.py, CLI rendering of open decisions
+    - **Depends on:** K-017
+    - **PRD:** FR-9.5 partial, FR-10.1 partial
+    - **Why:** Playing a knight before the roll is deferred to slice 5; that is the documented reason FR-10.1 is not yet fully satisfied here.
+    ```
+
+### K-023 · Implement dice and production
+
+  - tags: [slice-3, rules, production, rng, fr-10]
+  - priority: high
+  - workload: Normal
+  - steps:
+      - [ ] Two independent d6 recorded as draws
+      - [ ] Production grants 1 per settlement and 2 per city on matching, unblocked hexes
+      - [ ] A production event names every recipient and amount so replay can verify it
+    ```md
+    - **Cuts through:** rules/production, core/rng, events, projection, replay
+    - **Depends on:** K-022
+    - **PRD:** FR-10.2, FR-10.3
+    ```
+
+### K-024 · Handle bank-limited production
+
+  - tags: [slice-3, rules, production, fr-10]
+  - priority: medium
+  - workload: Easy
+  - steps:
+      - [ ] When the bank cannot cover a distribution, the shortfall follows the behaviour pinned in RULES.md
+      - [ ] The outcome is deterministic
+      - [ ] A test drives the bank to exhaustion and asserts the result
+    ```md
+    - **Cuts through:** rules/production, bank state, the pinned rule, tests
+    - **Depends on:** K-023
+    - **PRD:** FR-10.4
+    ```
+
+### K-025 · Implement the concurrent discard phase on a 7
+
+  - tags: [slice-3, phases, rules, robber, fr-9, fr-12]
+  - priority: high
+  - workload: Normal
+  - steps:
+      - [ ] A 7 skips production and opens concurrent requests to every player holding more than 7 cards
+      - [ ] Discard is floor(hand/2), any resource composition allowed
+      - [ ] The phase closes only when all requests resolve
+      - [ ] It is NOT implemented as sequential private turns
+    ```md
+    - **Cuts through:** phase machine, decision queue, projection, events
+    - **Depends on:** K-023, K-016
+    - **PRD:** FR-9.5, FR-12.1, FR-12.2, FR-10.5
+    - **Why:** First genuine test of the decision queue. Simulating concurrent decisions as private turns changes what players can observe about each other, and therefore changes the game.
+    ```
+
+### K-026 · Implement robber movement and production blocking
+
+  - tags: [slice-3, robber, rules, fr-12]
+  - priority: medium
+  - workload: Easy
+  - steps:
+      - [ ] Current player moves the robber to a different hex
+      - [ ] A blocked hex produces nothing
+      - [ ] Steal adjacency is derived from topology, not authored
+    ```md
+    - **Cuts through:** rules/robber, board topology, projection, production
+    - **Depends on:** K-025
+    - **PRD:** FR-12.3
+    ```
+
+### K-027 · Implement steal with recorded draw and asymmetric visibility
+
+  - tags: [slice-3, robber, rng, projection, fr-12]
+  - priority: high
+  - workload: Normal
+  - steps:
+      - [ ] One random resource moves from a chosen adjacent opponent
+      - [ ] Thief learns what was taken; victim learns what left their hand
+      - [ ] The draw is recorded and replays exactly
+    ```md
+    - **Cuts through:** rules/robber, core/rng, the per-observer projection, replay
+    - **Depends on:** K-026
+    - **PRD:** FR-12.4, FR-12.5
+    - **Why:** First card where the projection must express asymmetric knowledge rather than merely private state.
+    ```
+
+### K-028 · Extend projection to resource hands
+
+  - tags: [slice-3, projection, test, fr-16]
+  - priority: high
+  - workload: Normal
+  - steps:
+      - [ ] Own hand exact; other players' total count only
+      - [ ] A leak test asserts no other player's card composition is reachable from a projection, including through the notation rendering
+    ```md
+    - **Cuts through:** projection.py, the allow-list, leak tests, notation
+    - **Depends on:** K-027
+    - **PRD:** FR-16.1, FR-16.2, FR-16.6
+    ```
+
+### K-029 · Commit golden game 2: a 7, a discard, a steal
+
+  - tags: [slice-3, test, acceptance, sc-1]
+  - priority: medium
+  - workload: Easy
+  - steps:
+      - [ ] Committed fixture whose log provably contains a discard and a steal
+      - [ ] Replays with every hash verified
+    ```md
+    - **Cuts through:** everything in slice 3
+    - **Depends on:** K-028
+    - **PRD:** SC-1
+    - **Why:** Slice 3 exit: a mid-game record replays to a state where resources have moved through dice, a forced discard and a seizure.
+    ```
+
+### K-030 · Implement costs, spending and game rejection codes
+
+  - tags: [slice-4, rules, building, fr-11]
+  - priority: high
+  - workload: Normal
+  - steps:
+      - [ ] Costs exactly as in PRD Appendix A
+      - [ ] Insufficient-resource and unavailable-target rejections carry structured details
+      - [ ] Every code raised is declared via rejection_codes()
+    ```md
+    - **Cuts through:** rules/building, bank, core/errors, the plugin's code declaration
+    - **Depends on:** K-018
+    - **PRD:** FR-11.1, FR-11.7, FR-6.8
+    ```
+
+### K-031 · Implement road building
+
+  - tags: [slice-4, rules, building, fr-11]
+  - priority: high
+  - workload: Normal
+  - steps:
+      - [ ] Connectivity to the player's own network enforced
+      - [ ] Edge occupancy rejected with a specific code
+      - [ ] 15-road limit tracked; exhaustion makes the action unavailable rather than erroring
+    ```md
+    - **Cuts through:** rules/building, topology, piece supply, projection, events
+    - **Depends on:** K-030
+    - **PRD:** FR-11.2, FR-11.3, FR-11.5
+    ```
+
+### K-032 · Implement settlement building
+
+  - tags: [slice-4, rules, building, fr-11]
+  - priority: high
+  - workload: Normal
+  - steps:
+      - [ ] Distance rule enforced at exactly distance 2
+      - [ ] Boundary tests at distance 1 and distance 3
+      - [ ] Connectivity enforced
+      - [ ] 5-settlement limit tracked
+    ```md
+    - **Cuts through:** rules/building, topology, distance rule, piece supply
+    - **Depends on:** K-031
+    - **PRD:** FR-11.4
+    ```
+
+### K-033 · Implement city upgrade
+
+  - tags: [slice-4, rules, building, fr-11]
+  - priority: medium
+  - workload: Easy
+  - steps:
+      - [ ] Upgrading an own settlement returns the settlement to supply
+      - [ ] Production rises to 2 and VP to 2
+      - [ ] 4-city limit enforced
+    ```md
+    - **Cuts through:** rules/building, piece supply, production value, victory accounting
+    - **Depends on:** K-032
+    - **PRD:** FR-11.6
+    ```
+
+### K-034 · Implement legal_actions and action_domains
+
+  - tags: [slice-4, core, rules, fr-17]
+  - priority: high
+  - workload: Hard
+  - steps:
+      - [ ] Complete enumeration of currently legal actions
+      - [ ] Cross-product-free domain description per ARCHITECTURE section 7.2
+      - [ ] Both are pure and RNG-free, proven with NullRandomSource
+      - [ ] A test asserts every enumerated action is accepted and a sample of non-enumerated actions is rejected
+    ```md
+    - **Cuts through:** the plugin interface, every rule module, the L1 and L2 renderers, the fuzzer
+    - **Depends on:** K-033, K-030
+    - **PRD:** FR-17.4, FR-17.5, FR-17.6
+    ```
+
+### K-035 · Implement Longest Road and award transfer rules
+
+  - tags: [slice-4, rules, victory, fr-13, sc-11]
+  - priority: high
+  - workload: Extreme
+  - defaultExpanded: true
+  - steps:
+      - [ ] Exhaustive simple-path search; never a heuristic or greedy approximation
+      - [ ] Minimum 5 continuous roads
+      - [ ] Broken by opposing settlements or cities
+      - [ ] Ties vacate the award; re-acquisition handled per RULES.md
+      - [ ] Dedicated test matrix covering branching, breaking, tying and re-acquisition
+      - [ ] 100 percent coverage on longest_road.py
+    ```md
+    - **Cuts through:** rules/longest_road, topology, victory accounting, projection, events
+    - **Depends on:** K-031
+    - **PRD:** FR-13.9, FR-13.10, SC-11
+    - **Why:** Pulled forward out of milestone M6 deliberately. Settlements and cities alone cap at 9 VP, so without an award slice 4 cannot end with a winnable game. Classic bug magnet: breadth is not length, and an opposing settlement truncates a path.
+    ```
+
+### K-036 · Implement victory accounting and win detection
+
+  - tags: [slice-4, rules, victory, fr-15]
+  - priority: high
+  - workload: Normal
+  - steps:
+      - [ ] Scoring per PRD Appendix A
+      - [ ] Win condition and its timing follow the interpretation pinned in RULES.md
+      - [ ] Explicit test for the own-turn timing edge case
+    ```md
+    - **Cuts through:** rules/victory, every scoring source, projection, terminality
+    - **Depends on:** K-035, K-033
+    - **PRD:** FR-15.1, FR-15.2
+    ```
+
+### K-037 · Implement terminality, outcome and the terminal record
+
+  - tags: [slice-4, core, log, fr-15]
+  - priority: medium
+  - workload: Easy
+  - steps:
+      - [ ] is_terminal and outcome are pure and RNG-free
+      - [ ] Outcome reports final VP per player, winner, turn count and total actions
+      - [ ] Any action after termination is rejected with a core code
+    ```md
+    - **Cuts through:** is_terminal and outcome, the phase machine, log, CLI
+    - **Depends on:** K-036
+    - **PRD:** FR-15.3, FR-15.4, FR-15.5
+    ```
+
+### K-038 · Commit golden game 3: a complete, winnable game
+
+  - tags: [slice-4, test, acceptance, sc-1]
+  - priority: high
+  - workload: Normal
+  - defaultExpanded: true
+  - steps:
+      - [ ] Committed fixture plays to a 10-VP terminal record
+      - [ ] Replays with every hash verified
+      - [ ] Renders legibly through the CLI
+    ```md
+    - **Cuts through:** everything built so far
+    - **Depends on:** K-037
+    - **PRD:** SC-1
+    - **Why:** Slice 4 exit, and the single most valuable checkpoint in the release: a complete Catan game, opening draft through winner, that replays.
+    ```
+
+### K-039 · Measure performance against NFR-2
+
+  - tags: [slice-4, test, core]
+  - priority: low
+  - workload: Easy
+  - steps:
+      - [ ] Single-game simulation time and replay cost measured and recorded
+      - [ ] If canonical JSON plus SHA-256 is the bottleneck, that finding is written down while it is still cheap to change
+    ```md
+    - **Cuts through:** the full pipeline, the profiler, the hash path
+    - **Depends on:** K-038
+    - **PRD:** NFR-2, risk R8
+    ```
+
+### K-040 · Implement the development deck, shuffle and purchase
+
+  - tags: [slice-5, devcards, rng, fr-13]
+  - priority: medium
+  - workload: Normal
+  - steps:
+      - [ ] 25 cards with the Appendix A composition
+      - [ ] Shuffled at game start from recorded draws
+      - [ ] Purchase costs per Appendix A
+      - [ ] An empty deck makes the action unavailable
+    ```md
+    - **Cuts through:** rules/devcards, core/rng, bank, per-player inventory
+    - **Depends on:** K-030
+    - **PRD:** FR-13.1, FR-13.2
+    ```
+
+### K-041 · Enforce development card timing rules
+
+  - tags: [slice-5, devcards, phases, fr-13]
+  - priority: high
+  - workload: Normal
+  - steps:
+      - [ ] Not playable on the turn purchased
+      - [ ] At most one per turn
+      - [ ] Per-card play windows follow the interpretation pinned in RULES.md
+      - [ ] The knight-before-roll branch now activates, completing FR-10.1
+    ```md
+    - **Cuts through:** rules/devcards, turn history, phase machine, rejection codes
+    - **Depends on:** K-040, K-022
+    - **PRD:** FR-13.3, FR-13.4, FR-10.1
+    ```
+
+### K-042 · Implement the knight card
+
+  - tags: [slice-5, devcards, robber, fr-12]
+  - priority: medium
+  - workload: Easy
+  - steps:
+      - [ ] Playing a knight runs the same robber flow as a 7: move, then optional steal
+      - [ ] Increments the played-knight count
+      - [ ] The robber flow is reused, not duplicated
+    ```md
+    - **Cuts through:** rules/devcards, the robber flow, largest-army counting
+    - **Depends on:** K-041, K-027
+    - **PRD:** FR-12.6
+    ```
+
+### K-043 · Implement the Road Building card
+
+  - tags: [slice-5, devcards, building, fr-13]
+  - priority: medium
+  - workload: Normal
+  - steps:
+      - [ ] Two free roads placed through the normal road constraints
+      - [ ] When fewer than two roads remain in supply, the shortfall follows the behaviour pinned in RULES.md, with a test
+    ```md
+    - **Cuts through:** rules/devcards, road building, piece supply
+    - **Depends on:** K-041, K-031
+    - **PRD:** FR-13.5
+    ```
+
+### K-044 · Implement the Year of Plenty card
+
+  - tags: [slice-5, devcards, fr-13]
+  - priority: medium
+  - workload: Easy
+  - steps:
+      - [ ] Two resources taken from the bank, subject to availability
+      - [ ] Whether duplicates are permitted follows RULES.md, with a test
+    ```md
+    - **Cuts through:** rules/devcards, bank, resource selection as a sub-decision
+    - **Depends on:** K-041
+    - **PRD:** FR-13.6
+    ```
+
+### K-045 · Implement the Monopoly card
+
+  - tags: [slice-5, devcards, fr-13]
+  - priority: medium
+  - workload: Easy
+  - steps:
+      - [ ] All of the named resource transfers from every other player
+      - [ ] The transfer is atomic in one event
+    ```md
+    - **Cuts through:** rules/devcards, every player's hand, events, projection
+    - **Depends on:** K-041
+    - **PRD:** FR-13.7
+    ```
+
+### K-046 · Implement victory point cards and hidden VP
+
+  - tags: [slice-5, devcards, projection, victory, fr-13, fr-16]
+  - priority: high
+  - workload: Normal
+  - steps:
+      - [ ] VP cards count toward the owner's total
+      - [ ] Excluded from every other player's public total
+      - [ ] Leak test asserts no projection, and no notation rendering of it, reveals another player's VP cards
+    ```md
+    - **Cuts through:** rules/victory, the projection allow-list, leak tests, notation
+    - **Depends on:** K-041, K-036
+    - **PRD:** FR-13.8, FR-16.4
+    - **Why:** This is what makes who-is-leading indeterminate from any player's view, and why the spectator projection is a separate tested artefact.
+    ```
+
+### K-047 · Implement Largest Army
+
+  - tags: [slice-5, devcards, victory, fr-13]
+  - priority: medium
+  - workload: Normal
+  - steps:
+      - [ ] First to 3 played knights holds the award
+      - [ ] Transfer and vacate-on-tie per RULES.md
+      - [ ] Behaviour is symmetric with Longest Road and tested the same way
+    ```md
+    - **Cuts through:** rules/devcards, victory accounting, award transfer, projection
+    - **Depends on:** K-042
+    - **PRD:** FR-13.9
+    ```
+
+### K-048 · Commit golden game 4: a development-card-driven win
+
+  - tags: [slice-5, test, acceptance, sc-1]
+  - priority: medium
+  - workload: Easy
+  - steps:
+      - [ ] Committed fixture in which the winner reaches 10 via a development-card effect
+      - [ ] Replays with every hash verified
+    ```md
+    - **Cuts through:** everything in slice 5
+    - **Depends on:** K-046, K-047
+    - **PRD:** SC-1
+    - **Why:** Slice 5 exit: the full base-game rule surface except trading is exercised by a replaying golden game.
+    ```
+
+### K-049 · Model port access
+
+  - tags: [slice-6, trading, board, fr-14]
+  - priority: medium
+  - workload: Normal
+  - steps:
+      - [ ] A player's available exchange ratios are derived from their coastal settlements and the board's port placement
+      - [ ] The derivation is computed, not authored
+    ```md
+    - **Cuts through:** board ports, topology, a player's coastal settlements, action_domains
+    - **Depends on:** K-032, K-013
+    - **PRD:** FR-14.1
+    ```
+
+### K-050 · Implement maritime trade
+
+  - tags: [slice-6, trading, rules, fr-14]
+  - priority: medium
+  - workload: Normal
+  - steps:
+      - [ ] 4:1, 3:1 and 2:1 ratios applied correctly per port access
+      - [ ] Bank availability respected
+      - [ ] An invalid ratio is rejected with a game code rather than silently accepted
+    ```md
+    - **Cuts through:** rules/trading, bank, port access, rejection codes
+    - **Depends on:** K-049
+    - **PRD:** FR-14.1
+    ```
+
+### K-051 · Implement player offers and concurrent responses
+
+  - tags: [slice-6, trading, phases, fr-14]
+  - priority: high
+  - workload: Hard
+  - defaultExpanded: true
+  - steps:
+      - [ ] Only the current player may open an offer
+      - [ ] Every non-offering player holding cards receives a response request, concurrently
+      - [ ] Offers naming resources the offerer lacks are rejected before broadcast
+      - [ ] An offer is cancellable before resolution
+    ```md
+    - **Cuts through:** rules/trading, decision queue, projection, phase machine
+    - **Depends on:** K-050, K-025
+    - **PRD:** FR-14.2, FR-14.3, FR-14.4, FR-14.6, FR-14.7
+    - **Why:** Second and harder exercise of the decision queue: out-of-turn decisions from several players at once. Blocked on open question Q7, whether counter-offers are needed.
+    ```
+
+### K-052 · Implement partner selection and atomic transfer
+
+  - tags: [slice-6, trading, rules, fr-14]
+  - priority: high
+  - workload: Normal
+  - steps:
+      - [ ] When several players accept, the offerer chooses; the engine never chooses
+      - [ ] The completed trade transfers both sides atomically in one event and replays exactly
+    ```md
+    - **Cuts through:** rules/trading, decision queue, events, projection
+    - **Depends on:** K-051
+    - **PRD:** FR-14.5, FR-14.8, FR-14.9
+    ```
+
+### K-053 · Commit golden game 5: a completed trade
+
+  - tags: [slice-6, test, acceptance, sc-1]
+  - priority: medium
+  - workload: Easy
+  - steps:
+      - [ ] Committed fixture containing a completed player-to-player trade
+      - [ ] Replays with every hash verified
+    ```md
+    - **Cuts through:** everything in slice 6
+    - **Depends on:** K-052
+    - **PRD:** SC-1
+    - **Why:** Slice 6 exit: the base game is feature-complete against PRD section 8.
+    ```
+
+### K-054 · Implement assist levels and rejection-detail tiers
+
+  - tags: [slice-7, assist, cli, fr-17, sc-8]
+  - priority: high
+  - workload: Hard
+  - defaultExpanded: true
+  - steps:
+      - [ ] L0 renders observation only, with minimal rejections that do not leak enumeration through error messages
+      - [ ] L1 renders types, costs and parameter domains without enumerating the cross product
+      - [ ] L2 renders the full legal action list with alternatives
+      - [ ] apply has no notion of assist level and is byte-identical across all three
+    ```md
+    - **Cuts through:** renderers, action_domains and legal_actions, the rejection formatter, config
+    - **Depends on:** K-034, K-030
+    - **PRD:** FR-17.1, FR-17.3, FR-17.4
+    - **Why:** The single most important benchmark-validity knob. If enumeration leaks at L0 through error messages, a model can brute-force its way from L0 to L2 without anyone noticing.
+    ```
+
+### K-055 · Add the assist-equivalence test
+
+  - tags: [slice-7, test, assist, sc-8]
+  - priority: high
+  - workload: Easy
+  - steps:
+      - [ ] Running one scripted action file at L0, L1 and L2 produces byte-identical god logs
+      - [ ] The only permitted difference is config.assist in the header
+    ```md
+    - **Cuts through:** config, engine, log, replay
+    - **Depends on:** K-054
+    - **PRD:** FR-17.2, SC-8
+    - **Why:** The test that proves assist level is a clean experimental variable rather than an uncontrolled confound.
+    ```
+
+### K-056 · Declare action_schema and enforce conformance during play
+
+  - tags: [slice-7, schemas, core, fr-18]
+  - priority: high
+  - workload: Hard
+  - steps:
+      - [ ] A JSON Schema keyed by action type covering every accepted action
+      - [ ] Validation happens before rule logic
+      - [ ] Unknown action types yield UNKNOWN_ACTION and schema violations yield BAD_PARAMS
+      - [ ] A fuzz run asserts every action produced by the game validates against the schema
+    ```md
+    - **Cuts through:** action_schema.py, validation, every rule module, the fuzzer
+    - **Depends on:** K-053
+    - **PRD:** FR-18.1, FR-18.2, FR-18.5
+    ```
+
+### K-057 · Declare observation_schema
+
+  - tags: [slice-7, schemas, projection, fr-18]
+  - priority: medium
+  - workload: Normal
+  - steps:
+      - [ ] Describes the projection shape
+      - [ ] Every observation produced during a game validates against it
+    ```md
+    - **Cuts through:** observation_schema.py, projection, serialisation
+    - **Depends on:** K-056
+    - **PRD:** FR-18.3, FR-16.8
+    ```
+
+### K-058 · Generate tool definitions from the declared schemas
+
+  - tags: [slice-7, schemas, test, fr-18]
+  - priority: medium
+  - workload: Normal
+  - steps:
+      - [ ] Tool definitions generated from action_schema with no game-specific code
+      - [ ] A test asserts every action type appears with a correct parameter list
+      - [ ] No MCP server is built; this proves the plug-and-play claim without pulling v2 scope into v1
+    ```md
+    - **Cuts through:** the schemas, a generator, a proof test
+    - **Depends on:** K-057
+    - **PRD:** FR-18.4
+    - **Why:** If adding a game required hand-written tool definitions, the plugin system would have failed. This card is the evidence that it did not.
+    ```
+
+### K-059 · Write the shared game prompt
+
+  - tags: [slice-7, prompts, notation, fr-19]
+  - priority: medium
+  - workload: Normal
+  - steps:
+      - [ ] Rules, notation and action semantics documented with worked examples
+      - [ ] No strategy advice, opening recommendations or move evaluation guidance
+      - [ ] SHA-256 recorded in prompt_hashes in the header record
+      - [ ] A test asserts the file exists, hashes, and contains no advice section
+    ```md
+    - **Cuts through:** prompts/game.md, notation, the log header's prompt hashes
+    - **Depends on:** K-019
+    - **PRD:** FR-19.1, FR-19.2, FR-19.3
+    - **Why:** Strategy advice in this file would mean the benchmark measures prompt engineering rather than the model. A result without a prompt hash is unreproducible.
+    ```
+
+### K-060 · Add notation detail levels
+
+  - tags: [slice-7, notation, prompts, fr-19]
+  - priority: low
+  - workload: Normal
+  - steps:
+      - [ ] Full, compact and delta-only renderings, all deterministic and stable
+      - [ ] All three consumed by the CLI so their behaviour is observable before an agent ever sees them
+    ```md
+    - **Cuts through:** notation.py, projection, CLI, the prompt
+    - **Depends on:** K-059
+    - **PRD:** FR-19.4
+    - **Why:** How the state is rendered measurably changes model performance, so renderings must be held constant across models. That makes them a first-class artefact, not a debugging convenience.
+    ```
+
+### K-061 · Declare game invariants
+
+  - tags: [slice-8, rules, test, fr-6]
+  - priority: high
+  - workload: Normal
+  - steps:
+      - [ ] Resource conservation: per resource, bank plus all hands equals 19
+      - [ ] Piece conservation: per player and piece type, supply plus on board equals initial count
+      - [ ] check_invariants is pure and RNG-free
+    ```md
+    - **Cuts through:** check_invariants, state, the generic harness
+    - **Depends on:** K-053
+    - **PRD:** FR-6.9
+    - **Why:** Declared by the plugin so one generic harness can validate any game, including games that do not exist yet.
+    ```
+
+### K-062 · Declare the benchmark profile
+
+  - tags: [slice-8, test, fr-6, sc-13]
+  - priority: medium
+  - workload: Easy
+  - steps:
+      - [ ] Declares positional asymmetry present, so mirrored pairings are required
+      - [ ] Declares outcome shape, variance class and interaction character
+      - [ ] Declares the decision-length distribution
+      - [ ] A test asserts the profile is complete
+    ```md
+    - **Cuts through:** the plugin, the runner's future needs, documented experimental design
+    - **Depends on:** K-053
+    - **PRD:** FR-6.7, SC-13
+    - **Why:** Blocked by open question Q8: declarative data or computed in plugin code. Seat order is a real advantage in Catan, so unmirrored pairings silently flatter whoever moves first.
+    ```
+
+### K-063 · Audit the rejection-code declaration
+
+  - tags: [slice-8, test, fr-6, sc-13]
+  - priority: medium
+  - workload: Easy
+  - steps:
+      - [ ] Every code raised anywhere in a fuzz run appears in rejection_codes()
+      - [ ] A test fails on any undeclared code
+    ```md
+    - **Cuts through:** rejection_codes, every rule module, the metrics surface
+    - **Depends on:** K-061
+    - **PRD:** FR-6.8, SC-13
+    - **Why:** Declaring codes is what makes rejection-code distribution a game-agnostic metric.
+    ```
+
+### K-064 · Build the generic fuzz harness
+
+  - tags: [slice-8, fuzz, test, fr-22, sc-2]
+  - priority: high
+  - workload: Extreme
+  - defaultExpanded: true
+  - steps:
+      - [ ] After every action asserts: no exception, declared invariants, event sufficiency, rejection invariance, projection purity, schema conformance
+      - [ ] Asserts termination within a bounded action count, reporting livelock distinctly from a rule failure
+      - [ ] Contains no Catan-specific logic of its own
+      - [ ] Multiple driver policies: uniform, resource-seeking, build-seeking
+      - [ ] Runs against any registered plugin, including the slice-1 fixture game
+    ```md
+    - **Cuts through:** the harness, declared invariants, schemas, projection, replay
+    - **Depends on:** K-061, K-056, K-034
+    - **PRD:** FR-22.1 to FR-22.6
+    - **Why:** Because invariants are declared rather than hardcoded, this one harness validates every game, present and future. It is a test harness, never scored, never presented as a bot.
+    ```
+
+### K-065 · Build the projection leak suite
+
+  - tags: [slice-8, projection, test, fr-16, sc-6]
+  - priority: high
+  - workload: Normal
+  - steps:
+      - [ ] One test per hidden field per observer
+      - [ ] Asserts non-exposure in the raw projection
+      - [ ] Asserts non-exposure in every notation rendering of it
+    ```md
+    - **Cuts through:** projection, the allow-list, notation, every observer
+    - **Depends on:** K-057, K-060
+    - **PRD:** FR-16.6, SC-6
+    ```
+
+### K-066 · Sweep requirement coverage and build the traceability matrix
+
+  - tags: [slice-8, test, acceptance, sc-9, sc-11]
+  - priority: high
+  - workload: Normal
+  - steps:
+      - [ ] Every functional requirement traced to at least one named test
+      - [ ] Gaps either filled or explicitly recorded as deferred with a reason
+      - [ ] longest_road.py and projection.py at 100 percent coverage
+      - [ ] core/ and rules/ at 90 percent or above
+    ```md
+    - **Cuts through:** all of PRD section 8, the test suite, the traceability table
+    - **Depends on:** K-064, K-065
+    - **PRD:** SC-9, SC-11
+    - **Open question:** Q5, confirm the coverage thresholds (90 percent overall, 100 percent on the two named modules).
+    ```
+
+### K-067 · Run the full fuzz campaign and validate performance
+
+  - tags: [slice-8, fuzz, test, sc-2]
+  - priority: high
+  - workload: Normal
+  - steps:
+      - [ ] At least 10,000 games across at least 1,000 seeds
+      - [ ] Zero uncaught exceptions
+      - [ ] All declared invariants hold
+      - [ ] Single-game and replay timings within NFR-2
+      - [ ] Results recorded
+    ```md
+    - **Cuts through:** the harness, the whole engine, the NFR budgets
+    - **Depends on:** K-066
+    - **PRD:** SC-2, NFR-2
+    ```
+
+### K-068 · Run acceptance and record the evidence
+
+  - tags: [slice-8, acceptance, sc-1]
+  - priority: high
+  - workload: Normal
+  - defaultExpanded: true
+  - steps:
+      - [ ] SC-1 through SC-13 each demonstrated by a named command
+      - [ ] Command output captured in the acceptance record
+      - [ ] Golden corpus of at least 7 games replays end to end
+    ```md
+    - **Cuts through:** the entire release
+    - **Depends on:** K-067
+    - **PRD:** section 5, all SC
+    - **Why:** Slice 8 exit, and the release exit. Nothing in this project is accepted on the basis of a suite that merely passes; it is accepted on the basis of named commands whose output is recorded.
+    ```

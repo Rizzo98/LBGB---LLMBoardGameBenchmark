@@ -30,6 +30,7 @@ from lgbg.core.log import (
     GameLogWriter,
     HeaderRecord,
     LogFormatError,
+    PhaseRecord,
     SidecarWriter,
     TerminalRecord,
     god_log_path,
@@ -37,7 +38,16 @@ from lgbg.core.log import (
     sidecar_path,
 )
 from lgbg.core.rng import RngDraw, SeededRandomSource
-from lgbg.core.types import Action, DecisionRequest, GameId, JsonValue, PlayerId, State
+from lgbg.core.types import (
+    PHASE_STARTED_EVENT,
+    Action,
+    DecisionRequest,
+    Event,
+    GameId,
+    JsonValue,
+    PlayerId,
+    State,
+)
 
 
 class AmbiguousRequestError(Exception):
@@ -156,8 +166,29 @@ class GameRun:
         )
         if self._writer is not None:
             self._writer.write_action(record)
+            self._write_phase_records(events)
         self._seq += 1
         return result
+
+    def _write_phase_records(self, events: Sequence[Event]) -> None:
+        """A phase transition is the game's event, but the record type is the runtime's.
+
+        A game announces a transition with PHASE_STARTED_EVENT and never invents a record of
+        its own (FR-3.9); the runtime turns the announcement into a phase record so a log can
+        be read without replaying it.
+        """
+        if self._writer is None:
+            return
+        for event in events:
+            if event.type != PHASE_STARTED_EVENT:
+                continue
+            self._writer.write_phase(
+                PhaseRecord(
+                    seq=self._seq + 1,
+                    phase=str(event.payload.get("phase", "")),
+                    detail={key: value for key, value in event.payload.items() if key != "phase"},
+                )
+            )
 
     def finish(self) -> TerminalRecord:
         """Close the record with the counts only the runtime can know, and the verdict."""

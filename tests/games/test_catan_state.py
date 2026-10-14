@@ -74,9 +74,9 @@ def _populated() -> CatanState:
     return replace(
         opening,
         phase=Phase.SETUP_ROAD,
+        phase_index=5,
         turn=2,
         round=3,
-        setup_selections=5,
         hands=((1, 2, 3, 4, 5), (0, 0, 0, 0, 0), (2, 0, 1, 0, 4), (1, 1, 1, 1, 1)),
         supply=(Supply(12, 4, 3), Supply(15, 5, 4), Supply(13, 2, 2), Supply(14, 3, 1)),
         placed=placed,
@@ -112,7 +112,7 @@ def test_the_opening_state_carries_the_pinned_facts() -> None:
     assert state.phase is Phase.SETUP_SETTLEMENT
     assert state.turn == 0, "the snake draft starts with seat 0"
     assert state.round == 0
-    assert state.setup_selections == 0
+    assert state.phase_index == 0
     assert state.hands == ((0, 0, 0, 0, 0),) * PLAYERS
     assert state.bank == (BANK_PER_RESOURCE,) * len(RESOURCE_ORDER)
     assert state.supply == (Supply(*PIECES_PER_PLAYER),) * PLAYERS

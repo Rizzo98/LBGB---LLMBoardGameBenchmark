@@ -96,10 +96,31 @@ VICTORY_TARGET: Final[int] = 10
 
 
 class Phase(StrEnum):
-    """The phases of a game. Stored by name, so later slices may add phases freely."""
+    """Every phase of a game.
+
+    A phase is stored by name, and the encoded state is what every hash is computed from, so
+    the phases are all named here rather than one at a time as each slice reaches them: a name
+    is cheaper to add now than to rename later, when a corpus of records depends on it.
+    Phases whose behaviour has not landed yet have no rule in phases.py, and asking one for
+    decisions is a loud error rather than an empty answer.
+    """
 
     SETUP_SETTLEMENT = "setup_settlement"
     SETUP_ROAD = "setup_road"
+    TURN_START = "turn_start"
+    """Roll the dice, or play a development card (FR-10.1)."""
+    DISCARD = "discard"
+    """Everybody over the limit discards, concurrently (FR-9.5, FR-12.1)."""
+    ROBBER = "robber"
+    """The current player moves the robber and may steal (FR-12.3, FR-12.4)."""
+    ACTION = "action"
+    """Build, trade, and play development cards (FR-11, FR-13, FR-14)."""
+    TRADE_RESPONSE = "trade_response"
+    """Every non-offering player holding cards answers an offer (FR-14.4)."""
+    TRADE_PARTNER = "trade_partner"
+    """The offerer chooses among the players who accepted (FR-14.5)."""
+    OVER = "over"
+    """Somebody reached the target; the record is closed (FR-15)."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -136,9 +157,9 @@ class CatanState:
     board: Board
     players: int
     phase: Phase
+    phase_index: int
     turn: int
     round: int
-    setup_selections: int
     hands: tuple[tuple[int, ...], ...]
     bank: tuple[int, ...]
     supply: tuple[Supply, ...]
@@ -166,9 +187,9 @@ def initial_state(board: Board, *, players: int, rng: RandomSource) -> CatanStat
         board=board,
         players=players,
         phase=Phase.SETUP_SETTLEMENT,
+        phase_index=0,
         turn=0,
         round=0,
-        setup_selections=0,
         hands=((0,) * RESOURCES,) * players,
         bank=(BANK_PER_RESOURCE,) * RESOURCES,
         supply=(Supply(*PIECES_PER_PLAYER),) * players,
@@ -208,13 +229,13 @@ def encode_state(state: CatanState) -> JsonValue:
         "longest_road": state.longest_road,
         "offer": None if state.offer is None else _encode_offer(state.offer),
         "phase": state.phase.value,
+        "phase_index": state.phase_index,
         "placed": _encode_placed(state.placed),
         "played_this_turn": list(state.played_this_turn),
         "players": state.players,
         "responses": list(state.responses),
         "robber": state.robber,
         "round": state.round,
-        "setup_selections": state.setup_selections,
         "supply": [[item.roads, item.settlements, item.cities] for item in state.supply],
         "turn": state.turn,
     }
@@ -231,9 +252,9 @@ def decode_state(blob: JsonValue) -> CatanState:
         board=board,
         players=players,
         phase=Phase(_text(fields, "phase", "state")),
+        phase_index=_integer(fields, "phase_index", "state"),
         turn=_integer(fields, "turn", "state"),
         round=_integer(fields, "round", "state"),
-        setup_selections=_integer(fields, "setup_selections", "state"),
         hands=_counts(fields.get("hands"), players, RESOURCES, "state.hands"),
         bank=tuple(_integers(fields.get("bank"), "state.bank")),
         supply=_supply(fields.get("supply"), players),

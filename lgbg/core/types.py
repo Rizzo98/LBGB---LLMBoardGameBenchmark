@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Final
 
 type JsonValue = bool | int | str | Sequence[JsonValue] | Mapping[str, JsonValue] | None
 
@@ -39,6 +39,15 @@ type Seq = int
 
 type Component = str
 """A game-declared component: a piece, a resource, a card (ARCHITECTURE.md section 7.2)."""
+
+PHASE_STARTED_EVENT: Final[str] = "phase_started"
+"""The event a game emits when it enters a phase.
+
+The runtime keys on this name to write its own phase record (ARCHITECTURE.md section 8.4):
+the record is redundant with the event, but it makes a record greppable and replay
+debuggable. A game therefore announces a transition with this event type, and no game may
+introduce a record type of its own (FR-3.9).
+"""
 
 type Observation = Mapping[str, JsonValue]
 """What one observer may see. Built from an allow-list, never a deny-list."""

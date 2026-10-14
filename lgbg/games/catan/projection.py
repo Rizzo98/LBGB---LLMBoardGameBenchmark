@@ -114,7 +114,6 @@ SPECTATOR_FIELDS: Final[tuple[tuple[str, Projector], ...]] = (
     ),
     ("played_this_turn", lambda state: list(state.played_this_turn)),
     ("responses", lambda state: list(state.responses)),
-    ("setup_selections", lambda state: state.setup_selections),
 )
 """The allow-list for the spectator's view: the player's, plus what the god view holds back."""
 

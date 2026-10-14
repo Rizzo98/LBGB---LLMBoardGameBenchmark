@@ -7,24 +7,6 @@
 
 ## Backlog
 
-### K-016 · Implement the phase machine and decision requests
-
-  - tags: [slice-2, phases, core, fr-9]
-  - priority: high
-  - workload: Hard
-  - defaultExpanded: true
-  - steps:
-      - [ ] Phases produce decision requests rather than driving control flow
-      - [ ] Several requests can be open simultaneously
-      - [ ] Resolution order is deterministic and independent of arrival order
-      - [ ] Every transition emits a phase_started event and a phase record
-    ```md
-    - **Cuts through:** phases.py, pending_decisions, state, events, the log's phase records
-    - **Depends on:** K-014
-    - **PRD:** FR-9.1 to FR-9.4
-    - **Why:** The decision queue is the central abstraction. A turn counter cannot express concurrent or out-of-turn decisions, and special-casing them is where rule bugs live.
-    ```
-
 ### K-017 · Implement the setup snake draft
 
   - tags: [slice-2, rules, setup, fr-8]
@@ -841,6 +823,28 @@
 
 ## Done
 
+### K-001 · Pin Catan rules in games/catan/RULES.md
+
+  - tags: [slice-0, docs, rules, fr-6, sc-12]
+  - priority: high
+  - workload: Normal
+  - defaultExpanded: true
+  - steps:
+      - [x] Every rule area in PRD-v1 section 8 is stated and cited to the official rulebook
+      - [x] All eight listed ambiguities resolved with chosen interpretation AND the alternative considered
+      - [x] Board composition, costs, deck composition and VP values confirmed against the rulebook, not copied from the PRD
+      - [x] Reviewed against PRD-v1 section 8 before any rules code is written
+    ```md
+    - **Cuts through:** rules authority, PRD section 11, every later rules card
+    - **Depends on:** nothing
+    - **PRD:** section 11, SC-12
+    - **Why:** First because every rules card downstream is unverifiable without it. A wrong rule is the one defect that cannot be detected later.
+    - **Evidence:** `lgbg/games/catan/RULES.md` (1597 lines, LF-only, 124765 bytes), written before any rules code. Seven sources are retrieved and cited, with a precedence pinned in section 2.1: the CATAN Studio 6th-edition rulebook (CN3081, April 2025) is primary, the World Championship 2025 tournament rules win where they say they do, the 5th-edition Games Rules & Almanac, the 25th-anniversary basic rules, the official base-game FAQ and the KOSMOS Big Box manual fill the rest. All eight ambiguities are resolved in section 5 with the alternative considered; section 2.3 lists eleven claims for which no primary source exists, each pinned as a project decision. Section 6 reproduces all 16 Appendix A rows with citations, and no Appendix A *value* disagrees with the rulebook.
+    - **Pointers later cards must use:** `rules_version = "catan-rules-1"` (section 1.2; any pinned-rule change bumps it and invalidates the golden corpus). Section 3.1 pins all nine random draw sites with their kind, args and purpose labels, including "two independent randint(1,6), never one randint(2,12)" and "purchase performs no draw" - K-023, K-027 and K-040 must use those labels. Section 5.10 pins 22 further interpretations, notably that Longest Road is the maximum over simple paths *and* simple cycles: a simple-path-only search would contradict the FAQ's six-roads-in-a-hexagon answer.
+    - **One claim is verified rather than assumed:** the pinned number-token sequence produces zero adjacent 6/8 pairs over all 114 (starting corner, desert position) configurations, whereas ascending or descending numeric order produces adjacent reds in all 114 (section 2.3).
+    - **PRD corrections (D-1 to D-4, section 6.2):** no Appendix A value disagrees, but four PRD statements need correction: 54 vertices and 72 edges are *derived*, not stated by any rulebook; FR-10.4's general case is all-or-nothing per resource, with a partial grant only when exactly one player is affected; FR-8.4 grants one card *per adjacent hex*, not one of each resource; FR-10.1's `(knight)` is an example, since any playable development card may precede the roll. Later cards must follow RULES.md: K-018 (FR-8.4), K-024 (FR-10.4) and K-022 (FR-10.1).
+    ```
+
 ### K-002 · Scaffold repo, tooling, CI and lockfile
 
   - tags: [slice-1, infra, fr-6]
@@ -874,6 +878,7 @@
     - **PRD:** FR-1.1 to FR-1.5
     - **Evidence:** tests/core/test_canonical_json.py pins the canonical bytes and digest of a fixed vector; tests/tooling/test_layering.py asserts json.dumps is called only in core/canonical.py, which is what makes FR-1.1 a fact rather than an intention. Floats and non-string keys are rejected as determinism guards. Hash width confirmed at 16 hex characters, resolving Q2 as proposed by the PRD. FR-1.5 (encode_state totality) is asserted by the fuzzer at K-064.
     ```
+
 ### K-004 · Implement the RNG trio and recorded draws
 
   - tags: [slice-1, core, rng, fr-2]
@@ -890,6 +895,7 @@
     - **PRD:** FR-2.1 to FR-2.7
     - **Evidence:** tests/core/test_rng.py (17 tests). A reordered draw reports `action #47 draw #0: expected purpose 'dice_roll', got 'random_selection'`; an unconsumed recorded draw is reported by assert_exhausted. tests/tooling/test_layering.py fails the build on a literal passed as a purpose, which is what makes FR-2.3 enforceable rather than advisory. Both real sources are assigned to a `RandomSource`-typed variable, so the protocol conformance is checked by mypy on every run.
     ```
+
 ### K-005 · Implement RunConfig and strict key validation
 
   - tags: [slice-1, core, config, fr-5]
@@ -905,6 +911,7 @@
     - **PRD:** FR-5.1 to FR-5.4
     - **Evidence:** tests/core/test_config.py (18 tests). The header mapping is pinned to its documented flat shape and round-trips exactly, including an explicit rejection_detail override. Game options are carried opaquely and merged flat, so the core never learns what a board is (P11); a game option may not shadow a core key, and an undeclared key is an unknown key.
     ```
+
 ### K-006 · Define the Game protocol and plugin registry
 
   - tags: [slice-1, core, registry, fr-6]
@@ -923,6 +930,24 @@
     ```
 
 ### K-007 · Build the fixture game as a permanent test canary
+
+  - tags: [slice-1, test, registry, fr-6]
+  - priority: medium
+  - workload: Easy
+  - defaultExpanded: true
+  - steps:
+      - [x] A minimal toy game with two or three action types, one random draw, and a terminal condition
+      - [x] Implemented purely as a test asset, not shipped as a real game
+      - [x] Exercises the full protocol without any real rules
+      - [x] Retained permanently after slice 1 and re-run by the slice-8 harness
+    ```md
+    - **Cuts through:** the registry, every core component, all later integration tests
+    - **Depends on:** K-004, K-005, K-006
+    - **PRD:** FR-6.1
+    - **Why:** Deliberate exception to horizontal slicing. It isolates pipeline defects from rules defects: a hash mismatch here is in the machinery; a hash mismatch in slice 2 could be either, and by then the machinery is already proven.
+    - **Evidence:** tests/games/fixture_game.py and tests/games/test_fixture_game.py (24 tests). Three action types (take, gamble, spend), one recorded draw, a limited bank shared by two players, hidden per-player holdings, a token-conservation invariant, and a terminal condition. It already exhibits two behaviours Catan depends on: an exhausted bank makes an action unavailable rather than erroring, and a gamble replayed from its recorded draw reaches a byte-identical state. Two interleaved games through one shared instance cannot interfere (FR-6.5).
+    ```
+
 ### K-008 · Implement the log writer and reader
 
   - tags: [slice-1, core, log, fr-3]
@@ -941,8 +966,6 @@
     - **Evidence:** tests/core/test_log.py (18 tests). Records are written through to_canonical_json, so the log and the hash chain share one serialisation path. Truncation is reported distinctly from malformation, an unknown record type is refused (FR-3.9), a gap in the action sequence is refused by the writer and again by the reader, and a test asserts the god log contains no at/host/pid key while the sidecar carries all three. The writer flushes per record, and a test reads the file while it is still open to prove a crash leaves a parseable prefix.
     ```
 
-
-  - tags: [slice-1, test, registry, fr-6]
 ### K-009 · Implement replay, verify and projection replay
 
   - tags: [slice-1, core, replay, fr-4]
@@ -962,9 +985,6 @@
     - **Evidence:** tests/core/test_replay.py (23 tests) plays the fixture game into a real record and then tampers with it at each mutation site: the state before an action, the state after one, the action itself, an undeclared action type, a draw value, a draw purpose, a dropped draw, a surplus draw, an event payload, the initial state hash, and three fields of the terminal record. Each failure names its kind and its seq, e.g. `seq 1: hash_mismatch: ...`. Replay runs through the normal apply path, so there is no second implementation of the rules, and a recorded rejection replays with an unchanged hash (SC-5). verify keeps one state in a deque while consuming the chain, which is what makes FR-4.4's cheap corpus check real.
     ```
 
-### K-001 · Pin Catan rules in games/catan/RULES.md
-
-  - tags: [slice-0, docs, rules, fr-6, sc-12]
 ### K-010 · Wire the CLI skeleton against the fixture game
 
   - tags: [slice-1, cli, fr-20, fr-21]
@@ -983,8 +1003,6 @@
     - **Fixture finding:** the fixture game could reach a state where the player to act had no legal move (the bank drained into the other player's holding). A gamble is now always legal and gains nothing on an empty bank, so the game cannot livelock - the property FR-22.4 will assert.
     ```
 
-  - priority: high
-  - workload: Normal
 ### K-011 · Add determinism and tamper-detection tests
 
   - tags: [slice-1, test, replay, fr-4, sc-3, sc-4]
@@ -1003,10 +1021,6 @@
     - **Slice 1 exit:** `lgbg new`, `play`, `replay --print-states` and `verify` all run end to end against the fixture game; a recorded game replays with every hash verified; and every mutation named by SC-4 is caught at the right seq with the right reason. The replay machinery is proven before a single rule of Catan exists (PRD M2).
     ```
 
-  - defaultExpanded: true
-  - steps:
-      - [x] Every rule area in PRD-v1 section 8 is stated and cited to the official rulebook
-      - [x] All eight listed ambiguities resolved with chosen interpretation AND the alternative considered
 ### K-012 · Derive board topology and assert structural invariants
 
   - tags: [slice-2, board, test, fr-7, sc-7]
@@ -1031,9 +1045,6 @@
     - **Self-check:** `check_structure` reports broken incidence in both directions, degree and classification disagreements, the handshakes and Euler. It runs at import in the test module (ARCHITECTURE.md 7.5), and `test_the_structural_self_check_has_teeth` drops an edge and asserts it is reported, so the check cannot be vacuous.
     ```
 
-      - [x] Board composition, costs, deck composition and VP values confirmed against the rulebook, not copied from the PRD
-      - [x] Reviewed against PRD-v1 section 8 before any rules code is written
-    ```md
 ### K-013 · Build board layout, ports, number tokens and one curated board
 
   - tags: [slice-2, board, fr-7]
@@ -1057,10 +1068,6 @@
     - **Deferred:** FR-7.7 asks for at least 3 curated boards with documented selection rationale. One ships here; how many more, and chosen for what property, is Q1 and belongs to the maintainer. Recorded as deferred rather than silently unmet; K-066 traces it.
     ```
 
-    - **Cuts through:** rules authority, PRD section 11, every later rules card
-    - **Depends on:** nothing
-    - **PRD:** section 11, SC-12
-    - **Why:** First because every rules card downstream is unverifiable without it. A wrong rule is the one defect that cannot be detected later.
 ### K-014 · Define CatanState and its serialisation
 
   - tags: [slice-2, state, core, fr-1]
@@ -1075,6 +1082,12 @@
     - **Depends on:** K-013, K-003
     - **PRD:** FR-1.5
     - **Evidence:** tests/games/test_catan_state.py (13 tests), lgbg/games/catan/state.py. The state is frozen and slotted (assigning to a field raises, and there is no `__dict__`); a fully populated state round-trips through encode/decode with every field intact; the encoded form contains only JSON types and no floats, asserted by walking it; and the opening state hashes identically for the same seed and differently for another, because the deck differs.
+    - **The field set is fixed now, deliberately.** Later slices need development cards, awards and a trade offer, and `encode_state` is what every recorded hash is computed from: a field added after the golden corpus exists would invalidate it. Fixing the shape in slice 2 costs nothing. The one exception is `Phase`, which is stored by name, so later slices may add phases without touching a hash.
+    - **Encoding choices:** counts sit in a canonical order (`RESOURCE_ORDER`, `CARD_ORDER`) written as a list, with the orders pinned as constants and asserted, because a silently reordered tuple would reinterpret every recorded hand. Occupancy is sparse - `[site, seat]` sorted by site - because a list of seventy-two minus-ones is not something a person reads. The board is encoded with the state (terrain, tokens, ports, its name and the corner the tokens were laid from), so the hash covers the board that decided everything that happened on it.
+    - **One draw:** the opening state shuffles the 25-card deck through draw D5, asserted with its pinned label and argument; nothing else in the opening consumes randomness.
+    - **Not yet:** `initial_state` builds the opening position, but no Game plugin is registered yet. That arrives with the setup phase (K-017), which is the first card that needs decisions rather than just a state.
+    ```
+
 ### K-015 · Build projection v0 for board and pieces
 
   - tags: [slice-2, projection, board, fr-16]
@@ -1095,33 +1108,26 @@
     - **Purity:** observe takes no source of randomness at all - it is not handed one to misuse - and a test asserts that observing twice gives the same answer and leaves the encoded state unchanged (FR-2.6). The observer is a parameter rather than a flag, so a view that differs between players will need no new interface.
     ```
 
-    - **The field set is fixed now, deliberately.** Later slices need development cards, awards and a trade offer, and `encode_state` is what every recorded hash is computed from: a field added after the golden corpus exists would invalidate it. Fixing the shape in slice 2 costs nothing. The one exception is `Phase`, which is stored by name, so later slices may add phases without touching a hash.
-    - **Encoding choices:** counts sit in a canonical order (`RESOURCE_ORDER`, `CARD_ORDER`) written as a list, with the orders pinned as constants and asserted, because a silently reordered tuple would reinterpret every recorded hand. Occupancy is sparse - `[site, seat]` sorted by site - because a list of seventy-two minus-ones is not something a person reads. The board is encoded with the state (terrain, tokens, ports, its name and the corner the tokens were laid from), so the hash covers the board that decided everything that happened on it.
-    - **One draw:** the opening state shuffles the 25-card deck through draw D5, asserted with its pinned label and argument; nothing else in the opening consumes randomness.
-    - **Not yet:** `initial_state` builds the opening position, but no Game plugin is registered yet. That arrives with the setup phase (K-017), which is the first card that needs decisions rather than just a state.
-    ```
+### K-016 · Implement the phase machine and decision requests
 
-    - **Evidence:** `lgbg/games/catan/RULES.md` (1597 lines, LF-only, 124765 bytes), written before any rules code. Seven sources are retrieved and cited, with a precedence pinned in section 2.1: the CATAN Studio 6th-edition rulebook (CN3081, April 2025) is primary, the World Championship 2025 tournament rules win where they say they do, the 5th-edition Games Rules & Almanac, the 25th-anniversary basic rules, the official base-game FAQ and the KOSMOS Big Box manual fill the rest. All eight ambiguities are resolved in section 5 with the alternative considered; section 2.3 lists eleven claims for which no primary source exists, each pinned as a project decision. Section 6 reproduces all 16 Appendix A rows with citations, and no Appendix A *value* disagrees with the rulebook.
-    - **Pointers later cards must use:** `rules_version = "catan-rules-1"` (section 1.2; any pinned-rule change bumps it and invalidates the golden corpus). Section 3.1 pins all nine random draw sites with their kind, args and purpose labels, including "two independent randint(1,6), never one randint(2,12)" and "purchase performs no draw" - K-023, K-027 and K-040 must use those labels. Section 5.10 pins 22 further interpretations, notably that Longest Road is the maximum over simple paths *and* simple cycles: a simple-path-only search would contradict the FAQ's six-roads-in-a-hexagon answer.
-    - **One claim is verified rather than assumed:** the pinned number-token sequence produces zero adjacent 6/8 pairs over all 114 (starting corner, desert position) configurations, whereas ascending or descending numeric order produces adjacent reds in all 114 (section 2.3).
-    - **PRD corrections (D-1 to D-4, section 6.2):** no Appendix A value disagrees, but four PRD statements need correction: 54 vertices and 72 edges are *derived*, not stated by any rulebook; FR-10.4's general case is all-or-nothing per resource, with a partial grant only when exactly one player is affected; FR-8.4 grants one card *per adjacent hex*, not one of each resource; FR-10.1's `(knight)` is an example, since any playable development card may precede the roll. Later cards must follow RULES.md: K-018 (FR-8.4), K-024 (FR-10.4) and K-022 (FR-10.1).
-    ```
-
-  - priority: medium
-  - workload: Easy
+  - tags: [slice-2, phases, core, fr-9]
+  - priority: high
+  - workload: Hard
   - defaultExpanded: true
   - steps:
-      - [x] A minimal toy game with two or three action types, one random draw, and a terminal condition
-      - [x] Implemented purely as a test asset, not shipped as a real game
-      - [x] Exercises the full protocol without any real rules
-      - [x] Retained permanently after slice 1 and re-run by the slice-8 harness
+      - [x] Phases produce decision requests rather than driving control flow
+      - [x] Several requests can be open simultaneously
+      - [x] Resolution order is deterministic and independent of arrival order
+      - [x] Every transition emits a phase_started event and a phase record
     ```md
-    - **Cuts through:** the registry, every core component, all later integration tests
-    - **Depends on:** K-004, K-005, K-006
-    - **PRD:** FR-6.1
-    - **Why:** Deliberate exception to horizontal slicing. It isolates pipeline defects from rules defects: a hash mismatch here is in the machinery; a hash mismatch in slice 2 could be either, and by then the machinery is already proven.
-    - **Evidence:** tests/games/fixture_game.py and tests/games/test_fixture_game.py (24 tests). Three action types (take, gamble, spend), one recorded draw, a limited bank shared by two players, hidden per-player holdings, a token-conservation invariant, and a terminal condition. It already exhibits two behaviours Catan depends on: an exhausted bank makes an action unavailable rather than erroring, and a gamble replayed from its recorded draw reaches a byte-identical state. Two interleaved games through one shared instance cannot interfere (FR-6.5).
+    - **Cuts through:** phases.py, pending_decisions, state, events, the log's phase records
+    - **Depends on:** K-014
+    - **PRD:** FR-9.1 to FR-9.4
+    - **Why:** The decision queue is the central abstraction. A turn counter cannot express concurrent or out-of-turn decisions, and special-casing them is where rule bugs live.
+    - **Evidence:** tests/games/test_catan_phases.py (16 tests) plus a core test for the phase record in tests/core/test_run.py. A phase is a declared rule: who is asked, and where the game goes once nobody is; pending_decisions derives from that table, so a phase that exists only as a name cannot silently answer with nothing - it raises. Several decisions open at once is exercised through the discard phase (three players over the limit, in seat order); the transition into it on a seven arrives with K-025, and the robber phase's rules with K-026.
+    - **Resolution order:** seat order, then request identifier. The test feeds resolution_order a reversed list, and rebuilds it from a state reached a different way, because a record produced by four players deciding concurrently must be byte-identical to one produced by them deciding in turn (FR-9.3).
+    - **Events and records:** the machine emits phase_started, and the runtime keys on that event type to write a phase record - so a game never invents a record type of its own (FR-3.9), and a log can be read without replaying it. The event name is a core constant, and the record is verified by replay like everything else.
+    - **Design change found by a test:** the draft's progress was a setup_selections counter in the state, which the machine would have had to keep consistent with the pieces on the board. Two counters that must agree is a bug farm, so the counter is gone and progress is derived from the placements: the settlement phase closes when settlements lead roads. Changing the state's shape costs nothing today, and would cost a corpus tomorrow.
+    - **Why the whole phase vocabulary is named now:** a phase is stored by name in the encoded state, and the encoding is what every hash covers. Naming every phase once, in the slice that is cheap to change, avoids renaming one later and invalidating the golden corpus.
     ```
-
-
 

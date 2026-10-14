@@ -24,7 +24,7 @@ from lgbg.core.game import Applied, Rejected
 from lgbg.core.log import GameLogReader, LogFormatError, god_log_path, sidecar_path
 from lgbg.core.replay import replay, verify
 from lgbg.core.run import AmbiguousRequestError, GameRun
-from lgbg.core.types import Action, DecisionRequest
+from lgbg.core.types import PHASE_STARTED_EVENT, Action, DecisionRequest, Event
 from tests.games.fixture_game import FixtureGame
 
 SEED: Final[int] = 31337
@@ -54,6 +54,29 @@ class _TwoRequestsAtOnce(FixtureGame):
                 phase="play",
             ),
         ]
+
+
+class _PhaseAnnouncing(FixtureGame):
+    """The fixture again, announcing a phase transition whenever an action is accepted."""
+
+    def apply(self, state: Any, action: Action, rng: Any) -> Any:
+        result = super().apply(state, action, rng)
+        if not isinstance(result, Applied):
+            return result
+        return Applied(
+            state=result.state,
+            events=[
+                *result.events,
+                Event(
+                    type=PHASE_STARTED_EVENT,
+                    payload={
+                        "index": state.decisions + 1,
+                        "phase": "play",
+                        "turn": result.state.turn,
+                    },
+                ),
+            ],
+        )
 
 
 def _run(tmp_path: Path | None = None, game: FixtureGame | None = None, **config: Any) -> GameRun:
@@ -262,6 +285,26 @@ def test_a_recorded_game_replays_and_verifies(tmp_path: Path) -> None:
     assert report.rejections == 1
     assert len(replayed.states) == report.actions + 1
     assert hash_state(replayed.states[-1], FixtureGame()) == report.terminal_hash
+
+
+def test_a_phase_transition_becomes_a_phase_record(tmp_path: Path) -> None:
+    """FR-9.4: the game announces the transition, and the runtime owns the record type.
+
+    A game carries its narrative in events and never invents a record of its own (FR-3.9), so
+    the runtime turns the announcement into a record - which is then redundant with the event,
+    and verified by replay like everything else.
+    """
+    run = _run(tmp_path, game=_PhaseAnnouncing())
+    _act(run, "take")
+    _act(run, "take")
+    run.finish()
+
+    log = GameLogReader(god_log_path(tmp_path, "g-0001")).read()
+
+    assert [record.phase for record in log.phases] == ["play", "play"]
+    assert [record.seq for record in log.phases] == [1, 2]
+    assert dict(log.phases[0].detail) == {"index": 1, "turn": 1}
+    assert verify(log, _PhaseAnnouncing()).actions == 2
 
 
 def test_the_run_exposes_the_open_decisions(tmp_path: Path) -> None:

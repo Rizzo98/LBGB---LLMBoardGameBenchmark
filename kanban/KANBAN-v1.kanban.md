@@ -7,21 +7,6 @@
 
 ## Backlog
 
-### K-017 · Implement the setup snake draft
-
-  - tags: [slice-2, rules, setup, fr-8]
-  - priority: high
-  - workload: Normal
-  - steps:
-      - [ ] Order 0,1,2,3,3,2,1,0
-      - [ ] Each selection is a settlement placement followed by an adjacent road
-      - [ ] Distance rule and connectivity enforced with specific game rejection codes
-      - [ ] Setup expressed entirely as decision requests, with no special-cased code path
-    ```md
-    - **Cuts through:** rules/setup, phase machine, projection, rejection codes
-    - **Depends on:** K-016
-    - **PRD:** FR-8.1, FR-8.2, FR-8.3, FR-8.5
-    ```
 
 ### K-018 · Implement the bank and starting endowment
 
@@ -1062,6 +1047,69 @@
     - **PRD:** FR-7.4, FR-7.5, FR-7.6
     - **Why:** Blocked by open question Q1: how many curated boards, and chosen for what property.
     - **Evidence:** tests/games/test_board_layout.py (61 tests), lgbg/games/catan/board/layout.py, generation.py, boards/standard_a.json.
+### K-014 · Define CatanState and its serialisation
+
+  - tags: [slice-2, state, core, fr-1]
+  - priority: high
+  - workload: Normal
+  - steps:
+      - [x] Frozen, slotted dataclasses; integers only; no floats, sets or unordered iteration
+      - [x] encode_state is total: every reachable state serialises without error
+      - [x] The initial state hashes deterministically for a given seed and board
+    ```md
+    - **Cuts through:** state.py, core/canonical, the hash chain
+    - **Depends on:** K-013, K-003
+    - **PRD:** FR-1.5
+    - **Evidence:** tests/games/test_catan_state.py (13 tests), lgbg/games/catan/state.py. The state is frozen and slotted (assigning to a field raises, and there is no `__dict__`); a fully populated state round-trips through encode/decode with every field intact; the encoded form contains only JSON types and no floats, asserted by walking it; and the opening state hashes identically for the same seed and differently for another, because the deck differs.
+    - **The field set is fixed now, deliberately.** Later slices need development cards, awards and a trade offer, and `encode_state` is what every recorded hash is computed from: a field added after the golden corpus exists would invalidate it. Fixing the shape in slice 2 costs nothing. The one exception is `Phase`, which is stored by name, so later slices may add phases without touching a hash.
+    - **Encoding choices:** counts sit in a canonical order (`RESOURCE_ORDER`, `CARD_ORDER`) written as a list, with the orders pinned as constants and asserted, because a silently reordered tuple would reinterpret every recorded hand. Occupancy is sparse - `[site, seat]` sorted by site - because a list of seventy-two minus-ones is not something a person reads. The board is encoded with the state (terrain, tokens, ports, its name and the corner the tokens were laid from), so the hash covers the board that decided everything that happened on it.
+    - **One draw:** the opening state shuffles the 25-card deck through draw D5, asserted with its pinned label and argument; nothing else in the opening consumes randomness.
+    - **Not yet:** `initial_state` builds the opening position, but no Game plugin is registered yet. That arrives with the setup phase (K-017), which is the first card that needs decisions rather than just a state.
+    ```
+
+### K-015 · Build projection v0 for board and pieces
+
+  - tags: [slice-2, projection, board, fr-16]
+  - priority: medium
+  - workload: Normal
+  - steps:
+      - [x] observe returns the board, the robber position and every player's placed pieces
+      - [x] Built from an explicit allow-list, never a deny-list
+      - [x] NullRandomSource proves observe consumes no randomness
+      - [x] Resource hands are deliberately absent; they arrive in slice 3
+    ```md
+    - **Cuts through:** projection.py, state, the observation schema sketch, CLI inspect
+    - **Depends on:** K-014
+    - **PRD:** FR-16.5, FR-16.7
+    - **Evidence:** tests/games/test_catan_projection.py (18 tests), lgbg/games/catan/projection.py. The observation is assembled by walking a declared list of (name, extractor) pairs, so the keys are exactly the allow-list and a field added to the state cannot reach anyone's view until somebody names it here. That is FR-16.5 as a mechanism rather than a promise: `test_the_observation_holds_exactly_the_allowed_fields` fails the moment the two diverge.
+    - **Two projections, tested apart:** the spectator's is the player's allow-list plus the fields the god view holds back, and the test asserts it is a strict superset rather than a copy. With hidden victory-point cards, who is ahead is not determinable from any player's view, which is why the spectator projection is its own artefact (FR-16.7).
+    - **Public now:** the board with terrain and tokens, the nine ports, the robber, every player's placed settlements, cities and roads, the supply of unbuilt pieces, the bank, the turn, the phase, the round, the dice and the two awards. Hidden now, on purpose: hands, the deck, cards bought this turn. Each arrives with the slice that needs it and with the leak test that proves it does not escape (FR-16.6, K-065).
+    - **Purity:** observe takes no source of randomness at all - it is not handed one to misuse - and a test asserts that observing twice gives the same answer and leaves the encoded state unchanged (FR-2.6). The observer is a parameter rather than a flag, so a view that differs between players will need no new interface.
+    ```
+
+### K-016 · Implement the phase machine and decision requests
+
+  - tags: [slice-2, phases, core, fr-9]
+  - priority: high
+  - workload: Hard
+  - defaultExpanded: true
+  - steps:
+      - [x] Phases produce decision requests rather than driving control flow
+      - [x] Several requests can be open simultaneously
+      - [x] Resolution order is deterministic and independent of arrival order
+      - [x] Every transition emits a phase_started event and a phase record
+    ```md
+    - **Cuts through:** phases.py, pending_decisions, state, events, the log's phase records
+    - **Depends on:** K-014
+    - **PRD:** FR-9.1 to FR-9.4
+    - **Why:** The decision queue is the central abstraction. A turn counter cannot express concurrent or out-of-turn decisions, and special-casing them is where rule bugs live.
+    - **Evidence:** tests/games/test_catan_phases.py (16 tests) plus a core test for the phase record in tests/core/test_run.py. A phase is a declared rule: who is asked, and where the game goes once nobody is; pending_decisions derives from that table, so a phase that exists only as a name cannot silently answer with nothing - it raises. Several decisions open at once is exercised through the discard phase (three players over the limit, in seat order); the transition into it on a seven arrives with K-025, and the robber phase's rules with K-026.
+    - **Resolution order:** seat order, then request identifier. The test feeds resolution_order a reversed list, and rebuilds it from a state reached a different way, because a record produced by four players deciding concurrently must be byte-identical to one produced by them deciding in turn (FR-9.3).
+    - **Events and records:** the machine emits phase_started, and the runtime keys on that event type to write a phase record - so a game never invents a record type of its own (FR-3.9), and a log can be read without replaying it. The event name is a core constant, and the record is verified by replay like everything else.
+    - **Design change found by a test:** the draft's progress was a setup_selections counter in the state, which the machine would have had to keep consistent with the pieces on the board. Two counters that must agree is a bug farm, so the counter is gone and progress is derived from the placements: the settlement phase closes when settlements lead roads. Changing the state's shape costs nothing today, and would cost a corpus tomorrow.
+    - **Why the whole phase vocabulary is named now:** a phase is stored by name in the encoded state, and the encoding is what every hash covers. Naming every phase once, in the slice that is cheap to change, avoids renaming one later and invalidating the golden corpus.
+    ```
+
 ### K-017 · Implement the setup snake draft
 
   - tags: [slice-2, rules, setup, fr-8]

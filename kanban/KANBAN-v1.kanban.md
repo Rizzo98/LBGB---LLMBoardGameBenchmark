@@ -11,21 +11,6 @@
 
 
 
-### K-021 · Commit golden game 1: setup through terminal
-
-  - tags: [slice-2, test, acceptance, sc-1]
-  - priority: medium
-  - workload: Easy
-  - steps:
-      - [ ] A scripted setup-only game is committed as a fixture
-      - [ ] Its god log replays with every hash verified
-      - [ ] It fails loudly if any rule in slice 2 regresses
-    ```md
-    - **Cuts through:** everything in slice 2
-    - **Depends on:** K-020
-    - **PRD:** SC-1
-    - **Why:** Slice 2 exit: replay with --print-states renders the board after each of the eight opening placements and every hash verifies.
-    ```
 
 ### K-022 · Open the turn with a roll decision
 
@@ -1147,4 +1132,26 @@
     - **Ambiguity is an error, not a guess** (FR-21.2): with two decisions open for one player, an action that names neither fails with both request identifiers in the message. The test uses an out-of-tree plugin with two open requests, which is also the case the Catan discard phase will exercise at K-025.
     - **Q6 answered as 'not this release':** `play --interactive` reads one JSON action per line from standard input, so a game can be driven by hand (FR-20.2), but an interactive session is not written back into a scripted file. The record on disk is still a full record, so a session can be replayed, verified and inspected like a scripted one; recording is a convenience, not a gap in the evidence.
     - **`--board` is the game's extra detail level.** The CLI stays game-agnostic: it prints what the game's own renderer says a projection looks like (ARCHITECTURE.md 11.3). `full` and `compact` are required of any game; `board` is Catan's own.
+    ```
+
+### K-021 · Commit golden game 1: setup through terminal
+
+  - tags: [slice-2, test, acceptance, sc-1]
+  - priority: medium
+  - workload: Easy
+  - steps:
+      - [x] A scripted setup-only game is committed as a fixture
+      - [x] Its god log replays with every hash verified
+      - [x] It fails loudly if any rule in slice 2 regresses
+    ```md
+    - **Cuts through:** everything in slice 2
+    - **Depends on:** K-020
+    - **PRD:** SC-1
+    - **Why:** Slice 2 exit: replay with --print-states renders the board after each of the eight opening placements and every hash verifies.
+    - **Evidence:** tests/golden/test_golden_games.py (9 tests), with the fixture in two halves: tests/fixtures/catan/setup_game.json is the scripted input, and tests/golden/catan/setup_game.god.jsonl is the record it produced - 16 actions, 16 phase records, 34 lines, 9612 bytes. `lgbg verify tests/golden` reports `16 action(s), 0 rejection(s), final hash 90d1be41a7d264c0`, and `replay --print-states` renders the board after every placement.
+    - **The regression net was demonstrated, not asserted.** With the snake order deliberately broken to ascending-only, three golden tests failed - hash verification, the byte-for-byte reproduction, and the rendering walk - and all nine passed again on revert. That is the property the card claims: a rule that moves a hash cannot pass unnoticed, so the change must be a deliberate decision to bump `rules_version` and regenerate (ARCHITECTURE.md 15.3).
+    - **The fixture is played, not written.** scripts/make_golden_setup.py asks the game for its own legal actions, so the script cannot drift from the rules it pins; it is committed so the provenance of the record is reproducible rather than remembered.
+    - **Hashes pinned as literals as well as bytes.** The initial state hash `ef8474ab042614f9` and the final `90d1be41a7d264c0` are literals in the test, so even a careless regeneration of the golden file fails until someone reads the diff.
+    - **Only the deterministic half is committed.** The sidecar is left behind: it holds the wall clock and the host, and the point of the split is that nothing like that can be in the record. A test asserts the record has no `at`, `host` or `pid`, and no carriage returns.
+    - **Slice 2 exit.** Board, layout, ports, tokens, state, projection, phase machine, setup draft, endowment, notation and the CLI all run against real Catan, and their interaction is pinned by a game that replays. Slice 3 - the turn structure, dice and production - starts on top of a substrate whose divergence would be caught before a rule is added to it.
     ```

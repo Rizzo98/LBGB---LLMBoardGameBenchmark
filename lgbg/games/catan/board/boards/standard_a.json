@@ -1,0 +1,74 @@
+{
+  "name": "standard_a",
+  "rationale": "Curated under three checkable constraints, asserted by tests/games/test_board_layout.py. (1) No two hexes of the same terrain are adjacent, so every intersection touches at most one hex of each resource: no player can hold a spot that produces the same thing twice. (2) The desert is the centre hex, so the robber's opening position borders six hexes. (3) The nine harbour edges are spread evenly around the 30-edge coast, three or four edges apart, with the five specific 2:1 ports spread among the four generics. The arrangement satisfying (1) and (2) was found by search in scripts/author_standard_a.py rather than chosen by eye; this file stores the result, and the tests are what protect the properties.",
+  "number_placement": "spiral_no_adjacent_red",
+  "number_start_hex": 0,
+  "terrain": [
+    "field",
+    "hills",
+    "forest",
+    "forest",
+    "mountains",
+    "pasture",
+    "mountains",
+    "pasture",
+    "field",
+    "desert",
+    "hills",
+    "field",
+    "mountains",
+    "forest",
+    "field",
+    "pasture",
+    "hills",
+    "pasture",
+    "forest"
+  ],
+  "ports": [
+    {
+      "edge": 0,
+      "ratio": 3,
+      "resource": null
+    },
+    {
+      "edge": 6,
+      "ratio": 2,
+      "resource": "wood"
+    },
+    {
+      "edge": 22,
+      "ratio": 3,
+      "resource": null
+    },
+    {
+      "edge": 53,
+      "ratio": 2,
+      "resource": "brick"
+    },
+    {
+      "edge": 71,
+      "ratio": 3,
+      "resource": null
+    },
+    {
+      "edge": 68,
+      "ratio": 2,
+      "resource": "wool"
+    },
+    {
+      "edge": 57,
+      "ratio": 3,
+      "resource": null
+    },
+    {
+      "edge": 39,
+      "ratio": 2,
+      "resource": "wheat"
+    },
+    {
+      "edge": 12,
+      "ratio": 2,
+      "resource": "ore"
+    }
+  ]
+}

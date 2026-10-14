@@ -7,24 +7,6 @@
 
 ## Backlog
 
-### K-013 · Build board layout, ports, number tokens and one curated board
-
-  - tags: [slice-2, board, fr-7]
-  - priority: high
-  - workload: Normal
-  - steps:
-      - [ ] Canonical hex arrangement implemented
-      - [ ] 9 ports placed with the 4 by 3:1 and 5 by 2:1 distribution
-      - [ ] Number placement follows the rule pinned in RULES.md
-      - [ ] One curated fixed board loads from JSON data
-      - [ ] Random generation consumes recorded draws
-    ```md
-    - **Cuts through:** board/layout, board/generation, curated board data loading
-    - **Depends on:** K-012
-    - **PRD:** FR-7.4, FR-7.5, FR-7.6
-    - **Why:** Blocked by open question Q1: how many curated boards, and chosen for what property.
-    ```
-
 ### K-014 · Define CatanState and its serialisation
 
   - tags: [slice-2, state, core, fr-1]
@@ -1083,6 +1065,29 @@
       - [x] Board composition, costs, deck composition and VP values confirmed against the rulebook, not copied from the PRD
       - [x] Reviewed against PRD-v1 section 8 before any rules code is written
     ```md
+### K-013 · Build board layout, ports, number tokens and one curated board
+
+  - tags: [slice-2, board, fr-7]
+  - priority: high
+  - workload: Normal
+  - steps:
+      - [x] Canonical hex arrangement implemented
+      - [x] 9 ports placed with the 4 by 3:1 and 5 by 2:1 distribution
+      - [x] Number placement follows the rule pinned in RULES.md
+      - [x] One curated fixed board loads from JSON data
+      - [x] Random generation consumes recorded draws
+    ```md
+    - **Cuts through:** board/layout, board/generation, curated board data loading
+    - **Depends on:** K-012
+    - **PRD:** FR-7.4, FR-7.5, FR-7.6
+    - **Why:** Blocked by open question Q1: how many curated boards, and chosen for what property.
+    - **Evidence:** tests/games/test_board_layout.py (61 tests), lgbg/games/catan/board/layout.py, generation.py, boards/standard_a.json.
+    - **Number tokens:** the spiral walk starts at an outer corner, goes round the ring, steps inward on the same ray and finishes at the centre; every consecutive pair is adjacent, asserted from all six corners. The pinned sequence T of RULES.md 4.2 then goes on the 18 non-desert hexes in walk order, and the red-number rule is asserted for **all 114 (desert position, starting corner) boards**, not a sample. The repair is a guard, exercised both ways: it fixes a board with one defective pair, and it refuses loudly rather than emitting a defective board when no swap can help.
+    - **Draws:** a random board consumes exactly the draws RULES.md 3.1 pins - terrain D1 (19 faces), the corner D2 (choice of 6) or the token order D3 (18 tokens), and the port faces D4 (9 faces) - with the pinned labels and arguments. A curated board consumes **none**, asserted, because comparability across runs is what fixed boards are for. `board_from_selector` resolves `random` and `fixed:<name>` (FR-7.4).
+    - **Curation, and why it is checkable:** the rulebook shuffles terrain in the variable setup and shows the fixed layout only as a picture, so a curated board is curation. standard_a holds three constraints and the tests assert them: no two hexes of the same terrain are adjacent (so no intersection produces the same resource twice); the desert is the centre hex, so the robber's opening position borders six; and the nine harbour edges are evenly spread around the 30-edge coast, three or four apart, with the five specific 2:1 ports spread among the four generics. The arrangement was found by search, and `scripts/author_standard_a.py` reproduces it deterministically.
+    - **Deferred:** FR-7.7 asks for at least 3 curated boards with documented selection rationale. One ships here; how many more, and chosen for what property, is Q1 and belongs to the maintainer. Recorded as deferred rather than silently unmet; K-066 traces it.
+    ```
+
     - **Cuts through:** rules authority, PRD section 11, every later rules card
     - **Depends on:** nothing
     - **PRD:** section 11, SC-12

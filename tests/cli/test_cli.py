@@ -78,6 +78,46 @@ def _winning_script(tmp_path: Path) -> Path:
     return _script(tmp_path, steps)
 
 
+def _script_for(
+    tmp_path: Path,
+    game: str,
+    actions: list[dict[str, Any]],
+    *,
+    players: int = 2,
+    extra_config: dict[str, Any] | None = None,
+) -> Path:
+    """A scripted file for any registered game, so a test can pick the one it needs."""
+    path = tmp_path / f"{game}.json"
+    config: dict[str, Any] = {
+        "seed": SEED,
+        "players": players,
+        "interaction_protocol": PROTOCOL,
+    }
+    config.update(extra_config or {})
+    path.write_text(
+        json.dumps({"game": game, "config": config, "actions": actions}, indent=2),
+        encoding="utf-8",
+    )
+    return path
+
+
+def _catan_script(tmp_path: Path) -> Path:
+    """A two-action Catan draft: enough for a real board to render through the CLI."""
+    from lgbg.games.catan.board.topology import standard_topology
+
+    edge = standard_topology().edges_at(4)[0]
+    return _script_for(
+        tmp_path,
+        "catan",
+        [
+            {"player": 0, "type": "place_settlement", "params": {"vertex": 4}},
+            {"player": 0, "type": "place_road", "params": {"edge": edge}},
+        ],
+        players=4,
+        extra_config={"board": "fixed:standard_a"},
+    )
+
+
 def _capsys_text(captured: pytest.CaptureFixture[str]) -> tuple[str, str]:
     """Everything printed since the last read, and clear the buffer."""
     result = captured.readouterr()
@@ -261,6 +301,39 @@ def test_replay_reports_every_action(capsys: pytest.CaptureFixture[str], tmp_pat
     assert "seq 0" in out
     assert "seq 1" in out
     assert "verified" in out
+
+
+def test_replay_renders_states_with_the_games_own_notation(
+    capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
+    """FR-19.4 and ARCHITECTURE.md 11.3: one renderer, used by the CLI and later by prompts."""
+    script = _catan_script(tmp_path)
+    out_dir = tmp_path / "run"
+    assert main(["play", "--script", str(script), "--out", str(out_dir)]) == 0
+    capsys.readouterr()
+
+    assert main(["replay", str(god_log_path(out_dir, "g-0001")), "--print-states"]) == 0
+
+    out, _err = _capsys_text(capsys)
+    assert "catan |" in out, "the game's notation names the game"
+    assert "board:" in out, "and lays the board out as a board"
+
+
+def test_replay_can_render_compactly(capsys: pytest.CaptureFixture[str], tmp_path: Path) -> None:
+    script = _catan_script(tmp_path)
+    out_dir = tmp_path / "run"
+    assert main(["play", "--script", str(script), "--out", str(out_dir)]) == 0
+    capsys.readouterr()
+    log = str(god_log_path(out_dir, "g-0001"))
+
+    assert main(["replay", log, "--print-states"]) == 0
+    full, _ = _capsys_text(capsys)
+    assert main(["replay", log, "--print-states", "--compact"]) == 0
+    compact, _ = _capsys_text(capsys)
+
+    assert compact.count("\n") < full.count("\n")
+    assert len(compact) < len(full)
+    assert "catan |" in compact
 
 
 def test_replay_can_print_every_intermediate_state(

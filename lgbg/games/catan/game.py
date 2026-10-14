@@ -44,12 +44,13 @@ from lgbg.core.types import (
     Outcome,
     PlayerId,
 )
-from lgbg.games.catan import phases
+from lgbg.games.catan import notation, phases
 from lgbg.games.catan.board.generation import (
     NUMBER_PLACEMENTS,
     NUMBER_SPIRAL_NO_ADJACENT_RED,
     board_from_selector,
 )
+from lgbg.games.catan.notation import Detail
 from lgbg.games.catan.projection import observe as project
 from lgbg.games.catan.projection import observe_spectator as project_spectator
 from lgbg.games.catan.rejections import DECLARED_CODES
@@ -161,6 +162,10 @@ class CatanGame:
 
     def observe_spectator(self, state: CatanState) -> Observation:
         return project_spectator(state)
+
+    def render(self, observation: Observation, *, detail: str = "full") -> str:
+        """The game's own notation, and the only renderer: the CLI and the prompt share it."""
+        return notation.render(observation, detail=Detail(detail))
 
     # --- terminality ---
     def is_terminal(self, state: CatanState) -> bool:

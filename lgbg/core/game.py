@@ -141,6 +141,16 @@ class Game(Protocol):
 
     def observe_spectator(self, state: State) -> Observation: ...
 
+    def render(self, observation: Observation, *, detail: str = "full") -> str:
+        """Write an observation down, in the detail level asked for.
+
+        Notation belongs to the game: which facts matter and how to abbreviate them is a fact
+        about one game, not about games. Declaring it here is what keeps the CLI, and later
+        the prompt generator and the MCP resources, on one renderer (ARCHITECTURE.md section
+        11.3): divergent renderings across surfaces would confound what is being measured.
+        """
+        ...
+
     # --- terminality ---
     def is_terminal(self, state: State) -> bool: ...
 

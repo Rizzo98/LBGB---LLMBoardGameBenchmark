@@ -18,6 +18,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Final
 
+from lgbg.core.canonical import to_canonical_json
 from lgbg.core.config import GameConfig
 from lgbg.core.errors import (
     GAME_OVER,
@@ -210,6 +211,10 @@ class FixtureGame:
             "tokens": {str(index): tokens for index, tokens in enumerate(state.tokens)},
             "turn": state.turn,
         }
+
+    def render(self, observation: Observation, *, detail: str = "full") -> str:
+        """A toy game's notation: the observation, canonically. Nothing is abbreviated here."""
+        return to_canonical_json(observation)
 
     # --- terminality ---
     def is_terminal(self, state: FixtureState) -> bool:

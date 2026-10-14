@@ -9,20 +9,6 @@
 
 
 
-### K-019 · Implement notation v0 for board rendering
-
-  - tags: [slice-2, notation, cli, fr-19]
-  - priority: medium
-  - workload: Normal
-  - steps:
-      - [ ] A full and a compact rendering of a projection, both stable and deterministic
-      - [ ] Both are consumed by the CLI so a human can follow a game without reading JSON
-      - [ ] The renderer is the single source used later by prompts and MCP resources
-    ```md
-    - **Cuts through:** notation.py, projection, CLI, later the prompt
-    - **Depends on:** K-015
-    - **PRD:** FR-19.4
-    ```
 
 ### K-020 · Run the CLI against real Catan
 
@@ -1134,4 +1120,25 @@
     - **The criterion's wording is the PRD's shorthand, and RULES.md corrects it.** FR-8.4 says one of each resource from the adjacent non-desert hexes; correction D-3 pins one card **per adjacent hex**, of that hex's type, so two forest hexes next to one settlement grant two wood. That is what is implemented, and what test_two_hexes_of_the_same_terrain_grant_two_cards asserts. The distinction is the whole reason a player chooses a corner, so it is not a wording detail.
     - **Exhaustion is defined, not accidental:** the entitlements are taken in the order the second settlements were placed - seats 3, 2, 1, 0 - which falls out of endowing immediately rather than being a separate rule, and a short bank gives what remains while the shortfall is lost (RULES.md 4.3 item 8, a pinned project decision with no primary source). The endowment event names what was granted and what was lost, so the record explains a shortfall instead of merely containing one.
     - **A test double, and why:** the curated board's balance property is that no vertex sees the same terrain twice, so the two-hexes-two-cards case cannot be exercised on it. The test builds a board with two forest hexes at one vertex - a deliberate double, not a board the engine can generate.
+    ```
+
+### K-019 · Implement notation v0 for board rendering
+
+  - tags: [slice-2, notation, cli, fr-19]
+  - priority: medium
+  - workload: Normal
+  - steps:
+      - [x] A full and a compact rendering of a projection, both stable and deterministic
+      - [x] Both are consumed by the CLI so a human can follow a game without reading JSON
+      - [x] The renderer is the single source used later by prompts and MCP resources
+    ```md
+    - **Cuts through:** notation.py, projection, CLI, later the prompt
+    - **Depends on:** K-015
+    - **PRD:** FR-19.4
+    - **Evidence:** tests/games/test_catan_notation.py (14 tests), lgbg/games/catan/notation.py, plus two CLI tests driving `replay --print-states` and `--compact` against a real Catan record.
+    - **The board is laid out as a board.** The hexes are numbered row by row, and the renderer derives the rows from how many hexes there are: a hexagon of radius r has 3r(r+1)+1 hexes in rows of r+1 ... 2r+1 ... r+1, so the full rendering reproduces the shape - five rows of 3, 4, 5, 4, 3 - rather than listing nineteen lines. Spatial reasoning is one of the things this benchmark measures, so the rendering must not flatten the board.
+    - **Two details that differ only in shape.** Full is aligned and multi-line; compact is one line per projection for a token budget. A test asserts that the facts of one are present in the other, so a rendering cannot quietly lose something.
+    - **The renderer never decides what may be seen.** It renders the projection it is handed, field by field, and a field the projection left out cannot appear - asserted by rendering one player's view and the spectator's and checking that hands appears in exactly one of them. An unrecognised field is rendered rather than dropped, deliberately: rendering fails open, because the allow-list in projection.py is the only gate.
+    - **The seam that keeps the CLI game-agnostic:** a `render` member on the Game protocol, so a game declares how its own projections are written down. The CLI calls it without knowing what a board is (ARCHITECTURE.md 11.3), and the prompt generator and MCP resources will call the same one. Adding a protocol member is the planned revision of ARCHITECTURE.md 17.5, not a workaround.
+    - **A rendering is not the record.** The hashed state is still `encode_state`; notation is a projection of a projection, so a change of wording cannot invalidate a record - and the tests keep that distinction by asserting stability rather than the exact text of a paragraph.
     ```

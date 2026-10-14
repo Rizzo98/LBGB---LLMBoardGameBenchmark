@@ -83,6 +83,11 @@ def build_parser() -> argparse.ArgumentParser:
     replay_command.add_argument(
         "--print-states", action="store_true", help="print the state after every action"
     )
+    replay_command.add_argument(
+        "--compact",
+        action="store_true",
+        help="render the printed states compactly, for reading a long game",
+    )
 
     verify_command = commands.add_parser(
         "verify", help="verify a record, or every record in a directory"
@@ -229,9 +234,13 @@ def _replay(args: argparse.Namespace) -> int:
 
     replayed = replay(log, game)
 
+    detail = "compact" if args.compact else "full"
     print(f"game: {log.header.game} ({log.header.game_id})  rules {log.header.rules_version}")
     if args.print_states:
-        print(f"initial state: {to_canonical_json(game.encode_state(replayed.states[0]))}")
+        # Rendered by the game's own notation, through the protocol: the CLI does not know
+        # what a board looks like, and must not learn (ARCHITECTURE.md section 11.3).
+        print("initial state:")
+        print(game.render(game.observe_spectator(replayed.states[0]), detail=detail))
     for index, record in enumerate(log.actions):
         status = "ok" if record.result.get("ok") is True else f"rejected {record.result['error']}"
         print(
@@ -239,10 +248,8 @@ def _replay(args: argparse.Namespace) -> int:
             f"{record.state_hash_prev} -> {record.state_hash}"
         )
         if args.print_states:
-            print(
-                f"state after seq {record.seq}: "
-                f"{to_canonical_json(game.encode_state(replayed.states[index + 1]))}"
-            )
+            print(f"state after seq {record.seq}:")
+            print(game.render(game.observe_spectator(replayed.states[index + 1]), detail=detail))
     print(
         f"verified {replayed.actions} action(s), {replayed.rejections} rejection(s); "
         f"final hash {replayed.terminal_hash}"

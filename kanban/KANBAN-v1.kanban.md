@@ -25,23 +25,6 @@
 
 ## Backlog
 
-### K-008 · Implement the log writer and reader
-
-  - tags: [slice-1, core, log, fr-3]
-  - priority: high
-  - workload: Normal
-  - steps:
-      - [ ] Header, action and terminal records written in order with a monotonic seq
-      - [ ] Rejected actions produce a record whose state_hash equals state_hash_prev
-      - [ ] A truncated file reports truncation rather than raising an opaque parse error
-      - [ ] Unknown schema major version is rejected clearly
-      - [ ] No timestamp, hostname or pid appears in the god log; they go to the sidecar
-    ```md
-    - **Cuts through:** core/log, core/canonical, the fixture game, the sidecar split
-    - **Depends on:** K-003, K-007
-    - **PRD:** FR-3.1 to FR-3.9
-    ```
-
 ### K-009 · Implement replay, verify and projection replay
 
   - tags: [slice-1, core, replay, fr-4]
@@ -1076,6 +1059,24 @@
     ```
 
 ### K-007 · Build the fixture game as a permanent test canary
+### K-008 · Implement the log writer and reader
+
+  - tags: [slice-1, core, log, fr-3]
+  - priority: high
+  - workload: Normal
+  - steps:
+      - [x] Header, action and terminal records written in order with a monotonic seq
+      - [x] Rejected actions produce a record whose state_hash equals state_hash_prev
+      - [x] A truncated file reports truncation rather than raising an opaque parse error
+      - [x] Unknown schema major version is rejected clearly
+      - [x] No timestamp, hostname or pid appears in the god log; they go to the sidecar
+    ```md
+    - **Cuts through:** core/log, core/canonical, the fixture game, the sidecar split
+    - **Depends on:** K-003, K-007
+    - **PRD:** FR-3.1 to FR-3.9
+    - **Evidence:** tests/core/test_log.py (18 tests). Records are written through to_canonical_json, so the log and the hash chain share one serialisation path. Truncation is reported distinctly from malformation, an unknown record type is refused (FR-3.9), a gap in the action sequence is refused by the writer and again by the reader, and a test asserts the god log contains no at/host/pid key while the sidecar carries all three. The writer flushes per record, and a test reads the file while it is still open to prove a crash leaves a parseable prefix.
+    ```
+
 
   - tags: [slice-1, test, registry, fr-6]
   - priority: medium

@@ -6,6 +6,7 @@ would otherwise be enforced only by review, and each fails the build when broken
 
 from __future__ import annotations
 
+import ast
 import re
 from pathlib import Path
 
@@ -54,3 +55,36 @@ def test_purpose_labels_are_named_constants_not_literals() -> None:
     assert offenders == [], (
         "pass a module-level purpose constant instead of a literal: " + ", ".join(offenders)
     )
+
+
+def _imported_modules(path: Path) -> set[str]:
+    """Every module named by an import statement in one file.
+
+    Parsed rather than pattern-matched: a docstring that mentions a forbidden import is
+    not a forbidden import, and a guard that cannot tell the difference gets deleted.
+    """
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    modules: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            modules.update(alias.name for alias in node.names)
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            modules.add(node.module)
+            modules.update(f"{node.module}.{alias.name}" for alias in node.names)
+    return modules
+
+
+def test_core_never_imports_games() -> None:
+    """FR-6.2: the core never imports a game, so the arrow points strictly downward."""
+    core_sources = sorted((PACKAGE_ROOT / "core").rglob("*.py"))
+
+    assert len(core_sources) >= 3, "control: a guard that scans nothing passes vacuously"
+
+    offenders = sorted(
+        f"{path.relative_to(REPO_ROOT)} imports {module}"
+        for path in core_sources
+        for module in _imported_modules(path)
+        if module == "lgbg.games" or module.startswith("lgbg.games.")
+    )
+
+    assert offenders == [], "game facts reach the core as declarations, never as imports"

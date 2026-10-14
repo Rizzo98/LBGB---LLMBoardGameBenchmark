@@ -25,40 +25,6 @@
 
 ## Backlog
 
-### K-006 · Define the Game protocol and plugin registry
-
-  - tags: [slice-1, core, registry, fr-6]
-  - priority: high
-  - workload: Normal
-  - steps:
-      - [ ] Protocol of ARCHITECTURE section 7.1 exists in full
-      - [ ] register_game decorator registers by name
-      - [ ] Entry-point discovery via importlib.metadata group lgbg.games works
-      - [ ] A test asserts lgbg.core never imports lgbg.games
-    ```md
-    - **Cuts through:** core/game, every game plugin, the layering test
-    - **Depends on:** K-003
-    - **PRD:** FR-6.1 to FR-6.6
-    ```
-
-### K-007 · Build the fixture game as a permanent test canary
-
-  - tags: [slice-1, test, registry, fr-6]
-  - priority: medium
-  - workload: Easy
-  - defaultExpanded: true
-  - steps:
-      - [ ] A minimal toy game with two or three action types, one random draw, and a terminal condition
-      - [ ] Implemented purely as a test asset, not shipped as a real game
-      - [ ] Exercises the full protocol without any real rules
-      - [ ] Retained permanently after slice 1 and re-run by the slice-8 harness
-    ```md
-    - **Cuts through:** the registry, every core component, all later integration tests
-    - **Depends on:** K-004, K-005, K-006
-    - **PRD:** FR-6.1
-    - **Why:** Deliberate exception to horizontal slicing. It isolates pipeline defects from rules defects: a hash mismatch here is in the machinery; a hash mismatch in slice 2 could be either, and by then the machinery is already proven.
-    ```
-
 ### K-008 · Implement the log writer and reader
 
   - tags: [slice-1, core, log, fr-3]
@@ -1092,5 +1058,41 @@
     - **PRD:** FR-5.1 to FR-5.4
     - **Evidence:** tests/core/test_config.py (18 tests). The header mapping is pinned to its documented flat shape and round-trips exactly, including an explicit rejection_detail override. Game options are carried opaquely and merged flat, so the core never learns what a board is (P11); a game option may not shadow a core key, and an undeclared key is an unknown key.
     ```
+### K-006 · Define the Game protocol and plugin registry
+
+  - tags: [slice-1, core, registry, fr-6]
+  - priority: high
+  - workload: Normal
+  - steps:
+      - [x] Protocol of ARCHITECTURE section 7.1 exists in full
+      - [x] register_game decorator registers by name
+      - [x] Entry-point discovery via importlib.metadata group lgbg.games works
+      - [x] A test asserts lgbg.core never imports lgbg.games
+    ```md
+    - **Cuts through:** core/game, every game plugin, the layering test
+    - **Depends on:** K-003
+    - **PRD:** FR-6.1 to FR-6.6
+    - **Evidence:** tests/core/test_game_registry.py (14 tests). The protocol's member set is asserted against the architecture's list, member by member. The registry hands out one shared instance per game (that is what makes FR-6.5 testable) and refuses a plugin that declares no name, rules_version or schema_version. Entry-point discovery is tested by substituting the loader, and the test asserts the group name is lgbg.games. tests/tooling/test_layering.py parses the core's imports with `ast` and fails if any reaches lgbg.games, so a docstring mention cannot mask a real import.
+    ```
+
+### K-007 · Build the fixture game as a permanent test canary
+
+  - tags: [slice-1, test, registry, fr-6]
+  - priority: medium
+  - workload: Easy
+  - defaultExpanded: true
+  - steps:
+      - [x] A minimal toy game with two or three action types, one random draw, and a terminal condition
+      - [x] Implemented purely as a test asset, not shipped as a real game
+      - [x] Exercises the full protocol without any real rules
+      - [x] Retained permanently after slice 1 and re-run by the slice-8 harness
+    ```md
+    - **Cuts through:** the registry, every core component, all later integration tests
+    - **Depends on:** K-004, K-005, K-006
+    - **PRD:** FR-6.1
+    - **Why:** Deliberate exception to horizontal slicing. It isolates pipeline defects from rules defects: a hash mismatch here is in the machinery; a hash mismatch in slice 2 could be either, and by then the machinery is already proven.
+    - **Evidence:** tests/games/fixture_game.py and tests/games/test_fixture_game.py (24 tests). Three action types (take, gamble, spend), one recorded draw, a limited bank shared by two players, hidden per-player holdings, a token-conservation invariant, and a terminal condition. It already exhibits two behaviours Catan depends on: an exhausted bank makes an action unavailable rather than erroring, and a gamble replayed from its recorded draw reaches a byte-identical state. Two interleaved games through one shared instance cannot interfere (FR-6.5).
+    ```
+
 
 

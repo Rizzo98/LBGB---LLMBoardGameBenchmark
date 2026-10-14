@@ -18,6 +18,7 @@ from lgbg.core.errors import BAD_PARAMS, NOT_YOUR_DECISION, Rejection
 from lgbg.core.game import Applied, ApplyResult, Rejected
 from lgbg.core.rng import RandomSource
 from lgbg.core.types import Action, Event, JsonValue
+from lgbg.games.catan.board.layout import Resource
 from lgbg.games.catan.rejections import (
     EDGE_OCCUPIED,
     NO_PIECES_REMAINING,
@@ -25,7 +26,7 @@ from lgbg.games.catan.rejections import (
     TOO_CLOSE,
     VERTEX_OCCUPIED,
 )
-from lgbg.games.catan.state import NO_OWNER, CatanState, Placed, Supply
+from lgbg.games.catan.state import NO_OWNER, RESOURCE_ORDER, CatanState, Placed, Supply
 
 
 def setup_order(players: int) -> tuple[int, ...]:
@@ -99,19 +100,68 @@ def place_settlement(state: CatanState, action: Action, rng: RandomSource) -> Ap
         roads=state.placed.roads,
     )
     supply = _spend(state, action.player, settlements=-1)
-    return Applied(
-        state=replace(state, placed=placed, supply=supply, setup_vertex=site),
-        events=[
-            Event(
-                type="settlement_placed",
-                payload={
-                    "player": action.player,
-                    "vertex": site,
-                    "terrain": _terrain_around(state, site),
-                },
-            ),
-            _piece_taken(action.player, "settlement", supply[action.player].settlements),
-        ],
+    updated = replace(state, placed=placed, supply=supply, setup_vertex=site)
+    events = [
+        Event(
+            type="settlement_placed",
+            payload={
+                "player": action.player,
+                "vertex": site,
+                "terrain": _terrain_around(state, site),
+            },
+        ),
+        _piece_taken(action.player, "settlement", supply[action.player].settlements),
+    ]
+    # The second settlement is endowed immediately, and that is also what makes the endowment
+    # order of RULES.md 4.3 item 7 (seats 3, 2, 1, 0) a consequence rather than a rule: the
+    # players take theirs in the order they place.
+    if selection(state) >= state.players:
+        updated, endowment = _endow(updated, action.player, site)
+        events.append(endowment)
+    return Applied(state=updated, events=events)
+
+
+def _endow(state: CatanState, player: int, vertex: int) -> tuple[CatanState, Event]:
+    """One card from the bank for each adjacent hex, of that hex's type (RULES.md 4.3 item 6).
+
+    The bank is finite and its shortfall is defined rather than accidental: a player takes
+    what remains and loses the rest (item 8). The resources are walked in canonical order, so
+    the event - and therefore the record - is stable.
+    """
+    wanted: dict[Resource, int] = {}
+    for hex_id in state.board.topology.hexes_at(vertex):
+        resource = state.board.resource_of_hex(hex_id)
+        if resource is not None:
+            wanted[resource] = wanted.get(resource, 0) + 1
+
+    bank = list(state.bank)
+    hands = [list(hand) for hand in state.hands]
+    granted: dict[str, int] = {}
+    shortfall: dict[str, int] = {}
+    for resource in RESOURCE_ORDER:
+        count = wanted.get(resource, 0)
+        if count == 0:
+            continue
+        index = RESOURCE_ORDER.index(resource)
+        taken = min(count, bank[index])
+        if taken:
+            bank[index] -= taken
+            hands[player][index] += taken
+            granted[resource.value] = taken
+        if taken < count:
+            shortfall[resource.value] = count - taken
+
+    return (
+        replace(state, bank=tuple(bank), hands=tuple(tuple(hand) for hand in hands)),
+        Event(
+            type="resources_granted",
+            payload={
+                "player": player,
+                "vertex": vertex,
+                "granted": granted,
+                "shortfall": shortfall,
+            },
+        ),
     )
 
 

@@ -8,20 +8,6 @@
 ## Backlog
 
 
-### K-018 · Implement the bank and starting endowment
-
-  - tags: [slice-2, rules, setup, fr-8]
-  - priority: medium
-  - workload: Easy
-  - steps:
-      - [ ] Bank holds 19 of each resource
-      - [ ] Second settlement grants one of each adjacent non-desert resource, limited by bank supply
-      - [ ] Total resources conserve across the transaction
-    ```md
-    - **Cuts through:** rules/setup, bank state, projection, the conservation invariant sketch
-    - **Depends on:** K-017
-    - **PRD:** FR-8.4
-    ```
 
 ### K-019 · Implement notation v0 for board rendering
 
@@ -1131,3 +1117,21 @@
     - **The plugin exists now:** every protocol member is answered, honestly for the slice - the schema declares the two setup actions, victory points count settlements and cities (dev cards and awards arrive with K-036), the invariants are the two conservation laws, and the benchmark profile is the shape Catan has (K-062 audits it). `lgbg new --game catan` now prints a real opening decision.
     ```
 
+### K-018 · Implement the bank and starting endowment
+
+  - tags: [slice-2, rules, setup, fr-8]
+  - priority: medium
+  - workload: Easy
+  - steps:
+      - [x] Bank holds 19 of each resource
+      - [x] Second settlement grants one of each adjacent non-desert resource, limited by bank supply
+      - [x] Total resources conserve across the transaction
+    ```md
+    - **Cuts through:** rules/setup, bank state, projection, the conservation invariant sketch
+    - **Depends on:** K-017
+    - **PRD:** FR-8.4
+    - **Evidence:** tests/games/test_catan_endowment.py (17 tests), lgbg/games/catan/rules/setup.py. The bank starts with 19 of each resource, a second settlement is endowed immediately, and every grant is drawn from the bank, so bank plus all hands is 19 per resource before and after - asserted after every placement of a whole draft through the plugin's own check_invariants.
+    - **The criterion's wording is the PRD's shorthand, and RULES.md corrects it.** FR-8.4 says one of each resource from the adjacent non-desert hexes; correction D-3 pins one card **per adjacent hex**, of that hex's type, so two forest hexes next to one settlement grant two wood. That is what is implemented, and what test_two_hexes_of_the_same_terrain_grant_two_cards asserts. The distinction is the whole reason a player chooses a corner, so it is not a wording detail.
+    - **Exhaustion is defined, not accidental:** the entitlements are taken in the order the second settlements were placed - seats 3, 2, 1, 0 - which falls out of endowing immediately rather than being a separate rule, and a short bank gives what remains while the shortfall is lost (RULES.md 4.3 item 8, a pinned project decision with no primary source). The endowment event names what was granted and what was lost, so the record explains a shortfall instead of merely containing one.
+    - **A test double, and why:** the curated board's balance property is that no vertex sees the same terrain twice, so the two-hexes-two-cards case cannot be exercised on it. The test builds a board with two forest hexes at one vertex - a deliberate double, not a board the engine can generate.
+    ```

@@ -7,26 +7,6 @@
 
 ## Backlog
 
-### K-012 · Derive board topology and assert structural invariants
-
-  - tags: [slice-2, board, test, fr-7, sc-7]
-  - priority: high
-  - workload: Extreme
-  - defaultExpanded: true
-  - steps:
-      - [ ] Vertices and edges derived from hex axial coordinates; no authored adjacency or incidence tables anywhere
-      - [ ] Exactly 19 hexes, 54 vertices, 72 edges, with symmetric adjacency
-      - [ ] Integer identifiers assigned by canonical sort of derived coordinates, and the derivation documented
-      - [ ] Self-check asserts counts, adjacency symmetry, degree distribution, coast versus interior classification
-      - [ ] Self-check runs as a test at import under test
-    ```md
-    - **Cuts through:** board/topology, the coordinate model, the structural invariant test
-    - **Depends on:** K-002
-    - **PRD:** FR-7.1, FR-7.2, FR-7.3, FR-6.10, SC-7
-    - **Why:** Largest card in slice 2 and on the critical path for slices 2 through 6. Identifiers get frozen here: they appear in every recorded action, so changing the derivation invalidates every existing record.
-    - **Open question:** Q3, confirm the identifier derivation before it is frozen.
-    ```
-
 ### K-013 · Build board layout, ports, number tokens and one curated board
 
   - tags: [slice-2, board, fr-7]
@@ -1076,6 +1056,30 @@
   - steps:
       - [x] Every rule area in PRD-v1 section 8 is stated and cited to the official rulebook
       - [x] All eight listed ambiguities resolved with chosen interpretation AND the alternative considered
+### K-012 · Derive board topology and assert structural invariants
+
+  - tags: [slice-2, board, test, fr-7, sc-7]
+  - priority: high
+  - workload: Extreme
+  - defaultExpanded: true
+  - steps:
+      - [x] Vertices and edges derived from hex axial coordinates; no authored adjacency or incidence tables anywhere
+      - [x] Exactly 19 hexes, 54 vertices, 72 edges, with symmetric adjacency
+      - [x] Integer identifiers assigned by canonical sort of derived coordinates, and the derivation documented
+      - [x] Self-check asserts counts, adjacency symmetry, degree distribution, coast versus interior classification
+      - [x] Self-check runs as a test at import under test
+    ```md
+    - **Cuts through:** board/topology, the coordinate model, the structural invariant test
+    - **Depends on:** K-002
+    - **PRD:** FR-7.1, FR-7.2, FR-7.3, FR-6.10, SC-7
+    - **Why:** Largest card in slice 2 and on the critical path for slices 2 through 6. Identifiers get frozen here: they appear in every recorded action, so changing the derivation invalidates every existing record.
+    - **Open question:** Q3, answered by this card as proposed below; no record exists yet, so a change is still free until the first golden game (K-021).
+    - **Evidence:** tests/games/test_topology.py (20 tests), lgbg/games/catan/board/topology.py. A corner is identified by the sorted cube triple of the three hexes meeting there, so vertices are those triples deduplicated; edges are the segments between consecutive corners, deduplicated as vertex pairs. Identifiers: hexes by (row, column), vertices by their sorted cube triple, edges by their sorted vertex pair - all sorts of derived coordinates, never of enumeration order.
+    - **Why the derivation is real, not a table in disguise:** a seven-hex board (a shape nobody authored) derives a different, still consistent board; and reversing the input order changes no identifier. Euler `V - E + H = 1` is asserted for boards of radius 1, 2 and 3, not only the standard one.
+    - **Counts derived independently of the implementation:** 19 hexes, 54 vertices, 72 edges; vertices 24 interior / 12 two-hex / 18 boundary; edges 42 interior / 30 coastal (the 30 the nine ports go on); degrees 36 of 3 and 18 of 2. The module docstring reproduces the argument: the corner and edge handshakes plus Euler.
+    - **Self-check:** `check_structure` reports broken incidence in both directions, degree and classification disagreements, the handshakes and Euler. It runs at import in the test module (ARCHITECTURE.md 7.5), and `test_the_structural_self_check_has_teeth` drops an edge and asserts it is reported, so the check cannot be vacuous.
+    ```
+
       - [x] Board composition, costs, deck composition and VP values confirmed against the rulebook, not copied from the PRD
       - [x] Reviewed against PRD-v1 section 8 before any rules code is written
     ```md

@@ -1,0 +1,7 @@
+# Determinism: files are read and hashed at runtime (prompt hashes, golden fixtures),
+# so a checkout must produce identical bytes on every platform (NFR-1, NFR-3).
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.pdf binary

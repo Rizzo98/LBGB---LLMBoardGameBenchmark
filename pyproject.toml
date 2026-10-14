@@ -27,7 +27,6 @@ addopts = "-q --strict-markers --strict-config"
 [tool.ruff]
 line-length = 100
 target-version = "py312"
-src = ["lgbg", "tests", "scripts"]
 # Documents are normative and their code samples are illustrative: never touch them.
 extend-exclude = ["*.md", "prd", "kanban"]
 

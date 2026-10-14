@@ -19,39 +19,6 @@
     - **Why:** First because every rules card downstream is unverifiable without it. A wrong rule is the one defect that cannot be detected later.
     ```
 
-### K-002 · Scaffold repo, tooling, CI and lockfile
-
-  - tags: [slice-1, infra, fr-6]
-  - priority: high
-  - workload: Normal
-  - steps:
-      - [ ] ruff and mypy run in CI and locally
-      - [ ] Custom ruff rule banning import random outside core/rng.py is active and demonstrated to fire on a deliberate violation
-      - [ ] Fresh clone runs the full test suite with one documented command
-      - [ ] Lockfile pinned; Python 3.12+ declared
-    ```md
-    - **Cuts through:** packaging, lint, typing, CI, the random-import ban
-    - **Depends on:** nothing
-    - **PRD:** NFR-4, NFR-5, NFR-6, NFR-7, NFR-8
-    ```
-
-### K-003 · Implement canonical JSON and state hashing
-
-  - tags: [slice-1, core, fr-1]
-  - priority: high
-  - workload: Easy
-  - steps:
-      - [ ] to_canonical_json is the single serialisation path used for hashing and replay
-      - [ ] Sorted keys, no insignificant whitespace, ensure_ascii true
-      - [ ] hash_state returns a truncated SHA-256 digest from one named width constant
-      - [ ] A fixed test vector pins the exact bytes so accidental changes are caught
-    ```md
-    - **Cuts through:** core/canonical, core/types, the fixture game encoder
-    - **Depends on:** K-002
-    - **PRD:** FR-1.1 to FR-1.5
-    - **Open question:** Q2, confirm the hash width before the constant is relied on.
-    ```
-
 ## In Progress
 
 ## Blocked
@@ -1088,4 +1055,40 @@
     - **Depends on:** K-067
     - **PRD:** section 5, all SC
     - **Why:** Slice 8 exit, and the release exit. Nothing in this project is accepted on the basis of a suite that merely passes; it is accepted on the basis of named commands whose output is recorded.
+    ```
+
+## Done
+
+### K-002 · Scaffold repo, tooling, CI and lockfile
+
+  - tags: [slice-1, infra, fr-6]
+  - priority: high
+  - workload: Normal
+  - steps:
+      - [x] ruff and mypy run in CI and locally
+      - [x] Custom ruff rule banning import random outside core/rng.py is active and demonstrated to fire on a deliberate violation
+      - [x] Fresh clone runs the full test suite with one documented command
+      - [x] Lockfile pinned; Python 3.12+ declared
+    ```md
+    - **Cuts through:** packaging, lint, typing, CI, the random-import ban
+    - **Depends on:** nothing
+    - **PRD:** NFR-4, NFR-5, NFR-6, NFR-7, NFR-8
+    - **Evidence:** gate is `uv run python scripts/gate.py` (lint, format, mypy, pytest). tests/tooling/test_no_ambient_randomness.py proves the TID251 ban fires on a deliberate import and that the exempt path is genuinely exempt. The one documented command was run against a fresh `git clone` in a temp directory: gate passed. uv.lock committed and `uv sync --locked` verified.
+    ```
+
+### K-003 · Implement canonical JSON and state hashing
+
+  - tags: [slice-1, core, fr-1]
+  - priority: high
+  - workload: Easy
+  - steps:
+      - [x] to_canonical_json is the single serialisation path used for hashing and replay
+      - [x] Sorted keys, no insignificant whitespace, ensure_ascii true
+      - [x] hash_state returns a truncated SHA-256 digest from one named width constant
+      - [x] A fixed test vector pins the exact bytes so accidental changes are caught
+    ```md
+    - **Cuts through:** core/canonical, core/types, the fixture game encoder
+    - **Depends on:** K-002
+    - **PRD:** FR-1.1 to FR-1.5
+    - **Evidence:** tests/core/test_canonical_json.py pins the canonical bytes and digest of a fixed vector; tests/tooling/test_layering.py asserts json.dumps is called only in core/canonical.py, which is what makes FR-1.1 a fact rather than an intention. Floats and non-string keys are rejected as determinism guards. Hash width confirmed at 16 hex characters, resolving Q2 as proposed by the PRD. FR-1.5 (encode_state totality) is asserted by the fuzzer at K-064.
     ```

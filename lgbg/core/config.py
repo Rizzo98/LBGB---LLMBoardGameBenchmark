@@ -142,21 +142,30 @@ class RunConfig:
 
     @classmethod
     def from_mapping(
-        cls, raw: Mapping[str, JsonValue], *, game_option_keys: Collection[str] = ()
+        cls,
+        raw: Mapping[str, JsonValue],
+        *,
+        game_option_keys: Collection[str] | None = (),
     ) -> RunConfig:
         """Read a header's 'config' object, rejecting anything unrecognised (FR-5.4).
 
         'game_option_keys' is what the plugin declares it accepts; without it, a game's own
         keys are as unknown as a misspelling.
+
+        Passing None means "carry every key the core does not own". Reading back a record
+        that has already been validated is not the same act as accepting configuration from
+        a user: a reader that demanded the plugin's declaration could not read a record
+        produced by a plugin that is no longer installed.
         """
-        declared = frozenset(game_option_keys)
+        permissive = game_option_keys is None
+        declared = frozenset() if game_option_keys is None else frozenset(game_option_keys)
         shadowing = sorted(declared & CORE_KEYS)
         if shadowing:
             raise ConfigError(
                 f"game option key(s) {shadowing} would shadow core configuration keys"
             )
         known = CORE_KEYS | declared
-        unknown = sorted(set(raw) - known)
+        unknown = [] if permissive else sorted(set(raw) - known)
         if unknown:
             raise ConfigError(
                 f"unknown configuration key(s) {unknown}; accepted keys are {sorted(known)}"
@@ -181,5 +190,7 @@ class RunConfig:
             ),
             interaction_protocol=protocol,
             prompt_hashes=_as_prompt_hashes(raw.get("prompt_hashes", {})),
-            game_config=GameConfig({key: raw[key] for key in raw if key in declared}),
+            # Whatever the core does not own is the game's. In strict mode the only such keys
+            # that survive are the declared ones, because unknown keys were rejected above.
+            game_config=GameConfig({key: raw[key] for key in raw if key not in CORE_KEYS}),
         )

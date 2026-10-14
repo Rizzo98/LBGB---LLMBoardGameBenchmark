@@ -1,47 +1,11 @@
 # KANBAN-v1 · PRD-v1 · horizontal slices
 
 ## Todo
-### K-001 · Pin Catan rules in games/catan/RULES.md
-
-  - tags: [slice-0, docs, rules, fr-6, sc-12]
-  - priority: high
-  - workload: Normal
-  - defaultExpanded: true
-  - steps:
-      - [ ] Every rule area in PRD-v1 section 8 is stated and cited to the official rulebook
-      - [ ] All eight listed ambiguities resolved with chosen interpretation AND the alternative considered
-      - [ ] Board composition, costs, deck composition and VP values confirmed against the rulebook, not copied from the PRD
-      - [ ] Reviewed against PRD-v1 section 8 before any rules code is written
-    ```md
-    - **Cuts through:** rules authority, PRD section 11, every later rules card
-    - **Depends on:** nothing
-    - **PRD:** section 11, SC-12
-    - **Why:** First because every rules card downstream is unverifiable without it. A wrong rule is the one defect that cannot be detected later.
-    ```
-
 ## In Progress
 
 ## Blocked
 
 ## Backlog
-
-### K-009 · Implement replay, verify and projection replay
-
-  - tags: [slice-1, core, replay, fr-4]
-  - priority: high
-  - workload: Hard
-  - defaultExpanded: true
-  - steps:
-      - [ ] replay rebuilds state after every record and verifies both hashes
-      - [ ] verify checks the chain without materialising intermediate states
-      - [ ] projection_replay rebuilds one player's observation sequence
-      - [ ] Every failure kind reports the offending seq and the reason: hash mismatch, RNG purpose mismatch, RNG exhaustion, event mismatch, unknown action
-    ```md
-    - **Cuts through:** core/replay, core/log, core/rng, the fixture game
-    - **Depends on:** K-008
-    - **PRD:** FR-4.1 to FR-4.7
-    - **Why:** The heart of the release. Everything downstream is computed from records this card makes trustworthy.
-    ```
 
 ### K-010 · Wire the CLI skeleton against the fixture game
 
@@ -1079,6 +1043,45 @@
 
 
   - tags: [slice-1, test, registry, fr-6]
+### K-009 · Implement replay, verify and projection replay
+
+  - tags: [slice-1, core, replay, fr-4]
+  - priority: high
+  - workload: Hard
+  - defaultExpanded: true
+  - steps:
+      - [x] replay rebuilds state after every record and verifies both hashes
+      - [x] verify checks the chain without materialising intermediate states
+      - [x] projection_replay rebuilds one player's observation sequence
+      - [x] Every failure kind reports the offending seq and the reason: hash mismatch, RNG purpose mismatch, RNG exhaustion, event mismatch, unknown action
+    ```md
+    - **Cuts through:** core/replay, core/log, core/rng, the fixture game
+    - **Depends on:** K-008
+    - **PRD:** FR-4.1 to FR-4.7
+    - **Why:** The heart of the release. Everything downstream is computed from records this card makes trustworthy.
+    - **Evidence:** tests/core/test_replay.py (23 tests) plays the fixture game into a real record and then tampers with it at each mutation site: the state before an action, the state after one, the action itself, an undeclared action type, a draw value, a draw purpose, a dropped draw, a surplus draw, an event payload, the initial state hash, and three fields of the terminal record. Each failure names its kind and its seq, e.g. `seq 1: hash_mismatch: ...`. Replay runs through the normal apply path, so there is no second implementation of the rules, and a recorded rejection replays with an unchanged hash (SC-5). verify keeps one state in a deque while consuming the chain, which is what makes FR-4.4's cheap corpus check real.
+    ```
+
+### K-001 · Pin Catan rules in games/catan/RULES.md
+
+  - tags: [slice-0, docs, rules, fr-6, sc-12]
+  - priority: high
+  - workload: Normal
+  - defaultExpanded: true
+  - steps:
+      - [x] Every rule area in PRD-v1 section 8 is stated and cited to the official rulebook
+      - [x] All eight listed ambiguities resolved with chosen interpretation AND the alternative considered
+      - [x] Board composition, costs, deck composition and VP values confirmed against the rulebook, not copied from the PRD
+      - [x] Reviewed against PRD-v1 section 8 before any rules code is written
+    ```md
+    - **Cuts through:** rules authority, PRD section 11, every later rules card
+    - **Depends on:** nothing
+    - **PRD:** section 11, SC-12
+    - **Why:** First because every rules card downstream is unverifiable without it. A wrong rule is the one defect that cannot be detected later.
+    - **Evidence:** `lgbg/games/catan/RULES.md` (1346 lines), written before any rules code. Primary sources: the CATAN Studio 6th-edition rulebook (CN3081, April 2025), the 5th-edition Games Rules & Almanac, the 25th-anniversary basic rules, the CATAN World Championship 2025 tournament rules, the official base-game FAQ, and the KOSMOS Big Box manual. All eight ambiguities are resolved in section 5 with the alternative considered; section 2.3 lists eleven claims for which no primary source exists, each pinned as a project decision. Section 6 reproduces all 16 Appendix A rows with citations.
+    - **PRD corrections (D-1 to D-4, section 6.2):** no Appendix A value disagrees, but four PRD statements need correction: 54 vertices and 72 edges are *derived*, not stated by any rulebook; FR-10.4's general case is all-or-nothing per resource, with a partial grant only when exactly one player is affected; FR-8.4 grants one card *per adjacent hex*, not one of each resource; FR-10.1's `(knight)` is an example, since any playable development card may precede the roll. Later cards must follow RULES.md: K-018 (FR-8.4), K-024 (FR-10.4) and K-022 (FR-10.1).
+    ```
+
   - priority: medium
   - workload: Easy
   - defaultExpanded: true

@@ -141,6 +141,15 @@ def test_declared_game_options_are_carried_opaque_to_the_core() -> None:
     assert config.game_config.options == {"board": "fixed:standard_a"}
 
 
+def test_a_recorded_config_is_readable_without_the_plugins_declaration() -> None:
+    """Replay must read a record whose plugin is no longer installed to declare its keys."""
+    raw = _raw(seed=SEED, interaction_protocol=PROTOCOL, board="fixed:standard_a")
+
+    config = RunConfig.from_mapping(raw, game_option_keys=None)
+
+    assert config.game_config.options == {"board": "fixed:standard_a"}
+
+
 def test_game_option_may_not_shadow_a_core_key() -> None:
     with pytest.raises(ConfigError, match="seed"):
         RunConfig.from_mapping(_raw(seed=SEED), game_option_keys=frozenset({"seed"}))

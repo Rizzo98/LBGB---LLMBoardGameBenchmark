@@ -7,21 +7,6 @@
 
 ## Backlog
 
-### K-014 · Define CatanState and its serialisation
-
-  - tags: [slice-2, state, core, fr-1]
-  - priority: high
-  - workload: Normal
-  - steps:
-      - [ ] Frozen, slotted dataclasses; integers only; no floats, sets or unordered iteration
-      - [ ] encode_state is total: every reachable state serialises without error
-      - [ ] The initial state hashes deterministically for a given seed and board
-    ```md
-    - **Cuts through:** state.py, core/canonical, the hash chain
-    - **Depends on:** K-013, K-003
-    - **PRD:** FR-1.5
-    ```
-
 ### K-015 · Build projection v0 for board and pieces
 
   - tags: [slice-2, projection, board, fr-16]
@@ -1092,6 +1077,26 @@
     - **Depends on:** nothing
     - **PRD:** section 11, SC-12
     - **Why:** First because every rules card downstream is unverifiable without it. A wrong rule is the one defect that cannot be detected later.
+### K-014 · Define CatanState and its serialisation
+
+  - tags: [slice-2, state, core, fr-1]
+  - priority: high
+  - workload: Normal
+  - steps:
+      - [x] Frozen, slotted dataclasses; integers only; no floats, sets or unordered iteration
+      - [x] encode_state is total: every reachable state serialises without error
+      - [x] The initial state hashes deterministically for a given seed and board
+    ```md
+    - **Cuts through:** state.py, core/canonical, the hash chain
+    - **Depends on:** K-013, K-003
+    - **PRD:** FR-1.5
+    - **Evidence:** tests/games/test_catan_state.py (13 tests), lgbg/games/catan/state.py. The state is frozen and slotted (assigning to a field raises, and there is no `__dict__`); a fully populated state round-trips through encode/decode with every field intact; the encoded form contains only JSON types and no floats, asserted by walking it; and the opening state hashes identically for the same seed and differently for another, because the deck differs.
+    - **The field set is fixed now, deliberately.** Later slices need development cards, awards and a trade offer, and `encode_state` is what every recorded hash is computed from: a field added after the golden corpus exists would invalidate it. Fixing the shape in slice 2 costs nothing. The one exception is `Phase`, which is stored by name, so later slices may add phases without touching a hash.
+    - **Encoding choices:** counts sit in a canonical order (`RESOURCE_ORDER`, `CARD_ORDER`) written as a list, with the orders pinned as constants and asserted, because a silently reordered tuple would reinterpret every recorded hand. Occupancy is sparse - `[site, seat]` sorted by site - because a list of seventy-two minus-ones is not something a person reads. The board is encoded with the state (terrain, tokens, ports, its name and the corner the tokens were laid from), so the hash covers the board that decided everything that happened on it.
+    - **One draw:** the opening state shuffles the 25-card deck through draw D5, asserted with its pinned label and argument; nothing else in the opening consumes randomness.
+    - **Not yet:** `initial_state` builds the opening position, but no Game plugin is registered yet. That arrives with the setup phase (K-017), which is the first card that needs decisions rather than just a state.
+    ```
+
     - **Evidence:** `lgbg/games/catan/RULES.md` (1597 lines, LF-only, 124765 bytes), written before any rules code. Seven sources are retrieved and cited, with a precedence pinned in section 2.1: the CATAN Studio 6th-edition rulebook (CN3081, April 2025) is primary, the World Championship 2025 tournament rules win where they say they do, the 5th-edition Games Rules & Almanac, the 25th-anniversary basic rules, the official base-game FAQ and the KOSMOS Big Box manual fill the rest. All eight ambiguities are resolved in section 5 with the alternative considered; section 2.3 lists eleven claims for which no primary source exists, each pinned as a project decision. Section 6 reproduces all 16 Appendix A rows with citations, and no Appendix A *value* disagrees with the rulebook.
     - **Pointers later cards must use:** `rules_version = "catan-rules-1"` (section 1.2; any pinned-rule change bumps it and invalidates the golden corpus). Section 3.1 pins all nine random draw sites with their kind, args and purpose labels, including "two independent randint(1,6), never one randint(2,12)" and "purchase performs no draw" - K-023, K-027 and K-040 must use those labels. Section 5.10 pins 22 further interpretations, notably that Longest Road is the maximum over simple paths *and* simple cycles: a simple-path-only search would contradict the FAQ's six-roads-in-a-hexagon answer.
     - **One claim is verified rather than assumed:** the pinned number-token sequence produces zero adjacent 6/8 pairs over all 114 (starting corner, desert position) configurations, whereas ascending or descending numeric order produces adjacent reds in all 114 (section 2.3).

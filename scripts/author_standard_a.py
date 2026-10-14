@@ -174,7 +174,10 @@ def main() -> int:
         ],
     }
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
-    OUTPUT.write_text(json.dumps(data, indent=2, ensure_ascii=True) + "\n", encoding="utf-8")
+    # newline="\n" is not cosmetic: a data file whose bytes depend on the platform that
+    # produced it cannot be hashed and compared across machines.
+    with OUTPUT.open("w", encoding="utf-8", newline="\n") as handle:
+        handle.write(json.dumps(data, indent=2, ensure_ascii=True) + "\n")
     print(f"wrote {OUTPUT}")
     print("desert at hex", board.desert_hex, "of", len(board.topology.hexes))
     print("spiral starts at hex", start, "of corners", corner_hex_ids(topology))

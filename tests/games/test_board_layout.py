@@ -349,15 +349,15 @@ def test_the_board_data_file_is_json_and_says_how_it_was_chosen() -> None:
     """Curated data carries its rationale, or the next person cannot judge it."""
     import json
 
-    data = json.loads(
-        (Path("lgbg/games/catan/board/boards/standard_a.json")).read_text(encoding="utf-8")
-    )
+    path = Path("lgbg/games/catan/board/boards/standard_a.json")
+    data = json.loads(path.read_text(encoding="utf-8"))
 
     assert data["name"] == "standard_a"
     assert len(data["terrain"]) == 19
     assert len(data["ports"]) == 9
     assert data["rationale"]
     assert data["number_start_hex"] in range(19)
+    assert b"\r" not in path.read_bytes(), "curated data is LF-only, like everything else"
 
 
 def test_the_board_draws_carry_the_pinned_kinds_and_arguments() -> None:

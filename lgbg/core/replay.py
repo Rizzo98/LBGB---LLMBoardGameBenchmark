@@ -160,22 +160,9 @@ def _advance(game: Game, state: State, record: ActionRecord) -> State:
     except RngMismatchError as error:
         raise ReplayError(ReplayFailure.RNG_MISMATCH, record.seq, str(error)) from error
 
-    # An action the game does not declare is reported before anything else: it explains the
-    # consequences (nothing was drawn, nothing was applied) rather than being explained by
-    # them, and it is the diagnosis that tells a reader what to look at.
-    if not isinstance(result, Applied) and result.rejection.code is UNKNOWN_ACTION:
-        raise ReplayError(
-            ReplayFailure.UNKNOWN_ACTION,
-            record.seq,
-            f"the record holds action type {record.action.type!r}, which this game does not "
-            "declare",
-        )
-
-    try:
-        source.assert_exhausted()
-    except UnconsumedDrawsError as error:
-        raise ReplayError(ReplayFailure.RNG_EXHAUSTION, record.seq, str(error)) from error
-
+    # What the action did is reported before what it failed to do. A leftover recorded draw is
+    # a consequence of the action not replaying, so reporting the exhaustion first would
+    # describe the symptom and hide the cause.
     accepted = record.result.get("ok") is True
     if isinstance(result, Applied):
         if not accepted:
@@ -184,15 +171,15 @@ def _advance(game: Game, state: State, record: ActionRecord) -> State:
                 record.seq,
                 "the record marks this action rejected, but replay accepted it",
             )
-        if not _same_events(record.events, result.events):
-            raise ReplayError(
-                ReplayFailure.EVENT_MISMATCH,
-                record.seq,
-                f"the record holds events {[event.type for event in record.events]}, replay "
-                f"produced {[event.type for event in result.events]}",
-            )
         next_state = result.state
     else:
+        if result.rejection.code is UNKNOWN_ACTION:
+            raise ReplayError(
+                ReplayFailure.UNKNOWN_ACTION,
+                record.seq,
+                f"the record holds action type {record.action.type!r}, which this game does "
+                "not declare",
+            )
         if accepted:
             raise ReplayError(
                 ReplayFailure.RESULT_MISMATCH,
@@ -200,7 +187,28 @@ def _advance(game: Game, state: State, record: ActionRecord) -> State:
                 f"the record marks this action accepted, but replay refused it with "
                 f"{result.rejection.code.code}",
             )
+        recorded_error = record.result.get("error")
+        if recorded_error != result.rejection.code.code:
+            raise ReplayError(
+                ReplayFailure.RESULT_MISMATCH,
+                record.seq,
+                f"the record reports the rejection {recorded_error!r}, but replay refused it "
+                f"with {result.rejection.code.code}",
+            )
         next_state = state
+
+    try:
+        source.assert_exhausted()
+    except UnconsumedDrawsError as error:
+        raise ReplayError(ReplayFailure.RNG_EXHAUSTION, record.seq, str(error)) from error
+
+    if isinstance(result, Applied) and not _same_events(record.events, result.events):
+        raise ReplayError(
+            ReplayFailure.EVENT_MISMATCH,
+            record.seq,
+            f"the record holds events {[event.type for event in record.events]}, replay "
+            f"produced {[event.type for event in result.events]}",
+        )
 
     actual = hash_state(next_state, game)
     if record.state_hash != actual:

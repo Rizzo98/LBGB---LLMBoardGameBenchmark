@@ -7,22 +7,6 @@
 
 ## Backlog
 
-### K-011 · Add determinism and tamper-detection tests
-
-  - tags: [slice-1, test, replay, fr-4, sc-3, sc-4]
-  - priority: high
-  - workload: Normal
-  - steps:
-      - [ ] Identical inputs produce identical hash chains across two processes with different PYTHONHASHSEED
-      - [ ] Parametrised tamper test mutates a record action, a draw value, a draw purpose, an event payload, state_hash_prev and state_hash
-      - [ ] Each mutation fails verification at the correct seq
-    ```md
-    - **Cuts through:** determinism contract, CLI, log, replay
-    - **Depends on:** K-010
-    - **PRD:** SC-3, SC-4
-    - **Why:** Slice 1 exit: play then verify on the fixture game passes, and the tamper suite catches every mutation site.
-    ```
-
 ### K-012 · Derive board topology and assert structural invariants
 
   - tags: [slice-2, board, test, fr-7, sc-7]
@@ -1070,6 +1054,24 @@
 
   - priority: high
   - workload: Normal
+### K-011 · Add determinism and tamper-detection tests
+
+  - tags: [slice-1, test, replay, fr-4, sc-3, sc-4]
+  - priority: high
+  - workload: Normal
+  - steps:
+      - [x] Identical inputs produce identical hash chains across two processes with different PYTHONHASHSEED
+      - [x] Parametrised tamper test mutates a record action, a draw value, a draw purpose, an event payload, state_hash_prev and state_hash
+      - [x] Each mutation fails verification at the correct seq
+    ```md
+    - **Cuts through:** determinism contract, CLI, log, replay
+    - **Depends on:** K-010
+    - **PRD:** SC-3, SC-4
+    - **Why:** Slice 1 exit: play then verify on the fixture game passes, and the tamper suite catches every mutation site.
+    - **Evidence:** tests/core/test_determinism_cross_process.py plays the same game in two child interpreters under PYTHONHASHSEED 0 and 987654321 and compares the records byte for byte, asserting first that the two processes really did have different hash seeds. tests/core/test_tamper_detection.py is a parametrised table over 11 mutation sites - the recorded action, a draw value, a draw purpose, a draw argument, an event payload, state_hash_prev, state_hash, a dropped draw, a surplus draw, the terminal hash and the header's initial hash - each asserting both the seq and the kind of failure, with an untampered control so a verifier that failed on everything could not pass.
+    - **Slice 1 exit:** `lgbg new`, `play`, `replay --print-states` and `verify` all run end to end against the fixture game; a recorded game replays with every hash verified; and every mutation named by SC-4 is caught at the right seq with the right reason. The replay machinery is proven before a single rule of Catan exists (PRD M2).
+    ```
+
   - defaultExpanded: true
   - steps:
       - [x] Every rule area in PRD-v1 section 8 is stated and cited to the official rulebook

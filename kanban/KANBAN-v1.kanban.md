@@ -7,22 +7,6 @@
 
 ## Backlog
 
-### K-015 · Build projection v0 for board and pieces
-
-  - tags: [slice-2, projection, board, fr-16]
-  - priority: medium
-  - workload: Normal
-  - steps:
-      - [ ] observe returns the board, the robber position and every player's placed pieces
-      - [ ] Built from an explicit allow-list, never a deny-list
-      - [ ] NullRandomSource proves observe consumes no randomness
-      - [ ] Resource hands are deliberately absent; they arrive in slice 3
-    ```md
-    - **Cuts through:** projection.py, state, the observation schema sketch, CLI inspect
-    - **Depends on:** K-014
-    - **PRD:** FR-16.5, FR-16.7
-    ```
-
 ### K-016 · Implement the phase machine and decision requests
 
   - tags: [slice-2, phases, core, fr-9]
@@ -1091,6 +1075,26 @@
     - **Depends on:** K-013, K-003
     - **PRD:** FR-1.5
     - **Evidence:** tests/games/test_catan_state.py (13 tests), lgbg/games/catan/state.py. The state is frozen and slotted (assigning to a field raises, and there is no `__dict__`); a fully populated state round-trips through encode/decode with every field intact; the encoded form contains only JSON types and no floats, asserted by walking it; and the opening state hashes identically for the same seed and differently for another, because the deck differs.
+### K-015 · Build projection v0 for board and pieces
+
+  - tags: [slice-2, projection, board, fr-16]
+  - priority: medium
+  - workload: Normal
+  - steps:
+      - [x] observe returns the board, the robber position and every player's placed pieces
+      - [x] Built from an explicit allow-list, never a deny-list
+      - [x] NullRandomSource proves observe consumes no randomness
+      - [x] Resource hands are deliberately absent; they arrive in slice 3
+    ```md
+    - **Cuts through:** projection.py, state, the observation schema sketch, CLI inspect
+    - **Depends on:** K-014
+    - **PRD:** FR-16.5, FR-16.7
+    - **Evidence:** tests/games/test_catan_projection.py (18 tests), lgbg/games/catan/projection.py. The observation is assembled by walking a declared list of (name, extractor) pairs, so the keys are exactly the allow-list and a field added to the state cannot reach anyone's view until somebody names it here. That is FR-16.5 as a mechanism rather than a promise: `test_the_observation_holds_exactly_the_allowed_fields` fails the moment the two diverge.
+    - **Two projections, tested apart:** the spectator's is the player's allow-list plus the fields the god view holds back, and the test asserts it is a strict superset rather than a copy. With hidden victory-point cards, who is ahead is not determinable from any player's view, which is why the spectator projection is its own artefact (FR-16.7).
+    - **Public now:** the board with terrain and tokens, the nine ports, the robber, every player's placed settlements, cities and roads, the supply of unbuilt pieces, the bank, the turn, the phase, the round, the dice and the two awards. Hidden now, on purpose: hands, the deck, cards bought this turn. Each arrives with the slice that needs it and with the leak test that proves it does not escape (FR-16.6, K-065).
+    - **Purity:** observe takes no source of randomness at all - it is not handed one to misuse - and a test asserts that observing twice gives the same answer and leaves the encoded state unchanged (FR-2.6). The observer is a parameter rather than a flag, so a view that differs between players will need no new interface.
+    ```
+
     - **The field set is fixed now, deliberately.** Later slices need development cards, awards and a trade offer, and `encode_state` is what every recorded hash is computed from: a field added after the golden corpus exists would invalidate it. Fixing the shape in slice 2 costs nothing. The one exception is `Phase`, which is stored by name, so later slices may add phases without touching a hash.
     - **Encoding choices:** counts sit in a canonical order (`RESOURCE_ORDER`, `CARD_ORDER`) written as a list, with the orders pinned as constants and asserted, because a silently reordered tuple would reinterpret every recorded hand. Occupancy is sparse - `[site, seat]` sorted by site - because a list of seventy-two minus-ones is not something a person reads. The board is encoded with the state (terrain, tokens, ports, its name and the corner the tokens were laid from), so the hash covers the board that decided everything that happened on it.
     - **One draw:** the opening state shuffles the 25-card deck through draw D5, asserted with its pinned label and argument; nothing else in the opening consumes randomness.

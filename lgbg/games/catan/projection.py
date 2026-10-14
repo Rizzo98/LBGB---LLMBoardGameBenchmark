@@ -1,0 +1,143 @@
+"""What an observer may see (ARCHITECTURE.md 7.8; PRD-v1 FR-16.5, FR-16.7).
+
+The engine holds a god view. Hidden information is enforced *here*, at the projection
+boundary, and nowhere else: the state keeps every secret, and this module decides which of
+them an observer is told.
+
+It is built from an **allow-list**. The observation is assembled by walking
+`PLAYER_FIELDS` - a declared list of (name, extractor) pairs - so a field added to the state
+appears in nobody's view until somebody adds it here. A deny-list would fail open on the day
+state grows, and nobody would notice.
+
+Two projections, deliberately. A player's view and the spectator's are different artefacts:
+with hidden victory-point cards, "who is ahead" is not determinable from any player's view,
+so analysis and replay use the spectator's, and it is tested on its own.
+
+What slice 2 shows: the board, the robber, every player's placed pieces, the public turn state
+and the bank. Hands and the development deck arrive with the slice that needs them, each with
+the leak test that proves they do not escape.
+"""
+
+from __future__ import annotations
+
+from collections.abc import Callable
+from typing import Final
+
+from lgbg.core.types import JsonValue, Observation, PlayerId
+from lgbg.games.catan.state import NO_OWNER, RESOURCE_ORDER, CatanState
+
+Projector = Callable[[CatanState], JsonValue]
+
+
+def _board(state: CatanState) -> JsonValue:
+    return {
+        "hexes": [
+            {
+                "id": hex_.id,
+                "terrain": state.board.terrain[hex_.id].value,
+                "token": state.board.tokens[hex_.id],
+            }
+            for hex_ in state.board.topology.hexes
+        ],
+        "ports": [
+            {
+                "edge": port.edge,
+                "ratio": port.ratio,
+                "resource": None if port.resource is None else port.resource.value,
+            }
+            for port in state.board.ports
+        ],
+    }
+
+
+def _robber(state: CatanState) -> JsonValue:
+    return state.robber
+
+
+def _pieces(state: CatanState) -> JsonValue:
+    return {
+        "cities": _occupied(state.placed.cities),
+        "roads": _occupied(state.placed.roads),
+        "settlements": _occupied(state.placed.settlements),
+    }
+
+
+def _occupied(occupancy: tuple[int, ...]) -> JsonValue:
+    return [[site, seat] for site, seat in enumerate(occupancy) if seat != NO_OWNER]
+
+
+def _supply(state: CatanState) -> JsonValue:
+    return [[item.roads, item.settlements, item.cities] for item in state.supply]
+
+
+def _bank(state: CatanState) -> JsonValue:
+    return {resource.value: state.bank[index] for index, resource in enumerate(RESOURCE_ORDER)}
+
+
+def _awards(state: CatanState) -> JsonValue:
+    return {"largest_army": state.largest_army, "longest_road": state.longest_road}
+
+
+PLAYER_FIELDS: Final[tuple[tuple[str, Projector], ...]] = (
+    ("awards", _awards),
+    ("bank", _bank),
+    ("board", _board),
+    ("dice", lambda state: None if state.dice is None else list(state.dice)),
+    ("phase", lambda state: state.phase.value),
+    ("pieces", _pieces),
+    ("robber", _robber),
+    ("round", lambda state: state.round),
+    ("supply", _supply),
+    ("turn", lambda state: state.turn),
+)
+"""The allow-list for a player's view. A field is here because it was named, and for a reason."""
+
+SPECTATOR_FIELDS: Final[tuple[tuple[str, Projector], ...]] = (
+    *PLAYER_FIELDS,
+    ("bought_this_turn", lambda state: [list(counts) for counts in state.bought_this_turn]),
+    ("dev_cards", lambda state: [list(counts) for counts in state.dev_cards]),
+    ("dev_deck", lambda state: list(state.dev_deck)),
+    ("discards_pending", lambda state: list(state.discards_pending)),
+    ("hands", lambda state: [list(counts) for counts in state.hands]),
+    ("knights_played", lambda state: list(state.knights_played)),
+    (
+        "offer",
+        lambda state: (
+            None
+            if state.offer is None
+            else {
+                "give": list(state.offer.give),
+                "offerer": state.offer.offerer,
+                "want": list(state.offer.want),
+            }
+        ),
+    ),
+    ("played_this_turn", lambda state: list(state.played_this_turn)),
+    ("responses", lambda state: list(state.responses)),
+    ("setup_selections", lambda state: state.setup_selections),
+)
+"""The allow-list for the spectator's view: the player's, plus what the god view holds back."""
+
+PLAYER_OBSERVATION_FIELDS: Final[frozenset[str]] = frozenset(name for name, _ in PLAYER_FIELDS)
+SPECTATOR_OBSERVATION_FIELDS: Final[frozenset[str]] = frozenset(
+    name for name, _ in SPECTATOR_FIELDS
+)
+
+
+def observe(state: CatanState, player: PlayerId) -> Observation:
+    """What one player may see.
+
+    The observer is a parameter rather than a flag, so a view that differs *between* players
+    - one hand, not 'mine and theirs' - needs no new interface (FR-16.5).
+    """
+    del player  # slice 2 shows the same public position to everyone
+    return _project(state, PLAYER_FIELDS)
+
+
+def observe_spectator(state: CatanState) -> Observation:
+    """The full god view, for analysis and replay (FR-16.7)."""
+    return _project(state, SPECTATOR_FIELDS)
+
+
+def _project(state: CatanState, fields: tuple[tuple[str, Projector], ...]) -> Observation:
+    return {name: extract(state) for name, extract in fields}

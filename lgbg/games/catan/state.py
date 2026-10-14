@@ -103,23 +103,32 @@ class Phase(StrEnum):
     is cheaper to add now than to rename later, when a corpus of records depends on it.
     Phases whose behaviour has not landed yet have no rule in phases.py, and asking one for
     decisions is a loud error rather than an empty answer.
+
+    The vocabulary is RULES.md section 4.4's phase table, word for word. That table is the
+    pinned statement of which phases exist and what ends each one; an engine that invented its
+    own names would be a second, contradicting account of the same rules, and the disagreement
+    would live in every record. The names were made to match in card K-022, before the corpus
+    grew, and the golden fixture was regenerated with the plugin's rules_version bumped.
     """
 
-    SETUP_SETTLEMENT = "setup_settlement"
-    SETUP_ROAD = "setup_road"
-    TURN_START = "turn_start"
-    """Roll the dice, or play a development card (FR-10.1)."""
+    SETUP_ROUND_1 = "setup_round_1"
+    """The opening draft, seats ascending: one settlement and one road each."""
+    SETUP_ROUND_2 = "setup_round_2"
+    """The opening draft, seats descending, with the starting endowment."""
+    TURN_PRODUCTION = "turn_production"
+    """The current player rolls, or plays a development card first (FR-10.1)."""
     DISCARD = "discard"
     """Everybody over the limit discards, concurrently (FR-9.5, FR-12.1)."""
     ROBBER = "robber"
     """The current player moves the robber and may steal (FR-12.3, FR-12.4)."""
     ACTION = "action"
-    """Build, trade, and play development cards (FR-11, FR-13, FR-14)."""
+    """Build, trade, and play development cards, then end the turn (FR-11, FR-13, FR-14)."""
+    ROAD_BUILDING = "road_building"
+    """The two free roads of the Road Building card (FR-13.5)."""
     TRADE_RESPONSE = "trade_response"
-    """Every non-offering player holding cards answers an offer (FR-14.4)."""
-    TRADE_PARTNER = "trade_partner"
-    """The offerer chooses among the players who accepted (FR-14.5)."""
-    OVER = "over"
+    """Every non-offering player holding cards answers an offer (FR-14.4), and the offerer
+    either cancels or chooses among the players who accepted (FR-14.5)."""
+    TERMINAL = "terminal"
     """Somebody reached the target; the record is closed (FR-15)."""
 
 
@@ -187,7 +196,7 @@ def initial_state(board: Board, *, players: int, rng: RandomSource) -> CatanStat
     return CatanState(
         board=board,
         players=players,
-        phase=Phase.SETUP_SETTLEMENT,
+        phase=Phase.SETUP_ROUND_1,
         phase_index=0,
         turn=0,
         round=0,

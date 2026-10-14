@@ -12,20 +12,6 @@
 
 
 
-### K-022 · Open the turn with a roll decision
-
-  - tags: [slice-3, phases, rules, fr-10]
-  - priority: medium
-  - workload: Easy
-  - steps:
-      - [ ] A turn opens a decision offering the roll
-      - [ ] The phase closes correctly and advances to resolution
-    ```md
-    - **Cuts through:** phase machine, phases.py, CLI rendering of open decisions
-    - **Depends on:** K-017
-    - **PRD:** FR-9.5 partial, FR-10.1 partial
-    - **Why:** Playing a knight before the roll is deferred to slice 5; that is the documented reason FR-10.1 is not yet fully satisfied here.
-    ```
 
 ### K-023 · Implement dice and production
 
@@ -1154,4 +1140,24 @@
     - **Hashes pinned as literals as well as bytes.** The initial state hash `ef8474ab042614f9` and the final `90d1be41a7d264c0` are literals in the test, so even a careless regeneration of the golden file fails until someone reads the diff.
     - **Only the deterministic half is committed.** The sidecar is left behind: it holds the wall clock and the host, and the point of the split is that nothing like that can be in the record. A test asserts the record has no `at`, `host` or `pid`, and no carriage returns.
     - **Slice 2 exit.** Board, layout, ports, tokens, state, projection, phase machine, setup draft, endowment, notation and the CLI all run against real Catan, and their interaction is pinned by a game that replays. Slice 3 - the turn structure, dice and production - starts on top of a substrate whose divergence would be caught before a rule is added to it.
+    ```
+
+### K-022 · Open the turn with a roll decision
+
+  - tags: [slice-3, phases, rules, fr-10]
+  - priority: medium
+  - workload: Easy
+  - steps:
+      - [x] A turn opens a decision offering the roll
+      - [x] The phase closes correctly and advances to resolution
+    ```md
+    - **Cuts through:** phase machine, phases.py, the turn rules, CLI rendering of open decisions
+    - **Depends on:** K-017
+    - **PRD:** FR-9.5 partial, FR-10.1 partial
+    - **Why:** Playing a knight before the roll is deferred to slice 5; that is the documented reason FR-10.1 is not yet fully satisfied here.
+    - **Evidence:** tests/games/test_catan_turn.py (12 tests), lgbg/games/catan/rules/turn.py. A turn opens by offering the roll to the seat whose turn it is; the roll consumes draws D6 and D7 - two independent randint(1,6), never one randint(2,12) - which become visible in the state and in a `dice_rolled` event; the production phase then closes, into the action phase on any total but a seven, and into the discard phase on a seven (FR-10.5). Ending the turn opens the next seat's production phase and advances the round when it wraps to seat 0.
+    - **A real divergence found and corrected, and it is the important part of this card.** The `Phase` enum written in K-016 had invented its own names - `setup_settlement`, `setup_road`, `turn_start`, `over`, and a `trade_partner` phase that does not exist - while RULES.md section 4.4, written long before as the pinned statement of the turn structure, names the phases `setup_round_1`, `setup_round_2`, `turn_production`, `discard`, `robber`, `action`, `road_building`, `trade_response`, `terminal`. The engine was therefore a second, contradicting account of the same rules, and the disagreement lived in every record. The enum now matches that table word for word, and the setup is one phase per round rather than two per step, as the table says.
+    - **The cost was paid deliberately and now:** the phase name is part of the encoded state and therefore of every hash, so the golden fixture was regenerated in the same change (20 records; the initial hash moved from `ef8474ab042614f9` to `e3d0eb448c320086`) and the plugin's `rules_version` was bumped to `catan-rules-2`, which RULES.md section 1.2 records with the reason. Doing this at 1 golden game rather than at 7 is the whole argument for pinning the vocabulary early.
+    - **One transition function:** `phases.begin` is now the only place a phase is entered, so a phase cannot be reached without a `phase_started` event - not by advancing, and not by an action that moves the game on, which is how `end_turn` opens the next seat's turn.
+    - **What arrives with later cards:** production itself and the bank limits (K-023, K-024); the discard action, so a seven currently opens a phase whose requests cannot yet be answered (K-025); the robber (K-026); `play_dev_card` before the roll, which is why FR-10.1 is only partly satisfied here (K-042); and the rest of the action phase (K-030 onwards).
     ```

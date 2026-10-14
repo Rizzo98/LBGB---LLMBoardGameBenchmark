@@ -28,8 +28,12 @@ This document contains **no strategy advice**. It states legality, not quality o
 
 ### 1.2 Pinning and versioning
 
-* The plugin declares `rules_version = "catan-rules-1"` (shape from `ARCHITECTURE.md` §8.3). The value
-  is pinned by this document.
+* The plugin declares `rules_version = "catan-rules-2"` (shape from `ARCHITECTURE.md` §8.3). The value
+  is pinned by this document. It was bumped from `catan-rules-1` when the engine's phase vocabulary
+  was brought into line with the table in §4.4: the phase name is part of the encoded state and
+  therefore of every hash, so records made under the old names are not comparable with records made
+  under these. The rules themselves did not change; the engine was corrected to the rule this
+  document already pinned, and the golden fixture was regenerated in the same change.
 * **Any change to a pinned rule in this document MUST bump `rules_version`** (for example to
   `catan-rules-2`) before the change is implemented. A pinned rule is any sentence in §4, §5, §6 or §7
   under the labels *Rule as implemented*, *Chosen interpretation*, *Confirmation* or *Pinned draw*.

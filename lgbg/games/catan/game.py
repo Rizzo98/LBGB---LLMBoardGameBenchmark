@@ -54,7 +54,7 @@ from lgbg.games.catan.notation import Detail
 from lgbg.games.catan.projection import observe as project
 from lgbg.games.catan.projection import observe_spectator as project_spectator
 from lgbg.games.catan.rejections import DECLARED_CODES
-from lgbg.games.catan.rules import setup
+from lgbg.games.catan.rules import setup, turn
 from lgbg.games.catan.state import (
     BANK_PER_RESOURCE,
     NO_OWNER,
@@ -68,7 +68,7 @@ from lgbg.games.catan.state import (
     initial_state,
 )
 
-RULES_VERSION: Final[str] = "catan-rules-1"
+RULES_VERSION: Final[str] = "catan-rules-2"
 """Bumped whenever a pinned rule changes (RULES.md section 1.2), which invalidates the corpus."""
 
 SCHEMA_VERSION: Final[str] = "catan-actions-1"
@@ -80,9 +80,11 @@ DEFAULT_BOARD: Final[str] = "fixed:standard_a"
 
 RuleFunction = Callable[[CatanState, Action, RandomSource], ApplyResult]
 
-SETUP_ACTIONS: Final[dict[str, RuleFunction]] = {
+ACTIONS: Final[dict[str, RuleFunction]] = {
     phases.PLACE_SETTLEMENT: setup.place_settlement,
     phases.PLACE_ROAD: setup.place_road,
+    phases.ROLL_DICE: turn.roll_dice,
+    phases.END_TURN: turn.end_turn,
 }
 """The action types the game accepts, and the rule function each one runs."""
 
@@ -112,20 +114,21 @@ class CatanGame:
     def legal_actions(self, state: CatanState, player: PlayerId) -> list[Action]:
         """Every action this player could take now.
 
-        Slice 2 knows the two setup placements. The slice that adds building fills this in for
-        the action phase (K-034).
+        Filtered by the rules that will judge it: an enumeration that offers an action the
+        engine then refuses is worse than none, because a driver that trusts it records a
+        rejection it did not choose. The action phase is filled in by K-030 onwards.
         """
         return [
-            Action(player=request.player, type=_action_for(request.kind, state), params=params)
+            action
             for request in phases.pending_decisions(state)
             if request.player == player
-            for params in _setup_parameters(state, request)
+            for action in _legal_actions_for(state, request)
         ]
 
     def action_domains(self, state: CatanState, player: PlayerId) -> list[ActionDomain]:
         """What the player may do, cross-product free (ARCHITECTURE.md section 7.2)."""
         return [
-            ActionDomain(type=_action_for(request.kind, state), cost=None, params={})
+            ActionDomain(type=request.schema_ref, cost=None, params={})
             for request in phases.pending_decisions(state)
             if request.player == player
         ]
@@ -141,13 +144,13 @@ class CatanGame:
                     details={"phase": state.phase.value},
                 )
             )
-        rule = SETUP_ACTIONS.get(action.type)
+        rule = ACTIONS.get(action.type)
         if rule is None:
             return Rejected(
                 Rejection(
                     code=UNKNOWN_ACTION,
                     message=f"{action.type!r} is not an action this game declares",
-                    details={"action_type": action.type, "known": sorted(SETUP_ACTIONS)},
+                    details={"action_type": action.type, "known": sorted(ACTIONS)},
                 )
             )
         result = rule(state, action, rng)
@@ -169,7 +172,7 @@ class CatanGame:
 
     # --- terminality ---
     def is_terminal(self, state: CatanState) -> bool:
-        return state.phase is Phase.OVER
+        return state.phase is Phase.TERMINAL
 
     def outcome(self, state: CatanState) -> Outcome:
         scores = {str(seat): self.victory_points(state, seat) for seat in range(state.players)}
@@ -215,6 +218,8 @@ class CatanGame:
                 "required": ["edge"],
                 "additionalProperties": False,
             },
+            phases.ROLL_DICE: _no_parameters(),
+            phases.END_TURN: _no_parameters(),
         }
 
     def observation_schema(self) -> JsonSchema:
@@ -313,17 +318,28 @@ def _action_for(kind: str, state: CatanState) -> str:
     return kind
 
 
-def _setup_parameters(state: CatanState, request: DecisionRequest) -> list[dict[str, JsonValue]]:
-    """The parameters a request admits, filtered by the rules that will judge them.
+def _no_parameters() -> JsonSchema:
+    """An action that takes no parameters, declared rather than left to inference."""
+    return {"type": "object", "properties": {}, "additionalProperties": False}
 
-    An enumeration that offers an action the rules then refuse is worse than none: a driver
-    that trusts it records a rejection it did not choose. So the filter here is the rule, and
-    a test asserts every enumerated action is accepted.
-    """
+
+def _legal_actions_for(state: CatanState, request: DecisionRequest) -> list[Action]:
+    """The actions one request admits, filtered by the rules that will judge them."""
+    player = request.player
     if request.kind == phases.PLACE_SETTLEMENT:
-        return [{"vertex": vertex} for vertex in _legal_settlement_vertices(state)]
+        return [
+            Action(player=player, type=phases.PLACE_SETTLEMENT, params={"vertex": vertex})
+            for vertex in _legal_settlement_vertices(state)
+        ]
     if request.kind == phases.PLACE_ROAD:
-        return [{"edge": edge} for edge in _legal_setup_road_edges(state)]
+        return [
+            Action(player=player, type=phases.PLACE_ROAD, params={"edge": edge})
+            for edge in _legal_setup_road_edges(state)
+        ]
+    if request.kind == phases.TAKE_TURN:
+        # The request names the action that answers it; the rest of the action phase arrives
+        # with K-030 onwards.
+        return [Action(player=player, type=request.schema_ref, params={})]
     return []
 
 

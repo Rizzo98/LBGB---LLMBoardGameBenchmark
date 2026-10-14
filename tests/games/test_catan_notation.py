@@ -66,7 +66,7 @@ def test_the_full_rendering_names_the_phase_the_turn_and_the_round() -> None:
     text = render(_spectator(_played()))
 
     assert "catan" in text
-    assert "setup_settlement" in text
+    assert "setup_round_1" in text
     assert "turn 2" in text
     assert "round 0" in text
 
@@ -114,7 +114,7 @@ def test_the_compact_rendering_is_shorter_and_still_says_what_matters() -> None:
 
     assert len(compact) < len(full)
     assert compact.count("\n") < full.count("\n")
-    for fragment in ("catan", "setup_settlement", "turn 2"):
+    for fragment in ("catan", "setup_round_1", "turn 2"):
         assert fragment in compact
     assert "h9" in compact or "robber" in compact
 
@@ -164,7 +164,7 @@ def test_the_two_details_disagree_only_in_shape() -> None:
     spectator = _spectator(state)
     facts = [
         "catan",
-        "setup_settlement",
+        "setup_round_1",
         "turn 2",
         "h9",
         "v4",

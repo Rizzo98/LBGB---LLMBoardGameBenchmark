@@ -80,7 +80,7 @@ def _in_round_two(state: CatanState, *, turn: int, keep_free: int | None = None)
         state,
         supply=spent,
         placed=Placed(tuple(settlements), state.placed.cities, tuple(roads)),
-        phase=Phase.SETUP_SETTLEMENT,
+        phase=Phase.SETUP_ROUND_1,
         setup_vertex=NO_OWNER,
         turn=turn,
     )

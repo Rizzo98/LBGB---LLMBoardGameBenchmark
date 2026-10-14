@@ -2,19 +2,19 @@
 
 Phases here do not drive control flow. A phase *produces* decision requests, and it ends when
 its request set is empty; the machine then advances and says so in the record. That inversion
-is what lets a phase address several players at once, or a player who is out of turn, without
-a special case: the request list is the primitive, and "whose turn is it" is an ordinary
+is what lets a phase address several players at once, or a player who is out of turn, without a
+special case: the request list is the primitive, and "whose turn is it" is an ordinary
 consequence of it.
 
-Two rules of the machine matter more than the rest.
+The phases and what ends each one are RULES.md section 4.4's table, and nothing else. Two rules
+of the machine matter more than the rest.
 
 - **Resolution order is seat order, and only seat order.** A record produced by four players
   deciding concurrently must be byte-identical to one produced by them deciding in turn, so
-  the order cannot depend on arrival - and it cannot, because the machine can only see the
-  state.
+  the order cannot depend on arrival - and it cannot, because the machine can only see the state.
 - **A phase whose card has not landed is an error, not an empty answer.** Returning no
-  decisions from a phase nobody has implemented would stall a game silently, which is the
-  worst way for a rule to be missing.
+  decisions from a phase nobody has implemented would stall a game silently, which is the worst
+  way for a rule to be missing.
 """
 
 from __future__ import annotations
@@ -30,6 +30,8 @@ from lgbg.games.catan.state import NO_OWNER, CatanState, Phase
 PLACE_SETTLEMENT: Final[str] = "place_settlement"
 PLACE_ROAD: Final[str] = "place_road"
 TAKE_TURN: Final[str] = "take_turn"
+ROLL_DICE: Final[str] = "roll_dice"
+END_TURN: Final[str] = "end_turn"
 DISCARD: Final[str] = "discard"
 
 
@@ -62,13 +64,32 @@ def resolution_order(requests: Sequence[DecisionRequest]) -> list[DecisionReques
     return sorted(requests, key=lambda request: (request.player, request.request_id))
 
 
+def begin(state: CatanState, phase: Phase) -> tuple[CatanState, list[Event]]:
+    """Enter a phase. The only place a transition happens, and it always announces itself.
+
+    One function, so a phase cannot be entered without a `phase_started` event and a phase
+    record (FR-9.4) - not by advancing, and not by an action that moves the game on.
+    """
+    entered = replace(state, phase=phase, phase_index=state.phase_index + 1)
+    return entered, [
+        Event(
+            type=PHASE_STARTED_EVENT,
+            payload={
+                "index": entered.phase_index,
+                "phase": phase.value,
+                "turn": entered.turn,
+            },
+        )
+    ]
+
+
 def advance(state: CatanState) -> tuple[CatanState, list[Event]]:
     """Move to the next phase if this one is closed, announcing the transition (FR-9.4).
 
     A phase that still has open decisions is left alone: the game is waiting for a player, not
     for a transition.
     """
-    if state.phase is Phase.OVER:
+    if state.phase is Phase.TERMINAL:
         return state, []
     if pending_decisions(state):
         return state, []
@@ -79,36 +100,75 @@ def advance(state: CatanState) -> tuple[CatanState, list[Event]]:
             f"phase {state.phase.value} has no open decisions and nowhere to go: its "
             "successor belongs to a card that has not landed"
         )
-    following = rule.successor(state)
-    advanced = replace(state, phase=following, phase_index=state.phase_index + 1)
-    return advanced, [
-        Event(
-            type=PHASE_STARTED_EVENT,
-            payload={
-                "index": advanced.phase_index,
-                "phase": following.value,
-                "turn": advanced.turn,
-            },
-        )
-    ]
+    return begin(state, rule.successor(state))
 
 
-def _setup_settlement_requests(state: CatanState) -> list[DecisionRequest]:
-    """Asked until this selection's settlement is down, which is when settlements lead roads."""
-    if _placed(state.placed.settlements) > _placed(state.placed.roads):
+def _setup_requests(state: CatanState) -> list[DecisionRequest]:
+    """One seat at a time: a settlement, and then the road attached to it (RULES.md 4.3).
+
+    Both rounds share this generator. The round is the phase's own name and the progress is the
+    pieces on the board, so there is no second code path - and the phase closes when the round's
+    steps are done, not after every placement.
+    """
+    limit = state.players if state.phase is Phase.SETUP_ROUND_1 else state.players * 2
+    settlements = _placed(state.placed.settlements)
+    roads = _placed(state.placed.roads)
+    if settlements > roads:
+        return [_request(state, state.turn, PLACE_ROAD)]
+    if settlements >= limit:
         return []
     return [_request(state, state.turn, PLACE_SETTLEMENT)]
 
 
-def _setup_road_requests(state: CatanState) -> list[DecisionRequest]:
-    """Asked while the settlement placed this selection has no road yet."""
-    if _placed(state.placed.settlements) == _placed(state.placed.roads):
+def _after_setup_round_one(state: CatanState) -> Phase:
+    """Round one is over once every seat has one settlement and one road."""
+    drafted = _placed(state.placed.settlements) >= state.players
+    return Phase.SETUP_ROUND_2 if drafted else Phase.SETUP_ROUND_1
+
+
+def _after_setup_round_two(state: CatanState) -> Phase:
+    """The draft ends into the first seat's production phase (RULES.md 4.3 item 9)."""
+    return Phase.TURN_PRODUCTION
+
+
+def _turn_production_requests(state: CatanState) -> list[DecisionRequest]:
+    """The roll, once the dice are still unrolled this turn (FR-10.1).
+
+    `play_dev_card` is offered here too, before the roll, and its action arrives with K-042;
+    until then the roll is the only thing the request can be answered with, and the context says
+    so rather than leaving a model to guess.
+    """
+    if state.dice is not None:
         return []
-    return [_request(state, state.turn, PLACE_ROAD)]
+    return [
+        _request(
+            state,
+            state.turn,
+            TAKE_TURN,
+            schema_ref=ROLL_DICE,
+            context={"actions": [ROLL_DICE]},
+        )
+    ]
 
 
-def _turn_requests(state: CatanState) -> list[DecisionRequest]:
-    return [_request(state, state.turn, TAKE_TURN)]
+def _after_turn_production(state: CatanState) -> Phase:
+    """A seven skips production and opens the discard phase; anything else opens the turn."""
+    if state.dice is None:
+        raise PhaseError("the production phase ended without a roll")
+    return Phase.DISCARD if sum(state.dice) == 7 else Phase.ACTION
+
+
+def _action_requests(state: CatanState) -> list[DecisionRequest]:
+    """The action phase, so far offering only the end of the turn (K-030 onwards adds the rest)."""
+    return [
+        _request(
+            state,
+            state.turn,
+            TAKE_TURN,
+            schema_ref=END_TURN,
+            context={"actions": [END_TURN]},
+        )
+    ]
 
 
 def _discard_requests(state: CatanState) -> list[DecisionRequest]:
@@ -120,19 +180,12 @@ def _discard_requests(state: CatanState) -> list[DecisionRequest]:
     ]
 
 
-def _after_setup_road(state: CatanState) -> Phase:
-    """After a selection the draft continues until everybody has placed twice."""
-    drafted = _placed(state.placed.settlements) >= state.players * 2
-    return Phase.TURN_START if drafted else Phase.SETUP_SETTLEMENT
-
-
 PHASE_RULES: Final[Mapping[Phase, PhaseRule]] = MappingProxyType(
     {
-        Phase.SETUP_SETTLEMENT: PhaseRule(
-            _setup_settlement_requests, lambda state: Phase.SETUP_ROAD
-        ),
-        Phase.SETUP_ROAD: PhaseRule(_setup_road_requests, _after_setup_road),
-        Phase.TURN_START: PhaseRule(_turn_requests, None),
+        Phase.SETUP_ROUND_1: PhaseRule(_setup_requests, _after_setup_round_one),
+        Phase.SETUP_ROUND_2: PhaseRule(_setup_requests, _after_setup_round_two),
+        Phase.TURN_PRODUCTION: PhaseRule(_turn_production_requests, _after_turn_production),
+        Phase.ACTION: PhaseRule(_action_requests, None),
         Phase.DISCARD: PhaseRule(_discard_requests, None),
     }
 )
@@ -144,6 +197,7 @@ def _request(
     player: int,
     kind: str,
     *,
+    schema_ref: str | None = None,
     context: Mapping[str, JsonValue] | None = None,
 ) -> DecisionRequest:
     """A decision addressed to one player, identified from the state rather than from a clock."""
@@ -151,7 +205,7 @@ def _request(
         request_id=f"d{state.phase_index}.{player}",
         player=player,
         kind=kind,
-        schema_ref=kind,
+        schema_ref=kind if schema_ref is None else schema_ref,
         context=dict(context or {}),
         phase=state.phase.value,
     )

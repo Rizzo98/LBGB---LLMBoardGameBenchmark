@@ -184,7 +184,7 @@ def test_the_projection_reports_the_turn_and_the_phase() -> None:
     observation = observe(_opening(), 0)
 
     assert observation["turn"] == 0
-    assert observation["phase"] == "setup_settlement"
+    assert observation["phase"] == "setup_round_1"
     assert observation["round"] == 0
     assert observation["dice"] is None
 

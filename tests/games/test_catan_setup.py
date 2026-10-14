@@ -93,7 +93,7 @@ def test_the_plugin_registers_as_catan_with_its_versions() -> None:
     assert "catan" in registered_games()
     assert get_game("catan") is GAME, "one shared instance per game (FR-6.5)"
     assert GAME.name == "catan"
-    assert GAME.rules_version == "catan-rules-1"
+    assert GAME.rules_version == "catan-rules-2"
     assert GAME.schema_version == "catan-actions-1"
 
 
@@ -105,7 +105,7 @@ def test_the_draft_opens_with_the_first_seat_placing_a_settlement() -> None:
     assert len(requests) == 1
     assert requests[0].player == 0
     assert requests[0].kind == "place_settlement"
-    assert state.phase is Phase.SETUP_SETTLEMENT
+    assert state.phase is Phase.SETUP_ROUND_1
 
 
 def test_a_settlement_opens_the_road_decision_for_the_same_player() -> None:
@@ -115,7 +115,7 @@ def test_a_settlement_opens_the_road_decision_for_the_same_player() -> None:
     result = _place_settlement(state, vertex)
 
     assert isinstance(result, Applied)
-    assert result.state.phase is Phase.SETUP_ROAD
+    assert result.state.phase is Phase.SETUP_ROUND_1
     assert result.state.placed.settlements[vertex] == 0
     assert result.state.setup_vertex == vertex
     requests = GAME.pending_decisions(result.state)
@@ -155,7 +155,7 @@ def test_an_occupied_vertex_is_refused_with_its_own_code() -> None:
     vertex = _free_vertex(state)
     taken = _place_settlement(state, vertex).state
 
-    result = _place_settlement(replace(taken, phase=Phase.SETUP_SETTLEMENT), vertex)
+    result = _place_settlement(replace(taken, phase=Phase.SETUP_ROUND_1), vertex)
 
     assert isinstance(result, Rejected)
     assert result.rejection.code == VERTEX_OCCUPIED
@@ -191,7 +191,7 @@ def test_an_occupied_edge_is_refused_with_its_own_code() -> None:
     roaded = _place_road(placed, edge).state
     back = replace(
         roaded,
-        phase=Phase.SETUP_ROAD,
+        phase=Phase.SETUP_ROUND_1,
         turn=0,
         setup_vertex=vertex,
     )
@@ -240,7 +240,7 @@ def test_the_whole_draft_runs_in_snake_order_and_ends_in_the_turn_phase() -> Non
         state = _place_road(state, _edge_at(state, vertex)).state
 
     assert seats == [0, 1, 2, 3, 3, 2, 1, 0]
-    assert state.phase is Phase.TURN_START
+    assert state.phase is Phase.TURN_PRODUCTION
     assert state.turn == 0, "the seat that drafts last opens the game"
     settlements = [seat for seat in state.placed.settlements if seat != NO_OWNER]
     roads = [seat for seat in state.placed.roads if seat != NO_OWNER]
@@ -295,7 +295,7 @@ def test_every_declared_code_is_unique_and_described() -> None:
 
 def test_an_action_after_termination_is_refused() -> None:
     result = GAME.apply(
-        replace(_opening(), phase=Phase.OVER),
+        replace(_opening(), phase=Phase.TERMINAL),
         Action(player=0, type="place_settlement", params={"vertex": 0}),
         NullRandomSource(),
     )
@@ -360,8 +360,8 @@ def test_a_whole_draft_replays_from_its_record(tmp_path: Path) -> None:
     assert report.rejections == 0
     assert terminal.total_actions == 16
     assert len(replayed.states) == 17
-    assert replayed.states[-1].phase is Phase.TURN_START
-    assert [record.phase for record in log.phases].count("setup_road") == 8
+    assert replayed.states[-1].phase is Phase.TURN_PRODUCTION
+    assert [record.phase for record in log.phases] == ["setup_round_2", "turn_production"]
 
 
 def test_the_state_after_a_draft_round_trips() -> None:

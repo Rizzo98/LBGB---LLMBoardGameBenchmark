@@ -73,7 +73,7 @@ def _populated() -> CatanState:
     )
     return replace(
         opening,
-        phase=Phase.SETUP_ROAD,
+        phase=Phase.SETUP_ROUND_1,
         phase_index=5,
         turn=2,
         round=3,
@@ -109,7 +109,7 @@ def test_the_opening_state_carries_the_pinned_facts() -> None:
     state = _opening()
 
     assert state.players == PLAYERS
-    assert state.phase is Phase.SETUP_SETTLEMENT
+    assert state.phase is Phase.SETUP_ROUND_1
     assert state.turn == 0, "the snake draft starts with seat 0"
     assert state.round == 0
     assert state.phase_index == 0

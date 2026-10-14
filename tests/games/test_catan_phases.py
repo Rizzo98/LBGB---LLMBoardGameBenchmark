@@ -64,13 +64,13 @@ def test_the_opening_state_asks_the_first_player_for_one_decision() -> None:
 
     assert len(requests) == 1
     assert requests[0].player == 0
-    assert requests[0].phase == Phase.SETUP_SETTLEMENT.value
+    assert requests[0].phase == Phase.SETUP_ROUND_1.value
     assert requests[0].kind == "place_settlement"
 
 
 def test_every_phase_the_machine_can_enter_produces_requests() -> None:
     """A phase with no rule would be a turn nobody can take, so the table must cover them."""
-    for phase in (Phase.SETUP_SETTLEMENT, Phase.SETUP_ROAD, Phase.TURN_START, Phase.DISCARD):
+    for phase in (Phase.SETUP_ROUND_1, Phase.SETUP_ROUND_1, Phase.TURN_PRODUCTION, Phase.DISCARD):
         assert phase in PHASE_RULES, f"{phase.value} has no rule"
 
 
@@ -119,45 +119,51 @@ def test_a_phase_that_still_has_requests_does_not_advance() -> None:
 
 def test_a_closed_phase_advances_and_says_so_in_the_record() -> None:
     """FR-9.4: every transition emits a phase_started event."""
-    state = _settled(replace(_opening(), phase=Phase.SETUP_SETTLEMENT), settlements=1, roads=0)
+    state = _settled(_opening(), settlements=PLAYERS, roads=PLAYERS)
 
     advanced, events = advance(state)
 
-    assert advanced.phase is Phase.SETUP_ROAD
+    assert advanced.phase is Phase.SETUP_ROUND_2
     assert [event.type for event in events] == [PHASE_STARTED_EVENT]
     assert dict(events[0].payload) == {
         "index": state.phase_index + 1,
-        "phase": Phase.SETUP_ROAD.value,
+        "phase": Phase.SETUP_ROUND_2.value,
         "turn": state.turn,
     }
 
 
-def test_the_setup_alternates_between_placing_a_settlement_and_a_road() -> None:
-    opening = _opening()
-    first = advance(_settled(opening, settlements=1, roads=0))[0]
-    second = advance(_settled(first, settlements=1, roads=1))[0]
+def test_the_draft_stays_in_one_phase_while_it_has_a_step_left() -> None:
+    """RULES.md 4.4: round one is one phase, ended by all eight steps being done."""
+    state = _settled(_opening(), settlements=1, roads=1)
 
-    assert first.phase is Phase.SETUP_ROAD
-    assert second.phase is Phase.SETUP_SETTLEMENT
+    same, events = advance(state)
+
+    assert same.phase is Phase.SETUP_ROUND_1
+    assert events == []
 
 
-def test_the_setup_ends_into_the_turn_once_everybody_has_placed_twice() -> None:
+def test_the_setup_ends_into_the_production_phase_once_everybody_has_placed_twice() -> None:
     state = replace(
-        _settled(_opening(), settlements=PLAYERS * 2, roads=PLAYERS * 2), phase=Phase.SETUP_ROAD
+        _settled(_opening(), settlements=PLAYERS * 2, roads=PLAYERS * 2),
+        phase=Phase.SETUP_ROUND_2,
     )
 
     advanced, _events = advance(state)
 
-    assert advanced.phase is Phase.TURN_START
-    assert pending_decisions(advanced)[0].kind == "take_turn"
-    assert pending_decisions(advanced)[0].player == advanced.turn
+    assert advanced.phase is Phase.TURN_PRODUCTION
+    request = pending_decisions(advanced)[0]
+    assert request.kind == "take_turn"
+    assert request.schema_ref == "roll_dice", "the roll is what the turn opens with"
+    assert request.player == advanced.turn
 
 
 def test_each_phase_instance_has_its_own_decision_identifiers() -> None:
     """Decision ids come from the state, so replay derives the same identifiers."""
     first = pending_decisions(_opening())
     later = pending_decisions(
-        replace(_settled(_opening(), settlements=1, roads=0), phase_index=4, phase=Phase.SETUP_ROAD)
+        replace(
+            _settled(_opening(), settlements=1, roads=0), phase_index=4, phase=Phase.SETUP_ROUND_1
+        )
     )
 
     assert first[0].request_id != later[0].request_id
@@ -181,7 +187,7 @@ def test_a_closed_phase_with_no_successor_is_reported() -> None:
 
 def test_the_finished_phase_never_advances() -> None:
     """OVER has no requests and nowhere to go; asking is not an error, it is the end."""
-    state = replace(_opening(), phase=Phase.OVER)
+    state = replace(_opening(), phase=Phase.TERMINAL)
 
     same, events = advance(state)
 

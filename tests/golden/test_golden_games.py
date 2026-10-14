@@ -30,8 +30,8 @@ REPO_ROOT: Final[Path] = Path(__file__).resolve().parents[2]
 SCRIPT: Final[Path] = REPO_ROOT / "tests" / "fixtures" / "catan" / "setup_game.json"
 RECORD: Final[Path] = REPO_ROOT / "tests" / "golden" / "catan" / "setup_game.god.jsonl"
 
-INITIAL_STATE_HASH: Final[str] = "ef8474ab042614f9"
-FINAL_STATE_HASH: Final[str] = "90d1be41a7d264c0"
+INITIAL_STATE_HASH: Final[str] = "e3d0eb448c320086"
+FINAL_STATE_HASH: Final[str] = "895007ccb94adb83"
 ACTIONS: Final[int] = 16
 SEATS: Final[int] = 4
 
@@ -53,7 +53,7 @@ def test_the_committed_record_replays_with_every_hash_verified() -> None:
     assert len(replayed.states) == ACTIONS + 1
     assert log.header.initial_state_hash == INITIAL_STATE_HASH
     assert report.terminal_hash == FINAL_STATE_HASH
-    assert replayed.states[-1].phase is Phase.TURN_START
+    assert replayed.states[-1].phase is Phase.TURN_PRODUCTION
 
 
 def test_playing_the_committed_script_reproduces_the_record_byte_for_byte(
@@ -105,8 +105,8 @@ def test_every_transition_is_announced_in_the_record() -> None:
     log = _log()
     phases = [record.phase for record in log.phases]
 
-    assert phases == (["setup_road", "setup_settlement"] * 7 + ["setup_road", "turn_start"]), (
-        "the draft alternates settlement and road, and then the first turn opens"
+    assert phases == ["setup_round_2", "turn_production"], (
+        "the draft holds one phase per round (RULES.md 4.4), and the first turn opens after it"
     )
 
 
@@ -139,7 +139,7 @@ def test_the_record_carries_the_versions_it_was_produced_under() -> None:
     header = _log().header
 
     assert header.game == "catan"
-    assert header.rules_version == "catan-rules-1"
+    assert header.rules_version == "catan-rules-2"
     assert header.schema_version == "catan-actions-1"
     assert header.schema == "lgbg.game.v1"
     assert header.engine_version

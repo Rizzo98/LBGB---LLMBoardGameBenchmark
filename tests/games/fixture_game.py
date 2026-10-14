@@ -8,7 +8,9 @@ reason.
 
 It exercises the full plugin protocol with the smallest surface that still has teeth: three
 action types, one random draw, a limited supply shared between players, hidden per-player
-holdings, a conservation law, and a terminal condition.
+holdings, a conservation law, and a terminal condition. It is also careful never to be able
+to deadlock: at least one action is always legal, so a stalled game is reported as a rule
+defect rather than as a livelock nobody can attribute.
 """
 
 from __future__ import annotations
@@ -170,7 +172,11 @@ class FixtureGame:
                     Event(type="score_gained", payload={"player": state.turn, "amount": 1}),
                 ],
             )
-        if state.bank < 1:
+        gained = 1
+        if action.type == "gamble":
+            # A gamble is legal even on an empty bank; it simply gains nothing.
+            gained = min(rng.randint(1, GAMBLE_MAX, purpose=GAMBLE_PURPOSE), state.bank)
+        elif state.bank < 1:
             return Rejected(
                 Rejection(
                     code=TOKENS_UNAVAILABLE,
@@ -178,9 +184,6 @@ class FixtureGame:
                     details={"requires": 1, "available": state.bank},
                 )
             )
-        gained = 1
-        if action.type == "gamble":
-            gained = min(rng.randint(1, GAMBLE_MAX, purpose=GAMBLE_PURPOSE), state.bank)
         return Applied(
             state=self._succeed(state, token_delta=gained, bank_delta=-gained, score_delta=0),
             events=[Event(type="tokens_gained", payload={"player": state.turn, "amount": gained})],
@@ -294,9 +297,13 @@ class FixtureGame:
     def _available_types(self, state: FixtureState, player: PlayerId) -> list[str]:
         if self.is_terminal(state) or player != state.turn:
             return []
-        available: list[str] = []
+        # 'gamble' is always legal, even on an empty bank, where it gains nothing. Without
+        # it the game could reach a state in which the player to act has no legal move - the
+        # bank drained into the other player's holding - and a game that cannot progress is a
+        # livelock, which the conformance harness reports as a defect (FR-22.4).
+        available: list[str] = ["gamble"]
         if state.bank >= 1:
-            available.extend(["take", "gamble"])
+            available.insert(0, "take")
         if state.tokens[player] >= COST_TOKENS:
             available.append("spend")
         return available

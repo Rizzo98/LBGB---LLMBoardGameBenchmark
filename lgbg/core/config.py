@@ -27,11 +27,14 @@ from typing import Final
 from lgbg.core.types import JsonValue
 
 CORE_KEYS: Final[frozenset[str]] = frozenset(
-    {"seed", "assist", "rejection_detail", "interaction_protocol", "prompt_hashes"}
+    {"seed", "players", "assist", "rejection_detail", "interaction_protocol", "prompt_hashes"}
 )
 """Keys of the configuration that the core owns. Everything else is the game's."""
 
 REQUIRED_KEYS: Final[tuple[str, ...]] = ("seed", "interaction_protocol")
+
+DEFAULT_PLAYERS: Final[int] = 4
+"""Seats in a run. Declared rather than guessed: the record states how many players there were."""
 
 
 class ConfigError(ValueError):
@@ -99,6 +102,7 @@ class RunConfig:
     """Everything that describes how a game was run, as recorded in the header."""
 
     seed: int
+    players: int
     assist: AssistLevel
     rejection_detail: RejectionDetail
     interaction_protocol: str
@@ -110,12 +114,14 @@ class RunConfig:
         *,
         seed: int,
         interaction_protocol: str,
+        players: int = DEFAULT_PLAYERS,
         assist: AssistLevel = AssistLevel.L1,
         rejection_detail: RejectionDetail | None = None,
         prompt_hashes: Mapping[str, str] | None = None,
         game_config: GameConfig | None = None,
     ) -> None:
         object.__setattr__(self, "seed", seed)
+        object.__setattr__(self, "players", players)
         object.__setattr__(self, "assist", assist)
         object.__setattr__(
             self,
@@ -132,6 +138,7 @@ class RunConfig:
         """The header's 'config' object: core fields and game options, flat."""
         mapping: dict[str, JsonValue] = {
             "seed": self.seed,
+            "players": self.players,
             "assist": self.assist.value,
             "rejection_detail": self.rejection_detail.value,
             "interaction_protocol": self.interaction_protocol,
@@ -180,10 +187,14 @@ class RunConfig:
         protocol = raw["interaction_protocol"]
         if not isinstance(protocol, str):
             raise ConfigError(f"interaction_protocol must be a string, got {protocol!r}")
+        players = raw.get("players", DEFAULT_PLAYERS)
+        if not isinstance(players, int) or isinstance(players, bool) or players < 2:
+            raise ConfigError(f"players must be an integer of at least 2, got {players!r}")
         detail = raw.get("rejection_detail")
 
         return cls(
             seed=seed,
+            players=players,
             assist=_as_enum(raw.get("assist", AssistLevel.L1.value), AssistLevel, "assist"),
             rejection_detail=(
                 None if detail is None else _as_enum(detail, RejectionDetail, "rejection_detail")

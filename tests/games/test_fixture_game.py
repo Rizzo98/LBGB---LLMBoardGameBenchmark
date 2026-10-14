@@ -168,7 +168,22 @@ def test_an_exhausted_bank_makes_the_action_unavailable_rather_than_erroring() -
 
     assert "take" not in available
     assert "take" not in legal
-    assert "gamble" not in available
+    assert "gamble" in available, "something must always be legal, or the game can stall"
+
+
+def test_a_gamble_on_an_empty_bank_wastes_the_turn_rather_than_stalling() -> None:
+    game, state = _fresh()
+    drained = state
+    while drained.bank > 0:
+        drained = _take(game, drained, NullRandomSource())
+
+    result = game.apply(
+        drained, Action(player=drained.turn, type="gamble", params={}), SeededRandomSource(1)
+    )
+
+    assert isinstance(result, Applied)
+    assert result.state.tokens[drained.turn] == drained.tokens[drained.turn]
+    assert result.state.turn != drained.turn
 
 
 def test_unknown_action_type_is_rejected_with_the_core_code() -> None:

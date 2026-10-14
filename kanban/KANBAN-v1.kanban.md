@@ -7,21 +7,6 @@
 
 ## Backlog
 
-### K-010 · Wire the CLI skeleton against the fixture game
-
-  - tags: [slice-1, cli, fr-20, fr-21]
-  - priority: medium
-  - workload: Normal
-  - steps:
-      - [ ] new, play, replay and verify work end to end against the fixture game
-      - [ ] verify exits non-zero and names the seq on failure
-      - [ ] Expected failures print a message, never a Python traceback
-    ```md
-    - **Cuts through:** CLI, config, log, replay, the registry
-    - **Depends on:** K-009
-    - **PRD:** FR-20.1 to FR-20.4, FR-20.7
-    ```
-
 ### K-011 · Add determinism and tamper-detection tests
 
   - tags: [slice-1, test, replay, fr-4, sc-3, sc-4]
@@ -1065,6 +1050,24 @@
 ### K-001 · Pin Catan rules in games/catan/RULES.md
 
   - tags: [slice-0, docs, rules, fr-6, sc-12]
+### K-010 · Wire the CLI skeleton against the fixture game
+
+  - tags: [slice-1, cli, fr-20, fr-21]
+  - priority: medium
+  - workload: Normal
+  - steps:
+      - [x] new, play, replay and verify work end to end against the fixture game
+      - [x] verify exits non-zero and names the seq on failure
+      - [x] Expected failures print a message, never a Python traceback
+    ```md
+    - **Cuts through:** CLI, config, log, replay, the registry
+    - **Depends on:** K-009
+    - **PRD:** FR-20.1 to FR-20.4, FR-20.7
+    - **Evidence:** tests/cli/test_cli.py (19 tests) runs the commands in process, and the whole path was also run from a shell: `new` printed the opening decision, `play` recorded a scripted game, `replay --print-states` printed every intermediate state with both hashes, `verify` reported the counts, and after a single tampered hash `verify` exited 1 with `seq 0: hash_mismatch: state_hash is deadbeef... but replay produced ...`. A rejected action stops the driver with a sentence on stderr and exit 1, and the record still ends with a terminal line, because the record of a failed run is what one needs afterwards.
+    - **Added:** `lgbg/core/run.py` (GameRun) is the runtime loop this card needed: one record per attempt, both hashes, the draws of that action, core-level request validation, and an explicit finish (FR-3.2, FR-9.2, FR-15.5). Also `--plugin MODULE` on every command, the explicit-import discovery path of ARCHITECTURE.md section 7.4, without which a game outside the engine could not be driven by hand.
+    - **Fixture finding:** the fixture game could reach a state where the player to act had no legal move (the bank drained into the other player's holding). A gamble is now always legal and gains nothing on an empty bank, so the game cannot livelock - the property FR-22.4 will assert.
+    ```
+
   - priority: high
   - workload: Normal
   - defaultExpanded: true

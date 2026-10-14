@@ -92,6 +92,7 @@ def test_header_mapping_has_the_documented_flat_shape() -> None:
 
     assert config.to_mapping() == {
         "seed": SEED,
+        "players": 4,
         "assist": "L2",
         "rejection_detail": "full",
         "interaction_protocol": PROTOCOL,
@@ -139,6 +140,17 @@ def test_declared_game_options_are_carried_opaque_to_the_core() -> None:
     config = RunConfig.from_mapping(raw, game_option_keys=GAME_OPTION_KEYS)
 
     assert config.game_config.options == {"board": "fixed:standard_a"}
+
+
+def test_the_seat_count_defaults_to_four_and_must_be_a_seat_count() -> None:
+    assert _standard().players == 4
+
+    with pytest.raises(ConfigError, match="players"):
+        RunConfig.from_mapping(_raw(seed=SEED, interaction_protocol=PROTOCOL, players=1))
+
+    seats = RunConfig.from_mapping(_raw(seed=SEED, interaction_protocol=PROTOCOL, players=2))
+
+    assert seats.players == 2
 
 
 def test_a_recorded_config_is_readable_without_the_plugins_declaration() -> None:

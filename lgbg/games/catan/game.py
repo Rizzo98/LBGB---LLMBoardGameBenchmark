@@ -314,17 +314,41 @@ def _action_for(kind: str, state: CatanState) -> str:
 
 
 def _setup_parameters(state: CatanState, request: DecisionRequest) -> list[dict[str, JsonValue]]:
-    """The parameters a request admits, for the enumeration of legal actions."""
+    """The parameters a request admits, filtered by the rules that will judge them.
+
+    An enumeration that offers an action the rules then refuse is worse than none: a driver
+    that trusts it records a rejection it did not choose. So the filter here is the rule, and
+    a test asserts every enumerated action is accepted.
+    """
     if request.kind == phases.PLACE_SETTLEMENT:
-        return [
-            {"vertex": vertex}
-            for vertex in range(len(state.placed.settlements))
-            if state.placed.settlements[vertex] == NO_OWNER
-        ]
+        return [{"vertex": vertex} for vertex in _legal_settlement_vertices(state)]
     if request.kind == phases.PLACE_ROAD:
-        return [
-            {"edge": edge}
-            for edge in range(len(state.placed.roads))
-            if state.placed.roads[edge] == NO_OWNER
-        ]
+        return [{"edge": edge} for edge in _legal_setup_road_edges(state)]
     return []
+
+
+def _legal_settlement_vertices(state: CatanState) -> list[int]:
+    """Empty vertices clear of every building: the distance rule, during setup."""
+    if state.supply[state.turn].settlements < 1:
+        return []
+    return [
+        vertex
+        for vertex in range(len(state.placed.settlements))
+        if state.placed.settlements[vertex] == NO_OWNER
+        and state.placed.cities[vertex] == NO_OWNER
+        and all(
+            state.placed.settlements[site] == NO_OWNER and state.placed.cities[site] == NO_OWNER
+            for site in setup.neighbouring_vertices(state, vertex)
+        )
+    ]
+
+
+def _legal_setup_road_edges(state: CatanState) -> list[int]:
+    """Empty edges incident to the settlement this step placed, which is where a road goes."""
+    if state.setup_vertex == NO_OWNER or state.supply[state.turn].roads < 1:
+        return []
+    return [
+        edge
+        for edge in state.board.topology.edges_at(state.setup_vertex)
+        if state.placed.roads[edge] == NO_OWNER
+    ]

@@ -10,22 +10,6 @@
 
 
 
-### K-020 · Run the CLI against real Catan
-
-  - tags: [slice-2, cli, fr-20, fr-21]
-  - priority: medium
-  - workload: Normal
-  - steps:
-      - [ ] lgbg new --game catan prints the opening decision
-      - [ ] play accepts a scripted file and drives the draft
-      - [ ] inspect --board renders the board
-      - [ ] Scripted driver resolves an unambiguous request without an explicit request_id and errors when ambiguous
-    ```md
-    - **Cuts through:** CLI, registry, config, phases, notation, log, replay
-    - **Depends on:** K-017, K-019
-    - **PRD:** FR-20.5, FR-21.1 to FR-21.4
-    - **Open question:** Q6, whether play records interactive sessions into a scripted file in this release.
-    ```
 
 ### K-021 · Commit golden game 1: setup through terminal
 
@@ -1141,4 +1125,26 @@
     - **The renderer never decides what may be seen.** It renders the projection it is handed, field by field, and a field the projection left out cannot appear - asserted by rendering one player's view and the spectator's and checking that hands appears in exactly one of them. An unrecognised field is rendered rather than dropped, deliberately: rendering fails open, because the allow-list in projection.py is the only gate.
     - **The seam that keeps the CLI game-agnostic:** a `render` member on the Game protocol, so a game declares how its own projections are written down. The CLI calls it without knowing what a board is (ARCHITECTURE.md 11.3), and the prompt generator and MCP resources will call the same one. Adding a protocol member is the planned revision of ARCHITECTURE.md 17.5, not a workaround.
     - **A rendering is not the record.** The hashed state is still `encode_state`; notation is a projection of a projection, so a change of wording cannot invalidate a record - and the tests keep that distinction by asserting stability rather than the exact text of a paragraph.
+    ```
+
+### K-020 · Run the CLI against real Catan
+
+  - tags: [slice-2, cli, fr-20, fr-21]
+  - priority: medium
+  - workload: Normal
+  - steps:
+      - [x] lgbg new --game catan prints the opening decision
+      - [x] play accepts a scripted file and drives the draft
+      - [x] inspect --board renders the board
+      - [x] Scripted driver resolves an unambiguous request without an explicit request_id and errors when ambiguous
+    ```md
+    - **Cuts through:** CLI, registry, config, phases, notation, log, replay
+    - **Depends on:** K-017, K-019
+    - **PRD:** FR-20.5, FR-21.1 to FR-21.4
+    - **Open question:** Q6, whether play records interactive sessions into a scripted file in this release.
+    - **Evidence:** eight new CLI tests in tests/cli/test_cli.py, plus a shell run of the whole surface. `new --game catan` prints the opening decision and the initial state hash; `play --script` drives a whole sixteen-action draft and the record verifies; `inspect --board` prints the board as a board, `inspect --player 1` prints that seat's own view, and with no player it prints the spectator's god view; and `verify` accepts the run.
+    - **A defect found and fixed on the way:** `legal_actions` offered *every* empty vertex and *every* empty edge, so a driver that trusted it would have recorded rejections it did not choose. Enumeration is now filtered by the rules that will judge it - the distance rule for a settlement, incidence to the settlement just placed for a setup road - and the draft's fixture is recorded by asking the game for its legal actions, so the fixture cannot drift from the rules. A test asserts every enumerated action is accepted, which is what would have caught it.
+    - **Ambiguity is an error, not a guess** (FR-21.2): with two decisions open for one player, an action that names neither fails with both request identifiers in the message. The test uses an out-of-tree plugin with two open requests, which is also the case the Catan discard phase will exercise at K-025.
+    - **Q6 answered as 'not this release':** `play --interactive` reads one JSON action per line from standard input, so a game can be driven by hand (FR-20.2), but an interactive session is not written back into a scripted file. The record on disk is still a full record, so a session can be replayed, verified and inspected like a scripted one; recording is a convenience, not a gap in the evidence.
+    - **`--board` is the game's extra detail level.** The CLI stays game-agnostic: it prints what the game's own renderer says a projection looks like (ARCHITECTURE.md 11.3). `full` and `compact` are required of any game; `board` is Catan's own.
     ```

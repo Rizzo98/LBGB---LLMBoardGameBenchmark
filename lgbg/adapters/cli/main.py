@@ -29,11 +29,11 @@ import lgbg.games  # noqa: F401 - importing the package registers the in-repo pl
 from lgbg.adapters.cli.script import ScriptError, drive, load_script
 from lgbg.core.canonical import hash_state, to_canonical_json
 from lgbg.core.config import DEFAULT_PLAYERS, ConfigError, RunConfig
-from lgbg.core.game import GamePluginError, get_game
+from lgbg.core.game import Applied, GamePluginError, get_game
 from lgbg.core.log import GOD_LOG_SUFFIX, GameLogReader, LogError
 from lgbg.core.replay import ReplayError, replay, verify
 from lgbg.core.run import AmbiguousRequestError, GameRun
-from lgbg.core.types import DecisionRequest, JsonValue
+from lgbg.core.types import Action, DecisionRequest, JsonValue
 
 EXPECTED_FAILURES: tuple[type[Exception], ...] = (
     ConfigError,
@@ -62,11 +62,25 @@ def build_parser() -> argparse.ArgumentParser:
     new.add_argument("--assist", default=None, help="L0, L1 or L2 (default L1)")
     new.add_argument("--rejection-detail", default=None, help="minimal, standard or full")
     new.add_argument("--protocol", default="decline_only", help="the interaction protocol")
+    new.add_argument("--board", default=None, help="which board the game should use")
     _add_plugin_option(new)
 
     play = commands.add_parser("play", help="drive a game from a scripted action file")
     _add_plugin_option(play)
-    play.add_argument("--script", required=True, help="the scripted action file")
+    source = play.add_mutually_exclusive_group(required=True)
+    source.add_argument("--script", help="the scripted action file")
+    source.add_argument(
+        "--interactive",
+        action="store_true",
+        help="read one JSON action per line from standard input",
+    )
+    play.add_argument("--game", default="fixture", help="the game to play, when interactive")
+    play.add_argument("--seed", type=int, default=1, help="the seed, when interactive")
+    play.add_argument(
+        "--players", type=int, default=DEFAULT_PLAYERS, help="seats, when interactive"
+    )
+    play.add_argument("--protocol", default="decline_only", help="the interaction protocol")
+    play.add_argument("--board", default=None, help="which board the game should use")
     play.add_argument("--out", required=True, help="the run directory to write the record into")
     play.add_argument(
         "--game-id", default=DEFAULT_GAME_ID, help="the id this game is recorded under"
@@ -88,6 +102,20 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="render the printed states compactly, for reading a long game",
     )
+
+    inspect_command = commands.add_parser(
+        "inspect", help="dump a projection, or render the board alone"
+    )
+    _add_plugin_option(inspect_command)
+    inspect_command.add_argument("log", help="a .god.jsonl record")
+    inspect_command.add_argument(
+        "--player", type=int, default=None, help="whose view to dump; the spectator's by default"
+    )
+    inspect_command.add_argument("--board", action="store_true", help="render the board alone")
+    inspect_command.add_argument(
+        "--seq", type=int, default=None, help="the state after this many actions, not the last"
+    )
+    inspect_command.add_argument("--compact", action="store_true", help="render compactly")
 
     verify_command = commands.add_parser(
         "verify", help="verify a record, or every record in a directory"
@@ -131,6 +159,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 return _play(args)
             case "replay":
                 return _replay(args)
+            case "inspect":
+                return _inspect(args)
             case _:
                 return _verify(args)
     except EXPECTED_FAILURES as error:
@@ -204,7 +234,84 @@ def _print_requests(requests: Sequence[DecisionRequest]) -> None:
         )
 
 
+def _play_interactively(args: argparse.Namespace) -> int:
+    """Drive a game by hand: one JSON action per line on standard input (FR-20.2).
+
+    Recording an interactive session back into a scripted file is open question Q6 and is not
+    in this release. The record on disk is still a full record, so a session can be replayed,
+    verified and inspected exactly like a scripted one.
+    """
+    game = get_game(args.game)
+    settings: dict[str, JsonValue] = {
+        "seed": args.seed,
+        "players": args.players,
+        "interaction_protocol": args.protocol,
+    }
+    if args.board is not None:
+        settings["board"] = args.board
+    config = RunConfig.from_mapping(settings, game_option_keys=None)
+    out = Path(args.out)
+    run = GameRun(game, config, game_id=args.game_id, directory=out)
+    print(game.render(game.observe_spectator(run.state), detail="compact"))
+    _print_requests(run.pending)
+
+    for number, line in enumerate(sys.stdin, start=1):
+        text = line.strip()
+        if not text:
+            continue
+        try:
+            payload = json.loads(text)
+            action = Action(
+                player=int(payload["player"]),
+                type=str(payload["type"]),
+                params=payload.get("params", {}),
+            )
+        except (json.JSONDecodeError, KeyError, TypeError, ValueError) as error:
+            print(f"error: line {number}: {error}", file=sys.stderr)
+            run.close()
+            return 1
+        result = run.submit(action, request_id=payload.get("request_id"))
+        if isinstance(result, Applied):
+            print(f"{number}: accepted {action.type} by seat {action.player}")
+        else:
+            print(
+                f"{number}: rejected {result.rejection.code.code}: {result.rejection.message}",
+                file=sys.stderr,
+            )
+
+    terminal = run.finish()
+    print(f"attempts: {terminal.total_actions}  rejections: {terminal.rejections}")
+    print(f"record: {out / 'games' / (args.game_id + GOD_LOG_SUFFIX)}")
+    return 0
+
+
+def _inspect(args: argparse.Namespace) -> int:
+    """Dump one view of one state (FR-20.5).
+
+    The rendering is the game's own (ARCHITECTURE.md section 11.3): the CLI prints what the
+    game says a projection looks like, and knows nothing about boards itself.
+    """
+    log = GameLogReader(Path(args.log)).read()
+    game = get_game(log.header.game)
+    replayed = replay(log, game)
+    last = len(replayed.states) - 1
+    index = last if args.seq is None else max(0, min(args.seq + 1, last))
+    state = replayed.states[index]
+    observation = (
+        game.observe_spectator(state) if args.player is None else game.observe(state, args.player)
+    )
+    detail = "board" if args.board else ("compact" if args.compact else "full")
+    try:
+        print(game.render(observation, detail=detail))
+    except ValueError as error:
+        print(f"error: {error}", file=sys.stderr)
+        return 1
+    return 0
+
+
 def _play(args: argparse.Namespace) -> int:
+    if args.interactive:
+        return _play_interactively(args)
     script = load_script(Path(args.script))
     game = get_game(script.game)
     out = Path(args.out)

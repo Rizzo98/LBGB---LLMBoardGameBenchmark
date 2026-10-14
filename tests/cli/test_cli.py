@@ -18,7 +18,7 @@ import pytest
 
 from lgbg.adapters.cli.main import main
 from lgbg.core.config import RunConfig
-from lgbg.core.game import Applied
+from lgbg.core.game import Applied, get_game
 from lgbg.core.log import GameLogReader, god_log_path, sidecar_path
 from lgbg.core.run import GameRun
 from lgbg.core.types import Action
@@ -101,6 +101,41 @@ def _script_for(
     return path
 
 
+def _catan_draft_script(tmp_path: Path, *, actions: int = 16) -> Path:
+    """Record a legal Catan draft by playing it, then commit the line as a script.
+
+    The game enumerates its own legal actions, so the fixture cannot drift from the rules.
+    """
+    from lgbg.core.config import GameConfig
+    from lgbg.core.rng import SeededRandomSource
+
+    game = get_game("catan")
+    source = SeededRandomSource(SEED)
+    state = game.initial_state(GameConfig({"board": "fixed:standard_a", "players": 4}), source)
+    played: list[dict[str, Any]] = []
+    for _ in range(actions):
+        if game.is_terminal(state):
+            break
+        pending = game.pending_decisions(state)
+        if not pending:
+            break
+        player = pending[0].player
+        legal = game.legal_actions(state, player)
+        assert legal, f"seat {player} has no legal action, which cannot happen in a draft"
+        result = game.apply(state, legal[0], source)
+        assert isinstance(result, Applied), result
+        state = result.state
+        played.append({"player": player, "type": legal[0].type, "params": dict(legal[0].params)})
+    assert len(played) == actions, f"the draft stopped after {len(played)} actions"
+    return _script_for(
+        tmp_path,
+        "catan",
+        played,
+        players=4,
+        extra_config={"board": "fixed:standard_a"},
+    )
+
+
 def _catan_script(tmp_path: Path) -> Path:
     """A two-action Catan draft: enough for a real board to render through the CLI."""
     from lgbg.games.catan.board.topology import standard_topology
@@ -122,6 +157,171 @@ def _capsys_text(captured: pytest.CaptureFixture[str]) -> tuple[str, str]:
     """Everything printed since the last read, and clear the buffer."""
     result = captured.readouterr()
     return result.out, result.err
+
+
+def test_new_prints_the_opening_decision_for_catan(capsys: pytest.CaptureFixture[str]) -> None:
+    code = main(
+        [
+            "new",
+            "--game",
+            "catan",
+            "--players",
+            "4",
+            "--seed",
+            str(SEED),
+            "--board",
+            "fixed:standard_a",
+        ]
+    )
+
+    out, err = _capsys_text(capsys)
+    assert code == 0, err
+    assert "catan" in out
+    assert "place_settlement" in out
+    assert "player 0" in out
+
+
+def test_play_drives_a_whole_catan_draft(
+    capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
+    """FR-21.4: the record from a script is the record of a game, so it must verify."""
+    script = _catan_draft_script(tmp_path)
+    out_dir = tmp_path / "run"
+
+    code = main(["play", "--script", str(script), "--out", str(out_dir)])
+
+    out, err = _capsys_text(capsys)
+    assert code == 0, err + out
+    log = GameLogReader(god_log_path(out_dir, "g-0001")).read()
+    assert len(log.actions) == 16, "eight settlements and eight roads"
+    assert log.terminal is not None
+    assert main(["verify", str(out_dir)]) == 0
+
+
+def test_inspect_renders_the_board(capsys: pytest.CaptureFixture[str], tmp_path: Path) -> None:
+    """FR-20.5: a person can look at the board without reading JSON."""
+    script = _catan_draft_script(tmp_path, actions=2)
+    out_dir = tmp_path / "run"
+    assert main(["play", "--script", str(script), "--out", str(out_dir)]) == 0
+    capsys.readouterr()
+
+    code = main(["inspect", str(god_log_path(out_dir, "g-0001")), "--board"])
+
+    out, err = _capsys_text(capsys)
+    assert code == 0, err
+    assert "h0" in out
+    assert "board" in out
+    assert "{" not in out, "the board is rendered, not dumped"
+
+
+def test_inspect_dumps_one_players_projection(
+    capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
+    script = _catan_draft_script(tmp_path, actions=2)
+    out_dir = tmp_path / "run"
+    assert main(["play", "--script", str(script), "--out", str(out_dir)]) == 0
+    capsys.readouterr()
+
+    code = main(["inspect", str(god_log_path(out_dir, "g-0001")), "--player", "1"])
+
+    out, _err = _capsys_text(capsys)
+    assert code == 0
+    assert "catan |" in out
+    assert "hands" not in out, "a player does not see hands"
+
+
+def test_inspect_shows_the_spectator_view_by_default(
+    capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
+    script = _catan_draft_script(tmp_path, actions=2)
+    out_dir = tmp_path / "run"
+    assert main(["play", "--script", str(script), "--out", str(out_dir)]) == 0
+    capsys.readouterr()
+
+    assert main(["inspect", str(god_log_path(out_dir, "g-0001"))]) == 0
+
+    out, _err = _capsys_text(capsys)
+    assert "hands" in out, "the spectator sees the god view"
+
+
+def test_play_interactively_applies_actions_from_stdin(
+    capsys: pytest.CaptureFixture[str], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """FR-20.2: by hand, one JSON action per line, until the input runs out."""
+    import io
+    import sys
+
+    from lgbg.games.catan.board.topology import standard_topology
+
+    edge = standard_topology().edges_at(4)[0]
+    settlement = json.dumps({"player": 0, "type": "place_settlement", "params": {"vertex": 4}})
+    road = json.dumps({"player": 0, "type": "place_road", "params": {"edge": edge}})
+    typed = settlement + "\n" + road + "\n"
+    monkeypatch.setattr(sys, "stdin", io.StringIO(typed))
+    out_dir = tmp_path / "run"
+
+    code = main(
+        [
+            "play",
+            "--interactive",
+            "--out",
+            str(out_dir),
+            "--game",
+            "catan",
+            "--players",
+            "4",
+            "--board",
+            "fixed:standard_a",
+        ]
+    )
+
+    out, err = _capsys_text(capsys)
+    assert code == 0, err + out
+    log = GameLogReader(god_log_path(out_dir, "g-0001")).read()
+    assert len(log.actions) == 2
+    assert main(["verify", str(out_dir)]) == 0
+
+
+def test_an_ambiguous_choice_is_reported_rather_than_guessed(
+    capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
+    """FR-21.2: with two decisions open, an action that names neither is an error."""
+    importlib.import_module("tests.cli.plugin_for_import")
+    script = _script_for(
+        tmp_path,
+        "two_decisions",
+        [{"player": 0, "type": "take"}],
+        players=2,
+    )
+    out_dir = tmp_path / "run"
+
+    code = main(["play", "--script", str(script), "--out", str(out_dir)])
+
+    _out, err = _capsys_text(capsys)
+    assert code == 1
+    assert "d0" in err, "the first candidate is named"
+    assert "d1" in err, "and the second"
+    assert "Traceback" not in err
+
+
+def test_naming_the_request_resolves_the_ambiguity(
+    capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
+    importlib.import_module("tests.cli.plugin_for_import")
+    script = _script_for(
+        tmp_path,
+        "two_decisions",
+        [{"player": 0, "type": "take", "request_id": "d1"}],
+        players=2,
+    )
+    out_dir = tmp_path / "run"
+
+    code = main(["play", "--script", str(script), "--out", str(out_dir)])
+
+    _out, err = _capsys_text(capsys)
+    assert code == 0, err
+    actions = GameLogReader(god_log_path(out_dir, "g-0001")).read().actions
+    assert actions[0].request_id == "d1"
 
 
 def test_new_prints_the_opening_decision(

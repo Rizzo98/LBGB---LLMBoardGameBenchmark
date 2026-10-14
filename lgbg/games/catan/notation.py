@@ -45,16 +45,23 @@ HANDLED_FIELDS: Final[frozenset[str]] = frozenset(
 
 
 class Detail(StrEnum):
-    """How much of the rendering to produce (ARCHITECTURE.md section 11.4)."""
+    """How much of the rendering to produce (ARCHITECTURE.md section 11.4).
+
+    Full and compact are required of any game; board is this game's extra, for an operator who
+    wants to look at the board alone.
+    """
 
     FULL = "full"
     COMPACT = "compact"
+    BOARD = "board"
 
 
 def render(observation: Observation, *, detail: Detail = Detail.FULL) -> str:
     """Render a projection. The same projection always renders to the same string."""
     if detail is Detail.COMPACT:
         return _compact(observation)
+    if detail is Detail.BOARD:
+        return render_board(observation)
     return _full(observation)
 
 
@@ -63,7 +70,13 @@ def render_board(observation: Observation) -> str:
     board = observation.get("board")
     if not isinstance(board, Mapping):
         return f"{GAME_NAME}: no board in this projection"
-    return "\n".join(_board_rows(board))
+    lines = ["board:"]
+    lines.extend(_board_rows(board))
+    ports = board.get("ports")
+    if isinstance(ports, Sequence) and ports:
+        lines.append("ports: " + " ".join(_port(entry) for entry in ports))
+    lines.append(f"robber: {_robber(observation)}")
+    return "\n".join(lines)
 
 
 def _headline(observation: Observation) -> str:

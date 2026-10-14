@@ -6,6 +6,7 @@ would otherwise be enforced only by review, and each fails the build when broken
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -35,4 +36,21 @@ def test_only_the_canonical_module_serialises_json() -> None:
 
     assert offenders == [], "call to_canonical_json(..) from core.canonical instead: " + ", ".join(
         offenders
+    )
+
+
+def test_purpose_labels_are_named_constants_not_literals() -> None:
+    """FR-2.3: a purpose label identifies a call site, so it must be a named constant.
+
+    An inline literal cannot be found by a reader, renamed safely, or listed in a
+    declaration, so a registry of purposes is only possible if they are named.
+    """
+    offenders = [
+        str(path.relative_to(REPO_ROOT))
+        for path in _python_sources()
+        if re.search(r"purpose\s*=\s*[\"']", path.read_text(encoding="utf-8"))
+    ]
+
+    assert offenders == [], (
+        "pass a module-level purpose constant instead of a literal: " + ", ".join(offenders)
     )

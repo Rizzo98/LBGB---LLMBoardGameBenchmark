@@ -25,22 +25,6 @@
 
 ## Backlog
 
-### K-004 · Implement the RNG trio and recorded draws
-
-  - tags: [slice-1, core, rng, fr-2]
-  - priority: high
-  - workload: Normal
-  - steps:
-      - [ ] Seeded, Replay and Null sources behave per ARCHITECTURE section 5.4
-      - [ ] Purpose labels come from module constants, never inline strings
-      - [ ] Replay with a reordered draw fails, naming the action, draw index, expected purpose and actual purpose
-      - [ ] NullRandomSource raises on any draw
-    ```md
-    - **Cuts through:** core/rng, core/types, determinism tests
-    - **Depends on:** K-003
-    - **PRD:** FR-2.1 to FR-2.7
-    ```
-
 ### K-005 · Implement RunConfig and strict key validation
 
   - tags: [slice-1, core, config, fr-5]
@@ -1092,3 +1076,20 @@
     - **PRD:** FR-1.1 to FR-1.5
     - **Evidence:** tests/core/test_canonical_json.py pins the canonical bytes and digest of a fixed vector; tests/tooling/test_layering.py asserts json.dumps is called only in core/canonical.py, which is what makes FR-1.1 a fact rather than an intention. Floats and non-string keys are rejected as determinism guards. Hash width confirmed at 16 hex characters, resolving Q2 as proposed by the PRD. FR-1.5 (encode_state totality) is asserted by the fuzzer at K-064.
     ```
+### K-004 · Implement the RNG trio and recorded draws
+
+  - tags: [slice-1, core, rng, fr-2]
+  - priority: high
+  - workload: Normal
+  - steps:
+      - [x] Seeded, Replay and Null sources behave per ARCHITECTURE section 5.4
+      - [x] Purpose labels come from module constants, never inline strings
+      - [x] Replay with a reordered draw fails, naming the action, draw index, expected purpose and actual purpose
+      - [x] NullRandomSource raises on any draw
+    ```md
+    - **Cuts through:** core/rng, core/types, determinism tests
+    - **Depends on:** K-003
+    - **PRD:** FR-2.1 to FR-2.7
+    - **Evidence:** tests/core/test_rng.py (17 tests). A reordered draw reports `action #47 draw #0: expected purpose 'dice_roll', got 'random_selection'`; an unconsumed recorded draw is reported by assert_exhausted. tests/tooling/test_layering.py fails the build on a literal passed as a purpose, which is what makes FR-2.3 enforceable rather than advisory. Both real sources are assigned to a `RandomSource`-typed variable, so the protocol conformance is checked by mypy on every run.
+    ```
+

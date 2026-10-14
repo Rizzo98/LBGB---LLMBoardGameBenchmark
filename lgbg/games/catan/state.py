@@ -164,6 +164,7 @@ class CatanState:
     bank: tuple[int, ...]
     supply: tuple[Supply, ...]
     placed: Placed
+    setup_vertex: int
     dev_cards: tuple[tuple[int, ...], ...]
     dev_deck: tuple[str, ...]
     bought_this_turn: tuple[tuple[int, ...], ...]
@@ -198,6 +199,7 @@ def initial_state(board: Board, *, players: int, rng: RandomSource) -> CatanStat
             cities=(NO_OWNER,) * vertices,
             roads=(NO_OWNER,) * edges,
         ),
+        setup_vertex=NO_OWNER,
         dev_cards=((0,) * len(CARD_ORDER),) * players,
         dev_deck=tuple(card.value for card in deck),
         bought_this_turn=((0,) * len(CARD_ORDER),) * players,
@@ -231,6 +233,7 @@ def encode_state(state: CatanState) -> JsonValue:
         "phase": state.phase.value,
         "phase_index": state.phase_index,
         "placed": _encode_placed(state.placed),
+        "setup_vertex": state.setup_vertex,
         "played_this_turn": list(state.played_this_turn),
         "players": state.players,
         "responses": list(state.responses),
@@ -259,6 +262,7 @@ def decode_state(blob: JsonValue) -> CatanState:
         bank=tuple(_integers(fields.get("bank"), "state.bank")),
         supply=_supply(fields.get("supply"), players),
         placed=_decode_placed(_object(fields.get("placed"), "state.placed"), board),
+        setup_vertex=_integer(fields, "setup_vertex", "state"),
         dev_cards=_counts(fields.get("dev_cards"), players, len(CARD_ORDER), "state.dev_cards"),
         dev_deck=tuple(_strings(fields.get("dev_deck"), "state.dev_deck")),
         bought_this_turn=_counts(

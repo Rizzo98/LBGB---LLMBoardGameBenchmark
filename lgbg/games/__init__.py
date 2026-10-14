@@ -8,4 +8,6 @@ In-repo plugins are imported here as they are implemented; Catan arrives with th
 state cards.
 """
 
-__all__: list[str] = []
+from lgbg.games import catan
+
+__all__: list[str] = ["catan"]

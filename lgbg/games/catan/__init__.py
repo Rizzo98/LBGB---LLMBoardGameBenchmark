@@ -1,7 +1,9 @@
 """The Catan plugin: the reference implementation of the game plugin interface.
 
-Nothing is registered here until the plugin implements the Game protocol; the board, state
-and rules land first (PRD-v1 milestones M3 to M5).
+Importing this package registers the game under the name `catan` (ARCHITECTURE.md section
+7.4: explicit import for in-repo games, entry points for games that ship separately).
 """
 
-__all__: list[str] = []
+from lgbg.games.catan import game
+
+__all__: list[str] = ["game"]

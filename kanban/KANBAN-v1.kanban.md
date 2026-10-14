@@ -25,21 +25,6 @@
 
 ## Backlog
 
-### K-005 · Implement RunConfig and strict key validation
-
-  - tags: [slice-1, core, config, fr-5]
-  - priority: medium
-  - workload: Easy
-  - steps:
-      - [ ] Config round-trips through the header record exactly
-      - [ ] assist defaults to L1; rejection_detail defaults to the matching tier but is independently overridable
-      - [ ] Unknown or misspelled keys are rejected with a clear error rather than silently ignored
-    ```md
-    - **Cuts through:** core/config, the log header, CLI arguments
-    - **Depends on:** K-003
-    - **PRD:** FR-5.1 to FR-5.4
-    ```
-
 ### K-006 · Define the Game protocol and plugin registry
 
   - tags: [slice-1, core, registry, fr-6]
@@ -1092,4 +1077,20 @@
     - **PRD:** FR-2.1 to FR-2.7
     - **Evidence:** tests/core/test_rng.py (17 tests). A reordered draw reports `action #47 draw #0: expected purpose 'dice_roll', got 'random_selection'`; an unconsumed recorded draw is reported by assert_exhausted. tests/tooling/test_layering.py fails the build on a literal passed as a purpose, which is what makes FR-2.3 enforceable rather than advisory. Both real sources are assigned to a `RandomSource`-typed variable, so the protocol conformance is checked by mypy on every run.
     ```
+### K-005 · Implement RunConfig and strict key validation
+
+  - tags: [slice-1, core, config, fr-5]
+  - priority: medium
+  - workload: Easy
+  - steps:
+      - [x] Config round-trips through the header record exactly
+      - [x] assist defaults to L1; rejection_detail defaults to the matching tier but is independently overridable
+      - [x] Unknown or misspelled keys are rejected with a clear error rather than silently ignored
+    ```md
+    - **Cuts through:** core/config, the log header, CLI arguments
+    - **Depends on:** K-003
+    - **PRD:** FR-5.1 to FR-5.4
+    - **Evidence:** tests/core/test_config.py (18 tests). The header mapping is pinned to its documented flat shape and round-trips exactly, including an explicit rejection_detail override. Game options are carried opaquely and merged flat, so the core never learns what a board is (P11); a game option may not shadow a core key, and an undeclared key is an unknown key.
+    ```
+
 

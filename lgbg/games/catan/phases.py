@@ -67,7 +67,13 @@ class PhaseRule:
 
 
 def pending_decisions(state: CatanState) -> list[DecisionRequest]:
-    """Every open decision, in the order they must be resolved (FR-9.1, FR-9.3)."""
+    """Every open decision, in the order they must be resolved (FR-9.1, FR-9.3).
+
+    A finished game asks nobody anything, and says so by returning nothing: that is a different
+    answer from a phase whose card has not landed, which raises (FR-15.5).
+    """
+    if state.phase is Phase.TERMINAL:
+        return []
     rule = PHASE_RULES.get(state.phase)
     if rule is None:
         raise PhaseError(

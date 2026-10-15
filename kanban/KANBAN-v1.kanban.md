@@ -27,20 +27,6 @@
 
 
 
-### K-037 · Implement terminality, outcome and the terminal record
-
-  - tags: [slice-4, core, log, fr-15]
-  - priority: medium
-  - workload: Easy
-  - steps:
-      - [ ] is_terminal and outcome are pure and RNG-free
-      - [ ] Outcome reports final VP per player, winner, turn count and total actions
-      - [ ] Any action after termination is rejected with a core code
-    ```md
-    - **Cuts through:** is_terminal and outcome, the phase machine, log, CLI
-    - **Depends on:** K-036
-    - **PRD:** FR-15.3, FR-15.4, FR-15.5
-    ```
 
 ### K-038 · Commit golden game 3: a complete, winnable game
 
@@ -1267,4 +1253,26 @@
     - **No claim action exists** (item 7), and the existing `GAME_OVER` guard makes the rest true: an action after the win is rejected, asserted directly rather than assumed.
     - **The fixture taught the card something.** Its first version handed seat 0 the Longest Road award without the roads to justify it, and the engine took the card straight back: the recomputation wired in K-035 fired inside the very action the test was driving, so the tenth point never arrived. The fixture now builds its points from pieces alone, and the second attempt failed honestly as well - nine points had already put all four cities on the board, so the winning upgrade was refused with `NO_PIECES_REMAINING`. Two failures, both of them the fixture being wrong rather than the rule, and both of them caught because the pieces are charged for what they place.
     - **Purity is asserted in the same form as the action surface** (FR-15.3): `check` takes only a state - the test reads its signature - gives the same answer twice, and leaves the encoding unchanged.
+    ```
+
+### K-037 · Implement terminality, outcome and the terminal record
+
+  - tags: [slice-4, core, log, fr-15]
+  - priority: medium
+  - workload: Easy
+  - steps:
+      - [x] is_terminal and outcome are pure and RNG-free
+      - [x] Outcome reports final VP per player, winner, turn count and total actions
+      - [x] Any action after termination is rejected with a core code
+    ```md
+    - **Cuts through:** is_terminal and outcome, the phase machine, log, CLI
+    - **Depends on:** K-036
+    - **PRD:** FR-15.3, FR-15.4, FR-15.5
+    - **Evidence:** lgbg/games/catan/phases.py (`pending_decisions` answers a finished game), tests/games/test_catan_terminal.py (14 tests).
+    - **One thing was actually broken, and it was the one a driver would hit first.** A finished game has no rule in the phase table, so `pending_decisions` raised the "this phase's card has not landed" error - which meant `legal_actions` on a won game raised an exception instead of answering that there is nothing left to do. A finished game is now an explicit case: it asks nobody anything, and says so by returning nothing. The distinction is the whole point of the error it replaced, and it is now written down where it is made: an unimplemented phase is a bug, a finished game is an answer.
+    - **The verdict is asserted pure in the same form as everywhere else** (FR-15.3): neither `is_terminal` nor `outcome` takes a source of randomness - the test reads their signatures - and asking a won game twice gives the same answer with the encoding unchanged, and does not revive it.
+    - **The rejection after termination is swept over the whole declared surface** rather than sampled: every action type in `action_schema()` is applied to a finished game and refused with `GAME_OVER`, with the hash asserted unchanged (FR-3.4, FR-15.5). Sampling would have been easier and would have missed exactly the action type somebody adds next.
+    - **The outcome is asserted against the scoring rule rather than against literals**: the scores are compared to `victory_points`, so the two cannot drift, and the winner is asserted to be the player whose turn it is (which is the only player `check` may terminate for).
+    - **What is deliberately not here: the end-to-end terminal record.** A `GameRun` cannot be handed a position, so a test cannot conjure a run that ends in a win - the record the runtime writes for a won game has to come from a game actually played to a win. That is K-038, the next card on the board, and the card that needed it says so rather than testing a hand-built log and calling it end to end.
+    - **The last test is the scoring term nobody can see:** a victory-point card in a hand is counted from the god view (RULES.md 4.13 item 2), and the position it is in is nine points - so the game does not end, which is the same assertion from the other side.
     ```

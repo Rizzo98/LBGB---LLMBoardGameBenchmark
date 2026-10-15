@@ -6,7 +6,7 @@
 | **Game** | CATAN (originally *The Settlers of Catan*) — base game, 4 players |
 | **Plugin** | `catan` |
 | **Status** | **PINNED** — this file is the rule authority for the plugin (`ARCHITECTURE.md` §7.9, PRD-v1 §11, SC-12) |
-| **Document revision** | 5 |
+| **Document revision** | 6 |
 | **Plugin `rules_version`** | `catan-rules-6` |
 | **Edition basis** | CATAN 6th edition rulebook (2025) as the primary text; the 5th-edition *Game Rules & Almanac* (2015) and the official CATAN GmbH base-game FAQ for rules the 6th edition leaves implicit |
 | **Written** | before any rules code exists (milestone M0, card K-001) |
@@ -61,6 +61,18 @@ This document contains **no strategy advice**. It states legality, not quality o
   needed a marker ("has this one happened"); this one needs a count ("how many are left"), and the
   state is where both live. The encoded state carries it and all three golden fixtures were
   regenerated.
+* **Document revision 6.** The phase table in §4.4 listed `respond_trade` (to others) and
+  `cancel_trade` among the actions offered in the `action` phase, which contradicts §4.12.2 items 4
+  and 6: an answer and a withdrawal belong to the player-to-player offer, and an offer is open
+  exactly while the game is in the `trade_response` phase. The table now says what §4.12.2 already
+  pinned, and the `trade_response` row names both of its audiences - every player holding a card,
+  and the offerer, who may withdraw it. This corrects a pinned statement to the rule this document
+  already states and does not change a rule, so `rules_version` stays where it is: no record can
+  exist under the old row, because the phase had no implementation before card K-051. The same
+  revision ties two loose ends of §4.12.2 that the implementation had to settle and the text had
+  left implicit: the action that carries the resolution (item 5 - the answer that completes the
+  round, or the offerer's choice among several acceptors) and the moment the accept is validated
+  (item 4). Neither changes what is refused or what a trade moves.
 * **Any change to a pinned rule in this document MUST bump `rules_version`** (for example to
   `catan-rules-2`) before the change is implemented. A pinned rule is any sentence in §4, §5, §6 or §7
   under the labels *Rule as implemented*, *Chosen interpretation*, *Confirmation* or *Pinned draw*.
@@ -405,9 +417,9 @@ requests; the phase ends when its request set is empty; every phase transition e
 | `turn_production` | current player | one request offering `play_dev_card` and `roll_dice` | the current player rolls |
 | `discard` | **all** players holding more than 7 resource cards, concurrently | one `discard_resources` per eligible player | every eligible player has discarded |
 | `robber` | current player | `move_robber`, then (if needed) `choose_robber_victim` | the robber has moved and the steal is resolved or skipped |
-| `action` | current player | one request offering the whole action phase: `maritime_trade`, `offer_trade`, `respond_trade` (to others), `cancel_trade`, `build_road`, `build_settlement`, `build_city`, `buy_dev_card`, `play_dev_card`, `end_turn` | the current player ends the turn |
+| `action` | current player | one request offering the whole action phase: `maritime_trade`, `offer_trade`, `build_road`, `build_settlement`, `build_city`, `buy_dev_card`, `play_dev_card`, `end_turn` | the current player ends the turn |
 | `road_building` | current player | `place_free_road` (up to twice, §5.6) | both roads placed, or stopped by supply/legality |
-| `trade_response` | all non-offering players holding at least one resource card, concurrently | `respond_trade` | all have responded, or the offerer cancels or selects a partner |
+| `trade_response` | all non-offering players holding at least one resource card, concurrently; and the offerer | `respond_trade` to each of them, and `cancel_trade` to the offerer | all have responded, or the offerer cancels or selects a partner |
 | `terminal` | nobody | none | — |
 
 **Rules that govern all phases.**
@@ -1032,14 +1044,20 @@ p.14 "Trade" — "You may not trade with the bank during another player's turn."
    * another offer is already open — rejected `TRADE_ALREADY_OPEN`.
 4. **Responders.** Every player other than the offerer who holds **at least one resource card** receives a
    `respond_trade` request (PRD-v1 FR-14.4). Responders answer concurrently (§4.4 rule 3). An
-   `accept` from a player who does not hold the full `want` set is validated at resolution and
+   `accept` from a player who does not hold the full `want` set is validated against that set and
    rejected with `INSUFFICIENT_RESOURCES`; such a responder is offered the request but can never
-   complete the trade.
-5. **Resolution.** When all responders have answered:
+   complete the trade. The validation is performed when the answer is made rather than when the
+   round closes: no hand can change in between - the only actions open in the phase are the
+   answers themselves and withdrawing the offer - so the same answers are refused either way, and
+   a refusal has to belong to an action that exists.
+5. **Resolution.** When all responders have answered, and in the action of the answer that completes
+   the round:
    * zero accepts → the offer closes, no cards move, the offerer may open another offer;
-   * one accept → the trade executes;
-   * two or more accepts → the **offerer chooses the partner** (PRD-v1 FR-14.5); the engine never picks.
-     Until the offerer chooses, the offer stays open and the accepting players have no further decision.
+   * one accept → the trade executes: there is nothing to choose, so the engine does not ask the
+     offerer to confirm what the rules already say (§4.12.2 item 7);
+   * two or more accepts → the **offerer chooses the partner** (PRD-v1 FR-14.5), with
+     `choose_partner{partner}`, and the engine never picks. Until the offerer chooses, the offer
+     stays open and the accepting players have no further decision.
 6. **Cancellation.** The offerer may `cancel_trade` at any time while the offer is open and before a
    partner has been selected; the open response requests are withdrawn and no cards move (PRD-v1 FR-14.6).
 7. **Execution.** A completed trade transfers both sides of the exchange **atomically in a single event**,
@@ -1530,7 +1548,7 @@ These are not among the eight, but they are pinned so that later cards do not ha
 | B-10 | Offer must be backed by held cards | Yes, validated before broadcast | §4.12.2 | No (PRD-v1 FR-14.7) |
 | B-11 | Who picks among multiple acceptors | The offerer | §4.12.2 | No (PRD-v1 FR-14.5) |
 | B-12 | Counter-offers | Not supported in v1 (`decline_only`) | §4.12.2 | S4 §3.0.7 (unstructured; excluded by architecture) |
-| B-13 | Responders who cannot complete the trade | Still receive a request; their accept is rejected at resolution | §4.12.2 | No (PRD-v1 FR-14.4) |
+| B-13 | Responders who cannot complete the trade | Still receive a request; their accept is refused with `INSUFFICIENT_RESOURCES` | §4.12.2 | No (PRD-v1 FR-14.4) |
 | B-14 | Longest-road search shape | Maximum over simple paths **and** simple cycles, exhaustive | §4.10 | S5 (hexagon = 6 example) |
 | B-15 | Road building and undo/repositioning | No undo; each placement is final once the next action begins | §5.6 | S4 §3.0.8 |
 | B-16 | Deck exhausted | `buy_dev_card` unavailable; no reshuffle, ever | §4.8 | S1 p.9; S2 Almanac p.5 |

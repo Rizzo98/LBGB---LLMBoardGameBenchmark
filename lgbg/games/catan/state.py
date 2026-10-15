@@ -157,6 +157,19 @@ class Placed:
     roads: tuple[int, ...]
 
 
+RESPONSE_PENDING: Final[int] = 0
+RESPONSE_ACCEPT: Final[int] = 1
+RESPONSE_DECLINE: Final[int] = 2
+"""How a player answered an open offer (RULES.md 4.12.2 item 4).
+
+One slot per seat rather than a list of answers, because the answers are concurrent and the
+seat *is* the identity of the responder: there is no order to keep, and a list would invite one
+(FR-9.6). RESPONSE_PENDING is also what the offerer's own slot holds for the whole offer -
+nobody asks the offerer, so their slot is never written. The three values are part of the
+encoded state like the phase names, and the golden corpus pins them.
+"""
+
+
 @dataclass(frozen=True, slots=True)
 class TradeOffer:
     """An open structured offer: what the offerer gives and what they want, by resource."""
@@ -188,7 +201,14 @@ class CatanState:
     knights_played: tuple[int, ...]
     discards_pending: tuple[int, ...]
     offer: TradeOffer | None
+    """The offer the table is answering, or None when no offer stands (FR-14.2).
+
+    The state carries the offer rather than the machine remembering it, for the same reason the
+    robber's two steps are marked: a phase rule is a function of the state, so "is an offer
+    open" has to be answerable from the position alone.
+    """
     responses: tuple[int, ...]
+    """How each seat answered: RESPONSE_PENDING, RESPONSE_ACCEPT or RESPONSE_DECLINE."""
     longest_road: int
     largest_army: int
     robber: int
@@ -246,7 +266,7 @@ def initial_state(board: Board, *, players: int, rng: RandomSource) -> CatanStat
         knights_played=(0,) * players,
         discards_pending=(0,) * players,
         offer=None,
-        responses=(0,) * players,
+        responses=(RESPONSE_PENDING,) * players,
         longest_road=NO_OWNER,
         largest_army=NO_OWNER,
         robber=board.desert_hex,

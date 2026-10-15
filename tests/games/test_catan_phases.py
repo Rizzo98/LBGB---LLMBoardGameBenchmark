@@ -14,6 +14,7 @@ state was reached, and that entering a phase says so in the record.
 from __future__ import annotations
 
 from dataclasses import replace
+from types import MappingProxyType
 from typing import Final
 
 import pytest
@@ -25,6 +26,7 @@ from lgbg.games.catan.phases import (
     DISCARD_RESOURCES,
     PHASE_RULES,
     PhaseError,
+    PhaseRule,
     advance,
     pending_decisions,
     resolution_order,
@@ -171,8 +173,25 @@ def test_each_phase_instance_has_its_own_decision_identifiers() -> None:
     assert first[0].request_id == f"d{_opening().phase_index}.0"
 
 
-def test_an_unimplemented_phase_is_reported_rather_than_answered_with_nothing() -> None:
+def _without_a_rule_for(phase: Phase, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Take a phase out of the machine's table: what a card that has not landed looks like.
+
+    Every phase of RULES.md 4.4 has a rule, so the condition these tests are about cannot be
+    found in the game any more; it is produced. The table is what the machine consults, and a
+    phase missing from it is exactly the case the loud failure exists for.
+    """
+    import lgbg.games.catan.phases as machine
+
+    implemented = dict(PHASE_RULES)
+    del implemented[phase]
+    monkeypatch.setattr(machine, "PHASE_RULES", MappingProxyType(implemented))
+
+
+def test_an_unimplemented_phase_is_reported_rather_than_answered_with_nothing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """A phase whose card has not landed must fail loudly, not silently stall the game."""
+    _without_a_rule_for(Phase.TRADE_RESPONSE, monkeypatch)
     state = replace(_opening(), phase=Phase.TRADE_RESPONSE)
 
     with pytest.raises(PhaseError, match="trade_response"):
@@ -189,8 +208,16 @@ def test_a_phase_that_closes_the_moment_it_opens_closes_in_the_same_action() -> 
     assert [dict(event.payload)["phase"] for event in events] == ["discard", "robber"]
 
 
-def test_a_closed_phase_whose_transition_has_not_landed_is_reported() -> None:
-    """A phase nobody has implemented is where the machine waits, loudly, not silently."""
+def test_a_closed_phase_whose_transition_has_not_landed_is_reported(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A phase with no requests and nowhere to go is where the machine waits, loudly."""
+    import lgbg.games.catan.phases as machine
+
+    unfinished = dict(PHASE_RULES)
+    rule = unfinished[Phase.TRADE_RESPONSE]
+    unfinished[Phase.TRADE_RESPONSE] = PhaseRule(rule.requests, None)
+    monkeypatch.setattr(machine, "PHASE_RULES", MappingProxyType(unfinished))
     state = replace(_opening(), phase=Phase.TRADE_RESPONSE)
 
     with pytest.raises(PhaseError, match="trade_response"):

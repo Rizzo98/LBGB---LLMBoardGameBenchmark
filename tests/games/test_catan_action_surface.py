@@ -148,9 +148,19 @@ def test_every_parameter_domain_matches_the_enumeration() -> None:
                     assert isinstance(param, ParamDomain)
                     if param.kind == "id_set":
                         assert param.values is not None
-                        assert list(param.values) == sorted(
-                            {action.params[name] for action in actions}, key=_as_int
-                        )
+                        if all(isinstance(value, int) for value in param.values):
+                            assert list(param.values) == sorted(
+                                {action.params[name] for action in actions}, key=_as_int
+                            )
+                        else:
+                            # A structured parameter - a composition of cards - is compared
+                            # as the canonical JSON a record would hold, in that same order.
+                            assert [to_canonical_json(value) for value in param.values] == sorted(
+                                {to_canonical_json(action.params[name]) for action in actions}
+                            )
+                    elif param.kind == "enum":
+                        assert param.values is not None
+                        assert set(param.values) == {action.params[name] for action in actions}
                     else:
                         assert param.kind == "int_range"
                         assert param.lo == 0

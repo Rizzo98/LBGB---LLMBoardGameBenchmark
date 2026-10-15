@@ -26,7 +26,7 @@ from collections.abc import Callable
 from typing import Final
 
 from lgbg.core.types import JsonValue, Observation, PlayerId
-from lgbg.games.catan.rules import victory
+from lgbg.games.catan.rules import trading, victory
 from lgbg.games.catan.state import NO_OWNER, RESOURCE_ORDER, CatanState
 
 Projector = Callable[[CatanState], JsonValue]
@@ -92,12 +92,30 @@ def _awards(state: CatanState) -> JsonValue:
     return {"largest_army": state.largest_army, "longest_road": state.longest_road}
 
 
+def _offer(state: CatanState) -> JsonValue:
+    """The open offer, as it was announced: public, and the same for every player (FR-14.4).
+
+    A trade is said out loud - that is what announcing it means - so what is given and what is
+    wanted is a fact about the table, and a player who has to answer it must be able to read it.
+    What this field does not say is anything about the offerer's *hand*: the offer is what they
+    chose to say, and a player who holds three ore may offer one of them.
+    """
+    if state.offer is None:
+        return None
+    return {
+        "offerer": state.offer.offerer,
+        "give": trading.named(state.offer.give),
+        "want": trading.named(state.offer.want),
+    }
+
+
 PLAYER_FIELDS: Final[tuple[tuple[str, Projector], ...]] = (
     ("awards", _awards),
     ("bank", _bank),
     ("board", _board),
     ("dice", lambda state: None if state.dice is None else list(state.dice)),
     ("hand_counts", _hand_counts),
+    ("offer", _offer),
     ("phase", lambda state: state.phase.value),
     ("pieces", _pieces),
     ("robber", _robber),
@@ -115,18 +133,6 @@ SPECTATOR_FIELDS: Final[tuple[tuple[str, Projector], ...]] = (
     ("discards_pending", lambda state: list(state.discards_pending)),
     ("hands", lambda state: [list(counts) for counts in state.hands]),
     ("knights_played", lambda state: list(state.knights_played)),
-    (
-        "offer",
-        lambda state: (
-            None
-            if state.offer is None
-            else {
-                "give": list(state.offer.give),
-                "offerer": state.offer.offerer,
-                "want": list(state.offer.want),
-            }
-        ),
-    ),
     ("played_this_turn", lambda state: list(state.played_this_turn)),
     ("responses", lambda state: list(state.responses)),
 )

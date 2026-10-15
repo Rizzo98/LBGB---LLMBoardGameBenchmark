@@ -71,6 +71,32 @@ BANK_LACKS_RESOURCE: Final[RejectionCode] = RejectionCode(
     code="BANK_LACKS_RESOURCE",
     description="the bank does not hold the resource cards the action asks of it",
 )
+OFFER_NOT_BACKED: Final[RejectionCode] = RejectionCode(
+    code="OFFER_NOT_BACKED",
+    description="the offer gives resource cards the offerer does not hold",
+)
+TRADE_ALREADY_OPEN: Final[RejectionCode] = RejectionCode(
+    code="TRADE_ALREADY_OPEN",
+    description="an offer is already open, and only one offer is open at a time",
+)
+NO_OPEN_OFFER: Final[RejectionCode] = RejectionCode(
+    code="NO_OPEN_OFFER",
+    description="there is no open offer to answer or to withdraw",
+)
+NOT_A_RESPONDER: Final[RejectionCode] = RejectionCode(
+    code="NOT_A_RESPONDER",
+    description="this player was not asked to answer the open offer",
+)
+ALREADY_RESPONDED: Final[RejectionCode] = RejectionCode(
+    code="ALREADY_RESPONDED", description="this player has already answered the open offer"
+)
+NOT_AN_ACCEPTOR: Final[RejectionCode] = RejectionCode(
+    code="NOT_AN_ACCEPTOR", description="the named partner did not accept the open offer"
+)
+INSUFFICIENT_RESOURCES: Final[RejectionCode] = RejectionCode(
+    code="INSUFFICIENT_RESOURCES",
+    description="the other side of a trade does not hold the cards the offer asks of them",
+)
 NOT_YOUR_SETTLEMENT: Final[RejectionCode] = RejectionCode(
     code="NOT_YOUR_SETTLEMENT",
     description="the vertex does not carry one of the player's own settlements to upgrade",
@@ -97,6 +123,13 @@ GAME_CODES: Final[tuple[RejectionCode, ...]] = (
     SAME_RESOURCE_TRADE,
     WRONG_TRADE_RATIO,
     BANK_LACKS_RESOURCE,
+    OFFER_NOT_BACKED,
+    TRADE_ALREADY_OPEN,
+    NO_OPEN_OFFER,
+    NOT_A_RESPONDER,
+    ALREADY_RESPONDED,
+    NOT_AN_ACCEPTOR,
+    INSUFFICIENT_RESOURCES,
     NO_DEV_CARDS_REMAINING,
     CARD_BOUGHT_THIS_TURN,
     ONE_CARD_PER_TURN,

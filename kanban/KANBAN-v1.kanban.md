@@ -7,73 +7,6 @@
 
 ## Backlog
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-### K-051 · Implement player offers and concurrent responses
-
-  - tags: [slice-6, trading, phases, fr-14]
-  - priority: high
-  - workload: Hard
-  - defaultExpanded: true
-  - steps:
-      - [ ] Only the current player may open an offer
-      - [ ] Every non-offering player holding cards receives a response request, concurrently
-      - [ ] Offers naming resources the offerer lacks are rejected before broadcast
-      - [ ] An offer is cancellable before resolution
-    ```md
-    - **Cuts through:** rules/trading, decision queue, projection, phase machine
-    - **Depends on:** K-050, K-025
-    - **PRD:** FR-14.2, FR-14.3, FR-14.4, FR-14.6, FR-14.7
-    - **Why:** Second and harder exercise of the decision queue: out-of-turn decisions from several players at once. Blocked on open question Q7, whether counter-offers are needed.
-    - **Q7, and how this card proceeds (resolved as far as the code needs):** the PRD's open question asks whether counter-offers are needed or `accept_decline` is enough. `RULES.md` 4.12.2 item 1 already pins the protocol as *structured and closed* - `offer_trade`, then one `respond_trade{accept|decline}` per eligible responder, then partner selection or cancellation, with no free-text negotiation - and PRD-v1 FR-14.4 describes the same, so the benchmark implements that. **The question stays open for the maintainer**, and it is cheap to answer later: a counter-offer would re-open the response round, and the offer the state already carries is the same field either way, so the choice is *not* written into the encoded state and no `rules_version` bump would be needed to add it. K-067's measurement of how much trade actually happens is the input that decision wants, which is why this card takes the pinned protocol and leaves the question where it is.
-    ```
-
-### K-052 · Implement partner selection and atomic transfer
-
-  - tags: [slice-6, trading, rules, fr-14]
-  - priority: high
-  - workload: Normal
-  - steps:
-      - [ ] When several players accept, the offerer chooses; the engine never chooses
-      - [ ] The completed trade transfers both sides atomically in one event and replays exactly
-    ```md
-    - **Cuts through:** rules/trading, decision queue, events, projection
-    - **Depends on:** K-051
-    - **PRD:** FR-14.5, FR-14.8, FR-14.9
-    ```
-
 ### K-053 · Commit golden game 5: a completed trade
 
   - tags: [slice-6, test, acceptance, sc-1]
@@ -1377,4 +1310,52 @@
     - **Trading a resource for itself is refused even at 4:1** (item 2), which the test states as an explicit case rather than leaving to the ratio arithmetic: four wood for one wood is not a trade, it is a way to lose three cards.
     - **The domain describes the trade without enumerating it** (ARCHITECTURE 7.2): the two resources are sets and the count is a range from the specific rate to the general one, rather than a list of every pair - while `legal_actions` still offers every pair the rules accept, and the test applies each one.
     - **What arrives next:** player-to-player trade (K-051 onwards), which is the concurrent offer-and-response protocol and the first phase since the discarded cards where several players are asked at once.
+    ```
+
+### K-051 · Implement player offers and concurrent responses
+
+  - tags: [slice-6, trading, phases, fr-14]
+  - priority: high
+  - workload: Hard
+  - defaultExpanded: true
+  - steps:
+      - [x] Only the current player may open an offer
+      - [x] Every non-offering player holding cards receives a response request, concurrently
+      - [x] Offers naming resources the offerer lacks are rejected before broadcast
+      - [x] An offer is cancellable before resolution
+    ```md
+    - **Cuts through:** rules/trading, decision queue, projection, phase machine
+    - **Depends on:** K-050, K-025
+    - **PRD:** FR-14.2, FR-14.3, FR-14.4, FR-14.6, FR-14.7
+    - **Evidence:** lgbg/games/catan/rules/trading.py (offer_trade, respond_trade, cancel_trade, responders, offers, named, close_offer), lgbg/games/catan/phases.py (_trade_response_requests, Phase.TRADE_RESPONSE), lgbg/games/catan/projection.py (_offer), lgbg/games/catan/notation.py (_offer), tests/games/test_catan_trade_offer.py (15 tests), tests/games/test_catan_trade_response.py (14 tests).
+    - **The offer is validated before it is broadcast** (FR-14.7). A player may not offer cards they do not hold, and the refusal OFFER_NOT_BACKED opens no request: the alternative sends three other players a decision that can never complete, spending their decision budget on a refusal nobody can tell apart from a model mistake. The test asserts the request set is untouched by a refused offer, which is what before-broadcast means in a machine that derives its requests from the state.
+    - **What is announced is public and what is answered is not** (FR-14.4, FR-9.6). A trade is said out loud, so the offer moved from the spectator view into every player view - a responder who could not read it could not answer it - while the response tally stays spectator-only. The leak test is the strong form: another responder whole observation is unchanged when one responder answers, so nobody can ride on somebody else answer.
+    - **Three refusals before the contents are even read**: the wrong seat (NOT_YOUR_DECISION), an offer already standing (TRADE_ALREADY_OPEN), the wrong phase (WRONG_PHASE). The order earns its keep in one place: a game waiting for answers is in the response phase, so an offer arriving while one is open would otherwise be refused for the phase - true, and a worse answer than saying an offer is already open.
+    - **Cancellation is an action, not a flag** (FR-14.6). The requests the offer opened are derived from the state, so closing the offer is withdrawing them: the test asserts the other seats have nothing left to decide, and that no card moved.
+    - **An offer nobody can answer closes in the action that made it** and is not offered to a driver: there is no decision in it for anybody else, and the rules say the round is over when nobody can answer (item 5). The rule stays total for an action a driver sends anyway.
+    - **The offer lives in the state, and it always did.** The offer and the response tally were pinned in slice 2 precisely so that a later slice would not change the encoding, so this card adds no field and needs no rules_version bump: the four golden games keep their hashes, and the encoding of an open offer is asserted (give [0,2,0,0,0], offerer 0, want [0,0,0,0,1]).
+    - **An offer is a family in the enumeration, not the whole legal space.** The rule accepts any backed exchange - a model may offer two resources for one - but what a driver is handed is one kind of card for one kind of card, bounded by the offerer hand and by the largest hand at the table, because the complete cross product grows with the hand and is mostly offers nobody would make. The domain describes exactly the family the enumeration produces, which is the invariant the action-surface test holds from both ends.
+    - **RULES.md was corrected, not extended** (document revision 6): the phase table in section 4.4 listed respond_trade and cancel_trade under the action phase, which contradicts section 4.12.2 items 4 and 6. rules_version does not move: an open offer is only answerable in the trade_response phase, which had no implementation before this card, so no record can exist under the old row.
+    - **Landed together with K-052 in one change.** An accepted offer had no rule to resolve it, and a boundary that raises there is not shippable: the performance fixture of K-039 plays a random legal action, and offers are among them now, so the first accepted offer would have crashed the fuzz driver. The two cards criteria are asserted separately, in two test modules, but the engine only ever had one coherent state to offer.
+    ```
+
+### K-052 · Implement partner selection and atomic transfer
+
+  - tags: [slice-6, trading, rules, fr-14]
+  - priority: high
+  - workload: Normal
+  - steps:
+      - [x] When several players accept, the offerer chooses; the engine never chooses
+      - [x] The completed trade transfers both sides atomically in one event and replays exactly
+    ```md
+    - **Cuts through:** rules/trading, decision queue, events, projection
+    - **Depends on:** K-051
+    - **PRD:** FR-14.5, FR-14.8, FR-14.9
+    - **Evidence:** lgbg/games/catan/rules/trading.py (complete_trade, choose_partner, can_honour), lgbg/games/catan/phases.py (CHOOSE_PARTNER, _trade_response_requests), lgbg/games/catan/rejections.py (NOT_AN_ACCEPTOR, INSUFFICIENT_RESOURCES), tests/games/test_catan_trade_completion.py (11 tests).
+    - **One accept is not a choice, so the engine does not ask** (item 5): the trade executes in the action of the answer that completes the round. Asking the offerer to confirm what the rules already say would also hand them a cancellation window after somebody accepted, which the physical game does not have - an offer that has been taken up cannot be withdrawn.
+    - **Several acceptors leave the decision where the rules put it** (FR-14.5): the offer stands, the offerer may withdraw it while no partner has been picked (item 6), and choose_partner offers exactly the seats that accepted. The engine never picks: the test asserts the offer is still open and no card has moved after the second accept, which is the assertion that would fail if a shortcut ever chose for the player.
+    - **The transfer is one event and one state** (FR-14.8): trade_completed names both sides, the test asserts there is exactly one such event, that the recorded give and want are the announced ones, that the other acceptor keeps their cards, and that every resource is conserved across the bank and the hands. A trade moved in two steps would leave a position between them that the rules never allow, and a record of half a trade.
+    - **An accept a responder cannot honour is refused, not recorded** (B-13): the request is still opened for them - FR-14.4 is about who holds cards, not about who holds the right ones - but the accept is rejected with INSUFFICIENT_RESOURCES, and the enumeration offers them decline alone, so an action the surface offers is always an action the engine accepts (FR-17.5). The validation happens when the answer is made, against the same cards it would be validated against when the round closes: no hand can change in between. RULES.md item 4 now says so.
+    - **The offerer choices travel as a list on one request.** cancel_trade and choose_partner are what the offerer may do about an offer, and they are carried the way the turn own request carries the actions of the turn - one request per player per phase, because a request identifier is a phase and a seat (FR-9.3), and two requests to one player would have been two requests with one identifier.
+    - **Replay is asserted in the small here.** The state after a completed trade encodes and decodes to itself and continues identically; the fixture game that replays a completed trade out of a record is K-053.
     ```

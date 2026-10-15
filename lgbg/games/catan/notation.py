@@ -36,6 +36,7 @@ HANDLED_FIELDS: Final[frozenset[str]] = frozenset(
         "hand",
         "hand_counts",
         "hands",
+        "offer",
         "phase",
         "pieces",
         "points",
@@ -109,6 +110,7 @@ def _full(observation: Observation) -> str:
     lines.append(f"supply: {_supply(observation)}")
     lines.append(f"awards: {_awards(observation)}")
     lines.append(f"dice: {_dice(observation)}")
+    lines.append(f"offer: {_offer(observation)}")
     if "hands" in observation:
         lines.append(f"hands: {_hands(observation)}")
     for key, value in _other_fields(observation):
@@ -137,6 +139,7 @@ def _compact(observation: Observation) -> str:
     parts.append(f"supply {_supply(observation)}")
     parts.append(f"awards {_awards(observation)}")
     parts.append(f"dice {_dice(observation)}")
+    parts.append(f"offer {_offer(observation)}")
     if "hands" in observation:
         parts.append(f"hands {_hands(observation)}")
     for key, value in _other_fields(observation):
@@ -306,6 +309,29 @@ def _dice(observation: Observation) -> str:
     if not isinstance(dice, Sequence):
         return "-"
     return " ".join(str(die) for die in dice)
+
+
+def _offer(observation: Observation) -> str:
+    """The offer on the table: who made it, what it gives and what it asks in return.
+
+    An offer is read by the players who have to answer it, so it is written the way the table
+    would say it out loud - wood for ore - rather than as the two count vectors the state holds.
+    """
+    offer = observation.get("offer")
+    if not isinstance(offer, Mapping):
+        return "none"
+    return (
+        f"p{offer.get('offerer', '?')} gives {_composition(offer.get('give'))}"
+        f" for {_composition(offer.get('want'))}"
+    )
+
+
+def _composition(side: JsonValue) -> str:
+    """One side of an offer, by resource name, or nothing when it names no cards."""
+    if not isinstance(side, Mapping):
+        return "nothing"
+    named = [f"{name} {count}" for name, count in side.items()]
+    return " ".join(named) if named else "nothing"
 
 
 def _other_fields(observation: Observation) -> list[tuple[str, JsonValue]]:

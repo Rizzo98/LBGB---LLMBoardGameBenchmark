@@ -21,6 +21,7 @@ from collections.abc import Callable, Mapping, Sequence
 from types import MappingProxyType
 from typing import Any, Final
 
+from lgbg.core.canonical import to_canonical_json
 from lgbg.core.config import GameConfig
 from lgbg.core.errors import GAME_OVER, UNKNOWN_ACTION, Rejection, RejectionCode
 from lgbg.core.game import (
@@ -108,6 +109,10 @@ ACTIONS: Final[dict[str, RuleFunction]] = {
     phases.PLAY_DEV_CARD: devcards.play_dev_card,
     phases.PLACE_FREE_ROAD: building.place_free_road,
     phases.MARITIME_TRADE: trading.maritime_trade,
+    phases.OFFER_TRADE: trading.offer_trade,
+    phases.RESPOND_TRADE: trading.respond_trade,
+    phases.CANCEL_TRADE: trading.cancel_trade,
+    phases.CHOOSE_PARTNER: trading.choose_partner,
     phases.MOVE_ROBBER: robber.move_robber,
     phases.CHOOSE_ROBBER_VICTIM: robber.choose_robber_victim,
 }
@@ -252,6 +257,28 @@ class CatanGame:
                     "want_resource": {"type": "string"},
                 },
                 "required": ["give_resource", "give_count", "want_resource"],
+                "additionalProperties": False,
+            },
+            phases.OFFER_TRADE: {
+                "type": "object",
+                "properties": {
+                    "give": _announced_composition(),
+                    "want": _announced_composition(),
+                },
+                "required": ["give", "want"],
+                "additionalProperties": False,
+            },
+            phases.RESPOND_TRADE: {
+                "type": "object",
+                "properties": {"response": {"type": "string", "enum": list(trading.ANSWERS)}},
+                "required": ["response"],
+                "additionalProperties": False,
+            },
+            phases.CANCEL_TRADE: _no_parameters(),
+            phases.CHOOSE_PARTNER: {
+                "type": "object",
+                "properties": {"partner": {"type": "integer", "minimum": 0, "maximum": 3}},
+                "required": ["partner"],
                 "additionalProperties": False,
             },
             phases.PLACE_FREE_ROAD: {
@@ -435,6 +462,49 @@ def _resource_counts() -> JsonSchema:
     }
 
 
+def _announced_composition() -> JsonSchema:
+    """One side of an offer: resource cards by name, at least one of every kind it names.
+
+    The discard's composition permits a count of zero - a player may keep every card of a kind
+    - but an offer announces what it gives, so naming nothing of a resource is not part of the
+    announcement and the rule refuses a zero outright (RULES.md 4.12.2 item 3).
+    """
+    return {
+        "type": "object",
+        "properties": {
+            resource.value: {"type": "integer", "minimum": 1} for resource in RESOURCE_ORDER
+        },
+        "additionalProperties": False,
+    }
+
+
+def _answers(state: CatanState, player: int) -> list[str]:
+    """The answers a responder may give: both, unless the offer asks for cards they lack.
+
+    An accept that cannot be honoured is refused by the rule (RULES.md 5.10 B-13), so it is not
+    offered: the enumeration is a promise, and a driver that trusts it must never be handed an
+    action the engine then rejects (FR-17.5). The request itself is still opened for such a
+    player, which is what FR-14.4 asks for - they are asked, and they can decline.
+    """
+    if trading.can_honour(state, player):
+        return list(trading.ANSWERS)
+    return [trading.DECLINE]
+
+
+def _announced(vectors: list[tuple[int, ...]]) -> list[JsonValue]:
+    """One side of every enumerated offer, deduplicated, in one canonical order.
+
+    The description of a structured parameter is a *set* of permitted values: the same give
+    appears in many offers - once for every thing asked in return - and the description says it
+    once. The order is the encoding's own, so the description is a function of the set and not
+    of the loop that happened to build it (ARCHITECTURE.md 7.2).
+    """
+    distinct = {
+        to_canonical_json(trading.named(vector)): trading.named(vector) for vector in vectors
+    }
+    return [distinct[key] for key in sorted(distinct)]
+
+
 def _legal_actions_for(state: CatanState, request: DecisionRequest) -> list[Action]:
     """The actions one request admits, enumerated from the rules that will judge them.
 
@@ -466,6 +536,7 @@ PARAMETER: Final[Mapping[str, str]] = MappingProxyType(
         phases.BUILD_CITY: "vertex",
         phases.MOVE_ROBBER: "hex",
         phases.CHOOSE_ROBBER_VICTIM: "victim",
+        phases.CHOOSE_PARTNER: "partner",
     }
 )
 """Which parameter carries the board identifier an action names, for the actions that name one.
@@ -509,6 +580,8 @@ def _targets(state: CatanState, player: int, name: str) -> list[int]:
         return list(robber.destinations(state))
     if name == phases.CHOOSE_ROBBER_VICTIM:
         return list(robber.robber_victims(state))
+    if name == phases.CHOOSE_PARTNER:
+        return list(trading.accepted(state))
     return []
 
 
@@ -542,6 +615,27 @@ def _actions_of_type(state: CatanState, player: int, name: str) -> list[Action]:
             )
             for give, count, want in trading.trades(state, player)
         ]
+    if name == phases.OFFER_TRADE:
+        return [
+            Action(
+                player=player,
+                type=phases.OFFER_TRADE,
+                params={
+                    trading.OFFER_GIVE: trading.named(give),
+                    trading.OFFER_WANT: trading.named(want),
+                },
+            )
+            for give, want in trading.offers(state, player)
+        ]
+    if name == phases.RESPOND_TRADE:
+        return [
+            Action(
+                player=player,
+                type=phases.RESPOND_TRADE,
+                params={trading.RESPONSE: answer},
+            )
+            for answer in _answers(state, player)
+        ]
     parameter = PARAMETER.get(name)
     if parameter is None:
         return [Action(player=player, type=name, params={})]
@@ -560,9 +654,34 @@ def _domain_of(state: CatanState, player: int, name: str) -> ActionDomain:
     the range each count may take and the sum is left to the rule - a description may be
     permissive, but it may not promise a value the rule refuses, which is why every other set is
     built from the rule's own target list.
+
+    An offer is the one action whose parameters are *structures* rather than identifiers, so
+    their permitted values are compositions of cards, written in the encoding's order. The cross
+    product ARCHITECTURE.md 7.2 removes is the one *between* parameters: a give against a want
+    is still two sets, and a driver may pick any pair of them.
     """
     bought = COST_OF.get(name)
     cost = dict(building.COSTS[bought]) if bought is not None else None
+    if name == phases.OFFER_TRADE:
+        enumerated = trading.offers(state, player)
+        return ActionDomain(
+            type=name,
+            cost=None,
+            params={
+                trading.OFFER_GIVE: ParamDomain(
+                    kind="id_set", values=_announced([give for give, _want in enumerated])
+                ),
+                trading.OFFER_WANT: ParamDomain(
+                    kind="id_set", values=_announced([want for _give, want in enumerated])
+                ),
+            },
+        )
+    if name == phases.RESPOND_TRADE:
+        return ActionDomain(
+            type=name,
+            cost=None,
+            params={trading.RESPONSE: ParamDomain(kind="enum", values=_answers(state, player))},
+        )
     if name == phases.MARITIME_TRADE:
         available = trading.trades(state, player)
         return ActionDomain(

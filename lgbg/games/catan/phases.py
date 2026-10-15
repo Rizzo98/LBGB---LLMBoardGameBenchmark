@@ -36,7 +36,13 @@ from lgbg.core.game import Applied, ApplyResult, Rejected
 from lgbg.core.rng import RandomSource
 from lgbg.core.types import PHASE_STARTED_EVENT, Action, DecisionRequest, Event, JsonValue
 from lgbg.games.catan.rules import building, devcards, robber, trading
-from lgbg.games.catan.state import CARD_ORDER, NO_OWNER, CatanState, Phase
+from lgbg.games.catan.state import (
+    CARD_ORDER,
+    NO_OWNER,
+    RESPONSE_PENDING,
+    CatanState,
+    Phase,
+)
 
 PLACE_SETTLEMENT: Final[str] = "place_settlement"
 PLACE_ROAD: Final[str] = "place_road"
@@ -51,6 +57,12 @@ BUILD_CITY: Final[str] = "build_city"
 BUY_DEV_CARD: Final[str] = "buy_dev_card"
 PLAY_DEV_CARD: Final[str] = "play_dev_card"
 MARITIME_TRADE: Final[str] = "maritime_trade"
+OFFER_TRADE: Final[str] = "offer_trade"
+RESPOND_TRADE: Final[str] = "respond_trade"
+CANCEL_TRADE: Final[str] = "cancel_trade"
+CHOOSE_PARTNER: Final[str] = "choose_partner"
+"""The trade protocol's four actions (FR-14.2, FR-14.5): one opens an offer, one answers it,
+one completes it, and one ends it without a trade."""
 PLACE_FREE_ROAD: Final[str] = "place_free_road"
 MOVE_ROBBER: Final[str] = "move_robber"
 CHOOSE_ROBBER_VICTIM: Final[str] = "choose_robber_victim"
@@ -293,6 +305,7 @@ def _action_requests(state: CatanState) -> list[DecisionRequest]:
             BUY_DEV_CARD,
             PLAY_DEV_CARD,
             MARITIME_TRADE,
+            OFFER_TRADE,
             END_TURN,
         )
         if _can_take(state, name)
@@ -322,6 +335,8 @@ def _can_take(state: CatanState, action: str) -> bool:
         return bool(devcards.playable_cards(state, state.turn))
     if action == MARITIME_TRADE:
         return trading.can_trade(state, state.turn)
+    if action == OFFER_TRADE:
+        return trading.can_offer(state, state.turn)
     return True
 
 
@@ -409,6 +424,66 @@ def _after_robber(state: CatanState) -> Phase:
     return Phase.TURN_PRODUCTION if state.dice is None else Phase.ACTION
 
 
+def _trade_response_requests(state: CatanState) -> list[DecisionRequest]:
+    """The offer's two audiences at once (FR-14.4, FR-14.6; RULES.md 4.12.2 items 4 and 6).
+
+    Every player holding a card is asked to answer, and the offerer is asked only how the offer
+    ends: they may withdraw it while it stands. The requests open together and are answered
+    against the position the offer opened in, which is why neither the offerer's request nor a
+    responder's carries any tally of the answers - what one player answered is theirs until the
+    round resolves (RULES.md 4.4 rule 3).
+
+    The offer is what the phase is *about*, so it is read from the state: while it stands the
+    responses are open, and when it is gone - withdrawn, or declined by everybody - the request
+    set is empty and the machine closes the phase.
+
+    The offer is what the phase is *about*, so it is read from the state: while it stands the
+    responses are open, and when it is gone - withdrawn, declined by everybody, or completed by
+    a trade - the request set is empty and the machine closes the phase. What the offerer may do
+    while it stands is carried by their request as a list of actions, like the turn's own request,
+    so one player is asked one thing however much they may do about it.
+
+    Several acceptors is the one case that leaves a decision for the offerer beyond withdrawing
+    the offer: they pick the partner, and the engine never picks for them (FR-14.5). With a
+    single acceptor there is nothing to choose, and the trade has already executed in the answer
+    that completed the round (RULES.md 4.12.2 item 5).
+    """
+    offer = state.offer
+    if offer is None:
+        return []
+    told: dict[str, JsonValue] = {
+        "offerer": offer.offerer,
+        "give": trading.named(offer.give),
+        "want": trading.named(offer.want),
+    }
+    waiting = [
+        _request(state, seat, RESPOND_TRADE, context=told)
+        for seat in trading.responders(state)
+        if state.responses[seat] == RESPONSE_PENDING
+    ]
+    # The offerer has one request, not one per action: what they may do about the offer is a
+    # *list*, exactly as the turn's own request carries the actions of the turn. Two requests
+    # to one player in one phase would also be two requests with one identifier, since an
+    # identifier is a phase and a seat (FR-9.3).
+    endings = [CANCEL_TRADE]
+    if len(trading.accepted(state)) > 1:
+        endings.append(CHOOSE_PARTNER)
+    return [
+        *waiting,
+        _request(state, offer.offerer, CANCEL_TRADE, context={"actions": endings}),
+    ]
+
+
+def _after_trade_response(state: CatanState) -> Phase:
+    """A finished offer gives the game back to the turn it interrupted (RULES.md 4.12.2).
+
+    An offer can only be opened in the action phase, so that is where the offerer's turn
+    resumes - with the same dice, the same pieces and everything else the offer left alone.
+    """
+    del state
+    return Phase.ACTION
+
+
 PHASE_RULES: Final[Mapping[Phase, PhaseRule]] = MappingProxyType(
     {
         Phase.SETUP_ROUND_1: PhaseRule(_setup_requests, _after_setup_round_one),
@@ -418,9 +493,14 @@ PHASE_RULES: Final[Mapping[Phase, PhaseRule]] = MappingProxyType(
         Phase.DISCARD: PhaseRule(_discard_requests, _after_discard),
         Phase.ROBBER: PhaseRule(_robber_requests, _after_robber),
         Phase.ROAD_BUILDING: PhaseRule(_road_building_requests, _after_road_building),
+        Phase.TRADE_RESPONSE: PhaseRule(_trade_response_requests, _after_trade_response),
     }
 )
-"""What each implemented phase asks, and where it goes. The rest arrive with their cards."""
+"""What each phase asks, and where it goes.
+
+Every phase of the table in RULES.md 4.4 is here except terminal, which asks nobody anything:
+it is where a finished game stops, and an empty answer from it is the right answer rather than
+a missing card (FR-15.5)."""
 
 
 def _request(

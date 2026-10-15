@@ -76,7 +76,8 @@ def test_the_owners_view_counts_them_and_everybody_elses_does_not() -> None:
     mine = observe(state, 1)["points"]
     theirs = observe(state, 2)["points"]
 
-    assert isinstance(mine, dict) and isinstance(theirs, dict)
+    assert isinstance(mine, dict)
+    assert isinstance(theirs, dict)
     assert int(mine["1"]) == 5, "a city and three cards"
     assert int(theirs["1"]) == 2, "the same city, and no cards"
     assert int(theirs["2"]) == victory_points(state, 2)

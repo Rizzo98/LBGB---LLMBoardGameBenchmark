@@ -28,22 +28,6 @@
 
 
 
-### K-038 · Commit golden game 3: a complete, winnable game
-
-  - tags: [slice-4, test, acceptance, sc-1]
-  - priority: high
-  - workload: Normal
-  - defaultExpanded: true
-  - steps:
-      - [ ] Committed fixture plays to a 10-VP terminal record
-      - [ ] Replays with every hash verified
-      - [ ] Renders legibly through the CLI
-    ```md
-    - **Cuts through:** everything built so far
-    - **Depends on:** K-037
-    - **PRD:** SC-1
-    - **Why:** Slice 4 exit, and the single most valuable checkpoint in the release: a complete Catan game, opening draft through winner, that replays.
-    ```
 
 ### K-039 · Measure performance against NFR-2
 
@@ -1029,6 +1013,7 @@
     - **Blocking is asserted through the roll, not around it** (FR-12.3). The test places a settlement on each of the two hexes that share the number 5, rolls a 5 twice - once with the robber on the desert, once with it on one of those hexes - and asserts that the first roll pays the blocked hex and the second does not, while the hex that shares its number is still paid. `produce` blocks by hex identity, so no separate rule had to be written for it, and none was.
     - **The neighbours are derived twice, by different routes.** `robber_victims` walks the robber's hex to its vertices and reads the occupancy; the test re-derives the same set through the inverse relation (`hexes_at(vertex)`) and compares, so a change that made the two agree by accident - an authored list, a cached set - would fail. A city counts like a settlement, the mover is never a candidate, and holding cards is deliberately not part of candidacy: the rules let the mover name a victim who holds nothing and get nothing.
     - **Every hex but one is a destination.** The desert included, and the current hex refused with `ROBBER_SAME_HEX`; a second move in the same phase with `ROBBER_ALREADY_MOVED`; an unknown hex, a missing parameter or a non-integer with `BAD_PARAMS`. The enumeration in `legal_actions` is exactly the set the rule accepts, checked by applying every action it offers.
+    - **Correction (found while working K-038):** the phase could not finish. `choose_robber_victim` was accepted repeatedly from the same mover with the same neighbours, so a play-out spun in the robber phase for thousands of actions and no game could end: the move had a mark of its own (`robber_moved_at`) and the second step had none, so the phase rule kept asking for a victim. RULES.md 4.4 ends the phase when the steal is resolved or skipped, so the steal now records the phase instance it happened in (`robber_stolen_at`), `rules_version` went to `catan-rules-5` with the reason in RULES.md 1.2, all three golden fixtures were regenerated, and the regression has its own test in tests/games/test_catan_steal.py.
     ```
 
 ### K-027 · Implement steal with recorded draw and asymmetric visibility
@@ -1275,4 +1260,27 @@
     - **The outcome is asserted against the scoring rule rather than against literals**: the scores are compared to `victory_points`, so the two cannot drift, and the winner is asserted to be the player whose turn it is (which is the only player `check` may terminate for).
     - **What is deliberately not here: the end-to-end terminal record.** A `GameRun` cannot be handed a position, so a test cannot conjure a run that ends in a win - the record the runtime writes for a won game has to come from a game actually played to a win. That is K-038, the next card on the board, and the card that needed it says so rather than testing a hand-built log and calling it end to end.
     - **The last test is the scoring term nobody can see:** a victory-point card in a hand is counted from the god view (RULES.md 4.13 item 2), and the position it is in is nine points - so the game does not end, which is the same assertion from the other side.
+    ```
+
+### K-038 · Commit golden game 3: a complete, winnable game
+
+  - tags: [slice-4, test, acceptance, sc-1]
+  - priority: high
+  - workload: Normal
+  - defaultExpanded: true
+  - steps:
+      - [x] Committed fixture plays to a 10-VP terminal record
+      - [x] Replays with every hash verified
+      - [x] Renders legibly through the CLI
+    ```md
+    - **Cuts through:** everything in slice 4
+    - **Depends on:** K-037
+    - **PRD:** SC-1
+    - **Evidence:** tests/fixtures/catan/full_game.json, tests/golden/catan/full_game.god.jsonl, tests/golden/test_golden_full_game.py (13 tests), scripts/make_golden_full_game.py. 743 actions over 68 rounds, played from the opening position to seat 0's tenth point: the terminal record names the winner, the final scores, the length and the action count, and the whole log replays with every hash verified.
+    - **The fixture is required to have played the rules, not merely to replay.** A game that stopped exercising a rule would still replay perfectly, so the record is asserted to contain a city built, a discard, a seizure, the robber moving, production, a settlement placed, a road built, the Longest Road card changing hands, and the win itself. That list is the card's real content: it is what makes this fixture the exit condition of slice 4 rather than a long file.
+    - **A real engine bug was found by writing it, and it is the most valuable thing this card produced.** Playing the whole game spun for thousands of actions inside the *robber phase*: `choose_robber_victim` was accepted over and over from the same mover with the same two neighbours, so no game could ever end. The phase rule read "the robber has moved" and asked for a victim again, because nothing in the state recorded that the victim had already been *chosen* - the move had a mark of its own (`robber_moved_at`) and the second step had none. RULES.md 4.4 says the phase ends when the steal is resolved or skipped, and a phase rule sees only the state, so each step needs a field to say it has been taken: `robber_stolen_at` is that field. `rules_version` went to `catan-rules-5`, RULES.md 1.2 records the reason, all three golden fixtures were regenerated, and the fix has its own regression test - the same mover cannot rob twice, and the phase opens the turn's action phase instead.
+    - **The generator's policy is written down rather than hidden in a script**, because a fixture is only as good as the decisions that produced it. It takes points first (city, then settlement, then a road), keeps one brick and one wood in hand so a road is not bought at the price of the next settlement, and drafts settlements where they will produce most often. That last clause is not decoration: the earlier fixtures take the *first* legal vertex, which put all eight settlements on the same terrain, and a game in which everybody produces wool for ever is a true game and a useless fixture. The first attempt at this card proved it - six hundred rounds without a single point scored.
+    - **The CLI is exercised, not just the renderer** (the card asks for a legible rendering): the test runs `replay --print-states --compact` over the committed record through `main`, and asserts the output contains the board and the terminal phase. The renderer is separately swept over every one of the 744 states, for the table and for each player.
+    - **The terminal totals are recomputed, not trusted**: for every seat, the score in the terminal record is compared to the scoring rule applied to the final position. A record that disagreed with the rules would replay and verify perfectly and still be wrong.
+    - **Both earlier fixtures moved with the encoding.** A field added to the state changes every hash, so golden games 1 and 2 were regenerated and their pinned hashes updated in the same change - which is exactly the cost RULES.md 1.2 describes, and the reason the pinning discipline exists.
     ```

@@ -68,7 +68,7 @@ from lgbg.games.catan.state import (
     initial_state,
 )
 
-RULES_VERSION: Final[str] = "catan-rules-3"
+RULES_VERSION: Final[str] = "catan-rules-4"
 """Bumped whenever a pinned rule changes (RULES.md section 1.2), which invalidates the corpus.
 
 Also bumped when the engine is corrected to a rule the document already pinned and the encoded
@@ -91,6 +91,7 @@ ACTIONS: Final[dict[str, RuleFunction]] = {
     phases.ROLL_DICE: turn.roll_dice,
     phases.END_TURN: turn.end_turn,
     phases.DISCARD_RESOURCES: robber.discard_resources,
+    phases.MOVE_ROBBER: robber.move_robber,
 }
 """The action types the game accepts, and the rule function each one runs."""
 
@@ -227,6 +228,12 @@ class CatanGame:
             phases.ROLL_DICE: _no_parameters(),
             phases.END_TURN: _no_parameters(),
             phases.DISCARD_RESOURCES: _resource_counts(),
+            phases.MOVE_ROBBER: {
+                "type": "object",
+                "properties": {"hex": {"type": "integer", "minimum": 0, "maximum": 18}},
+                "required": ["hex"],
+                "additionalProperties": False,
+            },
         }
 
     def observation_schema(self) -> JsonSchema:
@@ -362,6 +369,11 @@ def _legal_actions_for(state: CatanState, request: DecisionRequest) -> list[Acti
         return [
             Action(player=player, type=phases.DISCARD_RESOURCES, params=composition)
             for composition in _legal_discards(state, player)
+        ]
+    if request.kind == phases.MOVE_ROBBER:
+        return [
+            Action(player=player, type=phases.MOVE_ROBBER, params={"hex": hex_id})
+            for hex_id in robber.destinations(state)
         ]
     return []
 

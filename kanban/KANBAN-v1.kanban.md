@@ -16,20 +16,6 @@
 
 
 
-### K-026 · Implement robber movement and production blocking
-
-  - tags: [slice-3, robber, rules, fr-12]
-  - priority: medium
-  - workload: Easy
-  - steps:
-      - [ ] Current player moves the robber to a different hex
-      - [ ] A blocked hex produces nothing
-      - [ ] Steal adjacency is derived from topology, not authored
-    ```md
-    - **Cuts through:** rules/robber, board topology, projection, production
-    - **Depends on:** K-025
-    - **PRD:** FR-12.3
-    ```
 
 ### K-027 · Implement steal with recorded draw and asymmetric visibility
 
@@ -947,6 +933,7 @@
     - **The field set is fixed now, deliberately.** Later slices need development cards, awards and a trade offer, and `encode_state` is what every recorded hash is computed from: a field added after the golden corpus exists would invalidate it. Fixing the shape in slice 2 costs nothing. The one exception is `Phase`, which is stored by name, so later slices may add phases without touching a hash.
     - **Encoding choices:** counts sit in a canonical order (`RESOURCE_ORDER`, `CARD_ORDER`) written as a list, with the orders pinned as constants and asserted, because a silently reordered tuple would reinterpret every recorded hand. Occupancy is sparse - `[site, seat]` sorted by site - because a list of seventy-two minus-ones is not something a person reads. The board is encoded with the state (terrain, tokens, ports, its name and the corner the tokens were laid from), so the hash covers the board that decided everything that happened on it.
     - **Correction (found while working K-026):** the `RESOURCE_ORDER` this card shipped was wood, brick, wool, wheat, ore - an order the engine had picked for itself. RULES.md section 3 pins the canonical order as **brick, wood, wool, wheat, ore**, the order in which the rulebook lists the five resource-card stacks, and states that every list, projection and hash that enumerates resources uses it. The order of the counts inside a hand is written into every encoded state, so this was a wrong hash basis and not a cosmetic difference. The `Resource` enum and `RESOURCE_ORDER` were brought into line, `rules_version` went from `catan-rules-2` to `catan-rules-3` with the reason recorded in RULES.md section 1.2, and the golden fixture was regenerated: the initial-state hash is unchanged (the opening position is uniform) and every hash after the first endowment moved. The pin is now asserted in two places rather than one - tests/games/test_catan_state.py for the constant, and tests/golden/catan/setup_game.god.jsonl for every hand a game actually records.
+- **Second correction (K-026):** the field set this card fixed was one field short. The robber phase has two steps - the robber moves, and then a victim is chosen - and the move leaves no trace, because a robber that has just moved sits on a hex exactly like one that has not. A phase rule is a function of the state and cannot see which request it has already handed out, so `robber_moved_at` (the `phase_index` the move happened in) was added; the encoded state carries it, `rules_version` went to `catan-rules-4`, and the golden fixture was regenerated. The card's own reasoning held: the field set is worth fixing early *because* adding one is expensive - expensive here means a version bump and one regenerated fixture, which is the price of getting the shape wrong, paid while it was still small.
     - **One draw:** the opening state shuffles the 25-card deck through draw D5, asserted with its pinned label and argument; nothing else in the opening consumes randomness.
     - **Not yet:** `initial_state` builds the opening position, but no Game plugin is registered yet. That arrives with the setup phase (K-017), which is the first card that needs decisions rather than just a state.
     ```
@@ -1181,4 +1168,25 @@
     - **Any composition is allowed, and the enumeration is exactly that set** (FR-12.2, FR-17.5): `legal_actions` offers every composition of the forced amount that fits the hand, and the test re-derives that set independently, asserts each offered action is accepted, and asserts the free cross product is not on offer. A discard of the wrong size is refused with `WRONG_DISCARD_TOTAL`, and one naming cards the player does not hold with the new `NOT_ENOUGH_RESOURCES`.
     - **The discard is a move, not a destruction** (FR-6.9): the cards go to the bank, and the conservation invariant is asserted after the phase. The tests deal every hand out of the bank, so the position is one the rules could have produced rather than one that merely looks plausible.
     - **The robber phase is where the machine now waits** (K-026): entering it is a transition like any other, and asking it for decisions is still a loud error.
+    ```
+
+### K-026 · Implement robber movement and production blocking
+
+  - tags: [slice-3, robber, rules, fr-12]
+  - priority: medium
+  - workload: Easy
+  - steps:
+      - [x] Current player moves the robber to a different hex
+      - [x] A blocked hex produces nothing
+      - [x] Steal adjacency is derived from topology, not authored
+    ```md
+    - **Cuts through:** rules/robber, board topology, projection, production
+    - **Depends on:** K-025
+    - **PRD:** FR-12.3
+    - **Evidence:** lgbg/games/catan/rules/robber.py (`move_robber`, `destinations`, `robber_victims`), lgbg/games/catan/phases.py (`_robber_requests`), tests/games/test_catan_robber.py (18 tests). The robber phase now has its two steps: the mover is asked for `move_robber`, and once it has moved, for `choose_robber_victim` if the new hex carries somebody else's building - the second request is open and unanswerable, which is where K-027 lands.
+    - **Progress is read from the state, not remembered by the machine.** The robber is the one step in the game that leaves no trace: a robber that has just moved sits on a hex exactly like one that has not. A phase rule is a function of the state - it cannot see what it has already handed out - so the state records the phase instance the move happened in (`robber_moved_at`, compared against `phase_index`, the same number the decision identifiers are built from). A fresh robber phase, after a seven or after a knight, therefore asks for the move again without any reset, and the phase that has already moved asks for the victim.
+    - **That is one new state field, and it was not free.** `encode_state` is what every hash is computed from, so the field moved every hash: `rules_version` went from `catan-rules-3` to `catan-rules-4`, the reason is recorded in RULES.md section 1.2, the golden fixture was regenerated, and the correction is recorded on K-014, the card that fixed the field set. Paying the price at the second golden game rather than the tenth is the point of the discipline.
+    - **Blocking is asserted through the roll, not around it** (FR-12.3). The test places a settlement on each of the two hexes that share the number 5, rolls a 5 twice - once with the robber on the desert, once with it on one of those hexes - and asserts that the first roll pays the blocked hex and the second does not, while the hex that shares its number is still paid. `produce` blocks by hex identity, so no separate rule had to be written for it, and none was.
+    - **The neighbours are derived twice, by different routes.** `robber_victims` walks the robber's hex to its vertices and reads the occupancy; the test re-derives the same set through the inverse relation (`hexes_at(vertex)`) and compares, so a change that made the two agree by accident - an authored list, a cached set - would fail. A city counts like a settlement, the mover is never a candidate, and holding cards is deliberately not part of candidacy: the rules let the mover name a victim who holds nothing and get nothing.
+    - **Every hex but one is a destination.** The desert included, and the current hex refused with `ROBBER_SAME_HEX`; a second move in the same phase with `ROBBER_ALREADY_MOVED`; an unknown hex, a missing parameter or a non-integer with `BAD_PARAMS`. The enumeration in `legal_actions` is exactly the set the rule accepts, checked by applying every action it offers.
     ```

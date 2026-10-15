@@ -194,6 +194,14 @@ class CatanState:
     longest_road: int
     largest_army: int
     robber: int
+    robber_moved_at: int
+    """The `phase_index` the robber was last moved in, or `NO_OWNER` if never.
+
+    The robber phase has two steps - move, then steal - and the first leaves no other trace: a
+    robber that has just moved sits on a hex like one that has not. Recording the phase instance
+    the move happened in is what lets the phase machine work out which step is open from the
+    state alone, instead of remembering what it has already asked for.
+    """
     dice: tuple[int, int] | None
 
 
@@ -229,6 +237,7 @@ def initial_state(board: Board, *, players: int, rng: RandomSource) -> CatanStat
         longest_road=NO_OWNER,
         largest_army=NO_OWNER,
         robber=board.desert_hex,
+        robber_moved_at=NO_OWNER,
         dice=None,
     )
 
@@ -256,6 +265,7 @@ def encode_state(state: CatanState) -> JsonValue:
         "players": state.players,
         "responses": list(state.responses),
         "robber": state.robber,
+        "robber_moved_at": state.robber_moved_at,
         "round": state.round,
         "supply": [[item.roads, item.settlements, item.cities] for item in state.supply],
         "turn": state.turn,
@@ -294,6 +304,7 @@ def decode_state(blob: JsonValue) -> CatanState:
         longest_road=_integer(fields, "longest_road", "state"),
         largest_army=_integer(fields, "largest_army", "state"),
         robber=_integer(fields, "robber", "state"),
+        robber_moved_at=_integer(fields, "robber_moved_at", "state"),
         dice=None if dice is None else _pair(dice, "state.dice"),
     )
 

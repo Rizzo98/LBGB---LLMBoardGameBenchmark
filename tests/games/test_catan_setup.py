@@ -93,7 +93,7 @@ def test_the_plugin_registers_as_catan_with_its_versions() -> None:
     assert "catan" in registered_games()
     assert get_game("catan") is GAME, "one shared instance per game (FR-6.5)"
     assert GAME.name == "catan"
-    assert GAME.rules_version == "catan-rules-3"
+    assert GAME.rules_version == "catan-rules-4"
     assert GAME.schema_version == "catan-actions-1"
 
 

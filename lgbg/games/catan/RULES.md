@@ -6,8 +6,8 @@
 | **Game** | CATAN (originally *The Settlers of Catan*) — base game, 4 players |
 | **Plugin** | `catan` |
 | **Status** | **PINNED** — this file is the rule authority for the plugin (`ARCHITECTURE.md` §7.9, PRD-v1 §11, SC-12) |
-| **Document revision** | 2 |
-| **Plugin `rules_version`** | `catan-rules-3` |
+| **Document revision** | 3 |
+| **Plugin `rules_version`** | `catan-rules-4` |
 | **Edition basis** | CATAN 6th edition rulebook (2025) as the primary text; the 5th-edition *Game Rules & Almanac* (2015) and the official CATAN GmbH base-game FAQ for rules the 6th edition leaves implicit |
 | **Written** | before any rules code exists (milestone M0, card K-001) |
 | **Owner** | Maintainer |
@@ -28,7 +28,7 @@ This document contains **no strategy advice**. It states legality, not quality o
 
 ### 1.2 Pinning and versioning
 
-* The plugin declares `rules_version = "catan-rules-3"` (shape from `ARCHITECTURE.md` §8.3). The value
+* The plugin declares `rules_version = "catan-rules-4"` (shape from `ARCHITECTURE.md` §8.3). The value
   is pinned by this document. It was bumped from `catan-rules-1` to `catan-rules-2` when the engine's
   phase vocabulary was brought into line with the table in §4.4: the phase name is part of the encoded
   state and therefore of every hash, so records made under the old names are not comparable with
@@ -40,6 +40,12 @@ This document contains **no strategy advice**. It states legality, not quality o
   the order in which the rulebook lists the five resource-card stacks - is the pinned one, and the
   engine had picked an order of its own. The rules did not change here either, and the golden fixture
   was regenerated in the same change.
+* It was bumped once more, to `catan-rules-4`, when the state gained the field the robber phase needs
+  to know which of its two steps is open (§4.9 item 4). A phase's progress has to be readable from the
+  state, because a phase rule is a function of the state and not of what the machine has already asked
+  for; the robber is the one step in the game that leaves no other trace, since a robber that has moved
+  looks exactly like one that has not. The field records the phase instance the move happened in, the
+  encoded state carries it like every other field, and the golden fixture was regenerated.
 * **Any change to a pinned rule in this document MUST bump `rules_version`** (for example to
   `catan-rules-2`) before the change is implemented. A pinned rule is any sentence in §4, §5, §6 or §7
   under the labels *Rule as implemented*, *Chosen interpretation*, *Confirmation* or *Pinned draw*.

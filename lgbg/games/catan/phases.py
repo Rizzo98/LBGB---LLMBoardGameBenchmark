@@ -28,6 +28,7 @@ from types import MappingProxyType
 from typing import Final
 
 from lgbg.core.types import PHASE_STARTED_EVENT, DecisionRequest, Event, JsonValue
+from lgbg.games.catan.rules import robber
 from lgbg.games.catan.state import NO_OWNER, CatanState, Phase
 
 PLACE_SETTLEMENT: Final[str] = "place_settlement"
@@ -37,6 +38,9 @@ ROLL_DICE: Final[str] = "roll_dice"
 END_TURN: Final[str] = "end_turn"
 DISCARD_RESOURCES: Final[str] = "discard_resources"
 """The request a forced discard is answered with, one per eligible player (RULES.md 4.4)."""
+MOVE_ROBBER: Final[str] = "move_robber"
+CHOOSE_ROBBER_VICTIM: Final[str] = "choose_robber_victim"
+"""The robber phase's two steps: it moves, and then somebody is robbed (RULES.md 4.9)."""
 
 
 class PhaseError(Exception):
@@ -219,6 +223,36 @@ def _after_discard(state: CatanState) -> Phase:
     return Phase.ROBBER
 
 
+def _robber_requests(state: CatanState) -> list[DecisionRequest]:
+    """The mover's two steps, in order: move the robber, then rob somebody (RULES.md 4.9).
+
+    Which step is open is read from the state and not remembered by the machine: the move
+    records the phase instance it happened in, so a fresh robber phase - after a seven or after
+    a knight - asks for the move again, and the phase in which it has already moved asks for the
+    victim. The two steps are one phase, because the phase ends when the robber has moved and
+    the steal is resolved or skipped (RULES.md 4.4).
+    """
+    if state.robber_moved_at != state.phase_index:
+        return [_request(state, state.turn, MOVE_ROBBER, context={"from": state.robber})]
+    candidates = robber.robber_victims(state)
+    if not candidates:
+        return []
+    return [
+        _request(
+            state,
+            state.turn,
+            CHOOSE_ROBBER_VICTIM,
+            context={"candidates": list(candidates)},
+        )
+    ]
+
+
+def _after_robber(state: CatanState) -> Phase:
+    """The turn goes on to its action phase once the seven is fully resolved (RULES.md 4.4)."""
+    del state
+    return Phase.ACTION
+
+
 PHASE_RULES: Final[Mapping[Phase, PhaseRule]] = MappingProxyType(
     {
         Phase.SETUP_ROUND_1: PhaseRule(_setup_requests, _after_setup_round_one),
@@ -226,6 +260,7 @@ PHASE_RULES: Final[Mapping[Phase, PhaseRule]] = MappingProxyType(
         Phase.TURN_PRODUCTION: PhaseRule(_turn_production_requests, _after_turn_production),
         Phase.ACTION: PhaseRule(_action_requests, None),
         Phase.DISCARD: PhaseRule(_discard_requests, _after_discard),
+        Phase.ROBBER: PhaseRule(_robber_requests, _after_robber),
     }
 )
 """What each implemented phase asks, and where it goes. The rest arrive with their cards."""

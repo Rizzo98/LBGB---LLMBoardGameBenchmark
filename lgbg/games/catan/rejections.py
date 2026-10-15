@@ -44,6 +44,13 @@ NOT_ENOUGH_RESOURCES: Final[RejectionCode] = RejectionCode(
     description="the player does not hold the resource cards the action spends or returns",
 )
 
+ROBBER_SAME_HEX: Final[RejectionCode] = RejectionCode(
+    code="ROBBER_SAME_HEX", description="the robber was sent to the hex it already occupies"
+)
+ROBBER_ALREADY_MOVED: Final[RejectionCode] = RejectionCode(
+    code="ROBBER_ALREADY_MOVED", description="the robber has already moved in this phase"
+)
+
 GAME_CODES: Final[tuple[RejectionCode, ...]] = (
     VERTEX_OCCUPIED,
     EDGE_OCCUPIED,
@@ -52,6 +59,8 @@ GAME_CODES: Final[tuple[RejectionCode, ...]] = (
     NO_PIECES_REMAINING,
     WRONG_DISCARD_TOTAL,
     NOT_ENOUGH_RESOURCES,
+    ROBBER_SAME_HEX,
+    ROBBER_ALREADY_MOVED,
 )
 """The codes Catan itself raises, so far. Later slices add their own to this tuple."""
 

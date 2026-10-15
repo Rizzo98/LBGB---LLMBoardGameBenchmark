@@ -15,15 +15,20 @@ different game (RULES.md 4.4 item 3; ARCHITECTURE.md 7.7).
 from __future__ import annotations
 
 from dataclasses import replace
-from typing import Final
+from typing import Any, Final
 
 from lgbg.core.errors import BAD_PARAMS, NOT_YOUR_DECISION, WRONG_PHASE, Rejection
 from lgbg.core.game import Applied, ApplyResult, Rejected
 from lgbg.core.rng import RandomSource
 from lgbg.core.types import Action, Event, JsonValue
 from lgbg.games.catan.board.layout import Resource
-from lgbg.games.catan.rejections import NOT_ENOUGH_RESOURCES, WRONG_DISCARD_TOTAL
-from lgbg.games.catan.state import HAND_LIMIT, RESOURCE_ORDER, CatanState, Phase
+from lgbg.games.catan.rejections import (
+    NOT_ENOUGH_RESOURCES,
+    ROBBER_ALREADY_MOVED,
+    ROBBER_SAME_HEX,
+    WRONG_DISCARD_TOTAL,
+)
+from lgbg.games.catan.state import HAND_LIMIT, NO_OWNER, RESOURCE_ORDER, CatanState, Phase
 
 NOTHING: Final[int] = 0
 """No cards: the amount a hand within the limit owes, and the amount left after a discard."""
@@ -39,6 +44,84 @@ def forced_discards(state: CatanState) -> tuple[int, ...]:
     return tuple(
         total // 2 if (total := sum(hand)) > HAND_LIMIT else NOTHING for hand in state.hands
     )
+
+
+def move_robber(state: CatanState, action: Action, rng: RandomSource) -> ApplyResult:
+    """Put the robber on a different hex (FR-12.3; RULES.md 4.9 item 4).
+
+    Every hex is a legal destination, the desert included, and the one it is already on is the
+    single exception: the rules offer no way to leave the robber where it is, so an engine that
+    accepted its current hex would quietly make "move" optional.
+    """
+    del rng  # choosing where it goes is a decision, not a draw
+    if state.phase is not Phase.ROBBER:
+        return Rejected(
+            Rejection(
+                code=WRONG_PHASE,
+                message=f"{action.type!r} is only legal while the robber is being moved",
+                details={"phase": state.phase.value},
+            )
+        )
+    if not 0 <= action.player < state.players or action.player != state.turn:
+        return Rejected(
+            Rejection(
+                code=NOT_YOUR_DECISION,
+                message=f"seat {action.player} is not the player who rolled the seven; "
+                f"seat {state.turn} is",
+                details={"turn": state.turn},
+            )
+        )
+    if state.robber_moved_at == state.phase_index:
+        return Rejected(
+            Rejection(
+                code=ROBBER_ALREADY_MOVED,
+                message="the robber has already been moved in this phase",
+                details={"to": state.robber, "phase": state.phase.value},
+            )
+        )
+    destination = _destination(action, len(state.board.topology.hexes))
+    if isinstance(destination, Rejected):
+        return destination
+    if destination == state.robber:
+        return Rejected(
+            Rejection(
+                code=ROBBER_SAME_HEX,
+                message="the robber must be placed on a different hex",
+                details={"from": state.robber},
+            )
+        )
+    return Applied(
+        state=replace(state, robber=destination, robber_moved_at=state.phase_index),
+        events=[
+            Event(
+                type="robber_moved",
+                payload={"player": action.player, "from": state.robber, "to": destination},
+            )
+        ],
+    )
+
+
+def destinations(state: CatanState) -> tuple[int, ...]:
+    """Every hex but the one the robber occupies: the only legal move is a different hex."""
+    return tuple(hex_.id for hex_ in state.board.topology.hexes if hex_.id != state.robber)
+
+
+def robber_victims(state: CatanState) -> tuple[int, ...]:
+    """The seats the mover may rob, derived from the board every time it is asked (4.9 item 5).
+
+    The candidates are the players other than the mover who have a settlement or a city on a
+    vertex of the hex the robber now occupies. Nothing here is authored and nothing is stored:
+    the hex knows its vertices, the vertices know who built on them, and a board that moved a
+    hex would move this answer with it. Holding cards is deliberately not part of it - the rules
+    let the mover name a victim who holds nothing and get nothing (item 6).
+    """
+    seats = {
+        seat
+        for vertex in state.board.topology.vertices_of_hex(state.robber)
+        for occupancy in (state.placed.cities, state.placed.settlements)
+        if (seat := occupancy[vertex]) != NO_OWNER and seat != state.turn
+    }
+    return tuple(sorted(seats))
 
 
 def discard_resources(state: CatanState, action: Action, rng: RandomSource) -> ApplyResult:
@@ -131,6 +214,28 @@ def discard_resources(state: CatanState, action: Action, rng: RandomSource) -> A
             )
         ],
     )
+
+
+def _destination(action: Action, hexes: int) -> int | Rejected:
+    """Read the robber's destination, refusing anything the board does not have (FR-18.2)."""
+    value: Any = action.params.get("hex")
+    if not isinstance(value, int) or isinstance(value, bool):
+        return Rejected(
+            Rejection(
+                code=BAD_PARAMS,
+                message="hex must be an integer identifying a hex of this board",
+                details={"hex": _json(value)},
+            )
+        )
+    if not 0 <= value < hexes:
+        return Rejected(
+            Rejection(
+                code=BAD_PARAMS,
+                message=f"hex {value} is not on this board, which has {hexes}",
+                details={"hex": value, "hexes": hexes},
+            )
+        )
+    return value
 
 
 def _composition(action: Action) -> dict[Resource, int] | Rejected:

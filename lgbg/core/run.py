@@ -38,6 +38,7 @@ from lgbg.core.log import (
     sidecar_path,
 )
 from lgbg.core.rng import RngDraw, SeededRandomSource
+from lgbg.core.schema import validate_action
 from lgbg.core.types import (
     PHASE_STARTED_EVENT,
     Action,
@@ -140,9 +141,15 @@ class GameRun:
                 result = Rejected(rejection=resolved)
             else:
                 request = resolved
-                mark = len(self._rng.draws())
-                result = self._game.apply(self._state, action, self._rng)
-                draws = self._rng.draws()[mark:]
+                refusal = validate_action(self._game.action_schema(), action)
+                if refusal is not None:
+                    # The declared surface is binding: an action the schema does not describe, or
+                    # describes and this one does not fit, never reaches rule logic (FR-18.2).
+                    result = Rejected(rejection=refusal)
+                else:
+                    mark = len(self._rng.draws())
+                    result = self._game.apply(self._state, action, self._rng)
+                    draws = self._rng.draws()[mark:]
 
         if isinstance(result, Applied):
             self._state = result.state

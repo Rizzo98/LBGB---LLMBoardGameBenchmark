@@ -7,22 +7,6 @@
 
 ## Backlog
 
-### K-056 · Declare action_schema and enforce conformance during play
-
-  - tags: [slice-7, schemas, core, fr-18]
-  - priority: high
-  - workload: Hard
-  - steps:
-      - [ ] A JSON Schema keyed by action type covering every accepted action
-      - [ ] Validation happens before rule logic
-      - [ ] Unknown action types yield UNKNOWN_ACTION and schema violations yield BAD_PARAMS
-      - [ ] A fuzz run asserts every action produced by the game validates against the schema
-    ```md
-    - **Cuts through:** action_schema.py, validation, every rule module, the fuzzer
-    - **Depends on:** K-053
-    - **PRD:** FR-18.1, FR-18.2, FR-18.5
-    ```
-
 ### K-057 · Declare observation_schema
 
   - tags: [slice-7, schemas, projection, fr-18]
@@ -1374,4 +1358,26 @@
     - **The header is compared as data, not as text.** Blanking two fields and comparing bytes would hide a third field moving with them, so the test also loads both headers and asserts that the set of fields which differ is exactly {assist, rejection_detail} - the second being the tier the first implies (FR-5.3) - and that every other header field, and every action line, is identical.
     - **And the test the invariant is actually about:** with rejection_detail overridden to full at L0 and to minimal at L2, the records are still identical after the header. ARCHITECTURE.md 9.4 calls that combination a genuinely interesting condition - enumeration without explanation, or explanation without enumeration - and it can only be a condition rather than a contradiction if neither field reaches the engine. The two are separate fields precisely so somebody can measure the crossed condition.
     - **Why this is a test and not a review note.** Assist level is the benchmark's most important knob, and a leak would not look like a bug: it would look like a slightly better score at L1. The equality is asserted over recorded bytes, where a rule that consulted the level, a renderer that fed back into the state, or a tier that reached the log would all show up as a diff.
+    ```
+
+### K-056 · Declare action_schema and enforce conformance during play
+
+  - tags: [slice-7, schemas, core, fr-18]
+  - priority: high
+  - workload: Hard
+  - steps:
+      - [x] A JSON Schema keyed by action type covering every accepted action
+      - [x] Validation happens before rule logic
+      - [x] Unknown action types yield UNKNOWN_ACTION and schema violations yield BAD_PARAMS
+      - [x] A fuzz run asserts every action produced by the game validates against the schema
+    ```md
+    - **Cuts through:** schema validation, the run loop, every rule module, the fuzzer
+    - **Depends on:** K-053
+    - **PRD:** FR-18.1, FR-18.2, FR-18.5
+    - **Evidence:** lgbg/core/schema.py (validate_action, violations, SUPPORTED), lgbg/core/run.py (submit refuses before apply), lgbg/games/catan/game.py (_card_shapes), lgbg/games/catan/rules/devcards.py (TELLS), tests/core/test_schema.py (8 tests), tests/games/test_catan_schema.py (4 tests).
+    - **The validator is a declared subset, and the declaration is the point.** The project carries no third-party dependency, so this is not JSON Schema; it is the keywords the engine enforces - type, properties, required, additionalProperties, enum, const, oneOf, items, minimum, maximum, minItems, maxItems - plus a list of annotations that change nothing and everything else *refused*. A validator that skipped the keywords it did not know would be an engine advertising a contract it was quietly ignoring, which is the same failure the projection's allow-list exists to prevent in the other direction.
+    - **Enforcement found a real drift on its first run, which is why the card exists.** play_dev_card declared only its card, with additionalProperties false, while the engine let a Year of Plenty be told which two resources to take and a monopoly which one: eight actions in the committed corpus were outside the declared surface, and with the schema binding they would have been refused at the door. The schema now declares one shape per card, and the counts come from the table the rule itself reads (devcards.TELLS), so a card that takes no telling refuses one - a knight told resources is BAD_PARAMS, and a Year of Plenty naming one card or an unknown resource is refused too.
+    - **Before rule logic is asserted with a spy, not with a comment.** The build_road rule is replaced by a wrapper that records its calls; a malformed action is refused with BAD_PARAMS and the wrapper is never called, and the position is untouched. That is FR-18.2 as a fact about the code path rather than a description of the design.
+    - **The surface is checked from three directions.** The five committed records are read back through the schema - 1876 actions, none outside it; three fuzzed games validate *every action the game offers* before it is taken, which is FR-18.5 in its strongest form (the actions a game produces, not the ones somebody wrote down); and the card shapes are asserted by hand, including the ones that must be refused.
+    - **The subset grew for a reason and not by accident.** oneOf came in with the cards, because a flat schema cannot say that only two of the five cards are told anything. $ref did not: the engine does not resolve references, so the fixture game that used one was simplified instead of the validator being stretched to cover a keyword nothing needed.
     ```

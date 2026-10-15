@@ -257,10 +257,20 @@ EFFECTS: Mapping[DevCard, Effect] = MappingProxyType(
     }
 )
 
+TELLS: Mapping[DevCard, int] = MappingProxyType(
+    {DevCard.YEAR_OF_PLENTY: PLENTY, DevCard.MONOPOLY: ANNOUNCEMENT}
+)
+"""How many resources each card is told to take: the Year of Plenty two, a monopoly one.
+
+The rule reads this table, and so does the declared action schema, so the surface a model is
+shown cannot promise a count the rule then refuses (FR-18.1 against FR-13.4). A card that is
+told nothing is not in the table, which is the same statement the rules make.
+"""
+
 REQUIREMENTS: Mapping[DevCard, Requirement] = MappingProxyType(
     {
         DevCard.YEAR_OF_PLENTY: _bank_holds,
-        DevCard.MONOPOLY: lambda state, action: _named(action, ANNOUNCEMENT),
+        DevCard.MONOPOLY: lambda state, action: _named(action, TELLS[DevCard.MONOPOLY]),
     }
 )
 """What each playable card does, filled in by the cards that implement them (K-042 to K-046).

@@ -300,14 +300,7 @@ class CatanGame:
                 "additionalProperties": False,
             },
             phases.BUY_DEV_CARD: _no_parameters(),
-            phases.PLAY_DEV_CARD: {
-                "type": "object",
-                "properties": {
-                    "card": {"type": "string", "enum": [kind.value for kind in devcards.PLAYABLE]}
-                },
-                "required": ["card"],
-                "additionalProperties": False,
-            },
+            phases.PLAY_DEV_CARD: _card_shapes(),
             phases.BUILD_CITY: {
                 "type": "object",
                 "properties": {"vertex": {"type": "integer", "minimum": 0, "maximum": 53}},
@@ -460,6 +453,38 @@ def _resource_counts() -> JsonSchema:
         },
         "additionalProperties": False,
     }
+
+
+def _card_shapes() -> JsonSchema:
+    """The development cards, each with the parameters it actually takes (FR-18.1).
+
+    One shape per card rather than one shape with an optional parameter: a knight may not be told
+    which resources to take, so a schema that allowed it would declare a surface wider than the
+    game. Each branch refuses anything it does not name, which is what makes the four shapes a
+    statement about the cards rather than four variations of one action.
+    """
+    shapes: list[JsonValue] = []
+    for card in devcards.PLAYABLE:
+        properties: dict[str, JsonValue] = {"card": {"const": card.value}}
+        required = ["card"]
+        told = devcards.TELLS.get(card)
+        if told is not None:
+            properties["resources"] = {
+                "type": "array",
+                "items": {"enum": [resource.value for resource in RESOURCE_ORDER]},
+                "minItems": told,
+                "maxItems": told,
+            }
+            required.append("resources")
+        shapes.append(
+            {
+                "type": "object",
+                "properties": properties,
+                "required": required,
+                "additionalProperties": False,
+            }
+        )
+    return {"oneOf": shapes}
 
 
 def _announced_composition() -> JsonSchema:

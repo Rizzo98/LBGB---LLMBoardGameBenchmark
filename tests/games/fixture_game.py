@@ -80,6 +80,11 @@ class FixtureState:
     decisions: int
 
 
+def _no_params() -> JsonSchema:
+    """An action of the fixture that takes no parameters, declared rather than inferred."""
+    return {"type": "object", "properties": {}, "additionalProperties": False}
+
+
 @register_game
 class FixtureGame:
     """Three actions, one draw, one supply limit, one way to win."""
@@ -254,17 +259,7 @@ class FixtureGame:
         )
 
     def action_schema(self) -> JsonSchema:
-        empty_params: JsonSchema = {
-            "type": "object",
-            "properties": {},
-            "additionalProperties": False,
-        }
-        return {
-            "take": dict(empty_params),
-            "gamble": dict(empty_params),
-            "spend": dict(empty_params),
-            "turn": {"oneOf": [{"$ref": "#/take"}, {"$ref": "#/gamble"}, {"$ref": "#/spend"}]},
-        }
+        return {name: _no_params() for name in ("gamble", "spend", "take", "turn")}
 
     def observation_schema(self) -> JsonSchema:
         return {

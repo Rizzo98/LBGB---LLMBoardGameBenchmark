@@ -7,21 +7,6 @@
 
 ## Backlog
 
-### K-063 · Audit the rejection-code declaration
-
-  - tags: [slice-8, test, fr-6, sc-13]
-  - priority: medium
-  - workload: Easy
-  - steps:
-      - [ ] Every code raised anywhere in a fuzz run appears in rejection_codes()
-      - [ ] A test fails on any undeclared code
-    ```md
-    - **Cuts through:** rejection_codes, every rule module, the metrics surface
-    - **Depends on:** K-061
-    - **PRD:** FR-6.8, SC-13
-    - **Why:** Declaring codes is what makes rejection-code distribution a game-agnostic metric.
-    ```
-
 ### K-064 · Build the generic fuzz harness
 
   - tags: [slice-8, fuzz, test, fr-22, sc-2]
@@ -1402,4 +1387,22 @@
     - **The audit is the card.** A declaration nobody checks is a guess with a straight face, so the numbers are held to measurement: the five recorded games run from 16 to 743 actions with a median of 476, inside a declared typical of 250 and worst case of 1500, and the test asserts both that no recorded game exceeds the worst case and that the declared typical is within a factor of four of the measured median. The tolerance is deliberate and stated: the campaign that replaces the estimate with a measured distribution is K-067.
     - **Positional asymmetry is structural, not a claim.** The profile says seat order is an advantage, and the test shows why the platform must mirror pairings: the draft opens with seat 0 and *nobody else may act* - seat 1 has no legal action at all - so an unmirrored pairing hands the first pick to whoever is listed first.
     - **And the audit found something, which is what an audit is for.** A uniform-random driver played the 4000-action cap without finishing: the declared worst case is a statement about play that *ends*, and the harness has to report a game that will not end distinctly from a rule failure. That is K-064's requirement and it is now motivated by a measurement rather than by a worry, and the plugin's own docstring records the finding beside the numbers it qualifies.
+    ```
+
+### K-063 · Audit the rejection-code declaration
+
+  - tags: [slice-8, test, fr-6, sc-13]
+  - priority: medium
+  - workload: Easy
+  - steps:
+      - [x] Every code raised anywhere in a fuzz run appears in rejection_codes()
+      - [x] A test fails on any undeclared code
+    ```md
+    - **Cuts through:** rejection_codes, every rule module, the metrics surface
+    - **Depends on:** K-061
+    - **PRD:** FR-6.8, SC-13
+    - **Evidence:** tests/games/test_catan_rejection_fuzz.py (2 tests), tests/games/test_catan_rejections.py (the source audit it complements).
+    - **The two halves of the same claim.** The source audit walks every module in the engine and fails on a code that is raised without being imported from a declared vocabulary - it catches the branch nobody thought about. This card adds the other half: a driver that answers every third decision with something it was not offered - a seat that is not to act, an action type the game never declared, an action missing the parameter it needs - and an assertion that every code the resulting record carries was declared before it was ever seen. One is a reading of the code and the other is a reading of a record, and they can disagree.
+    - **The control matters more than the audit here.** A run that never misbehaved would see no codes at all and pass the declaration check for free, so the second test asserts that the run produced more than twenty refusals; the first asserts at least three *distinct* codes were raised. Between them, a declaration that had stopped covering real play would fail rather than quietly pass.
+    - **Why the codes must be closed at all.** The metrics layer reports an illegal-move rate *by code*, game-agnostically, which it can only do if the set of codes is enumerable without knowing the game. A code raised at one call site and declared nowhere is a category with one member that nobody can compare across games, which is exactly what FR-6.8 is written against.
     ```

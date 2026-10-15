@@ -351,8 +351,12 @@ class CatanGame:
     def benchmark_profile(self) -> BenchmarkProfile:
         """The facts the runner needs to design a valid experiment (FR-6.7, ARCHITECTURE 7.10).
 
-        The decision counts are provisional estimates; the fuzz campaign of K-067 is what
-        measures the real distribution, and K-062 audits this declaration.
+        The decision counts are provisional estimates, and they are estimates about play that
+        *ends*: K-062 measured the five recorded games (16 to 743 actions, median 476) inside
+        them, and found that a uniform-random driver can wander past the worst case without
+        finishing at all. That is a property of the driver and not of the game, and telling it
+        apart from a rule failure is the fuzz harness's job (K-064); the campaign that replaces
+        these numbers with a measured distribution is K-067.
         """
         return BenchmarkProfile(
             positional_asymmetry=True,

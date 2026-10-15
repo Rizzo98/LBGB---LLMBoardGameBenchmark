@@ -7,23 +7,6 @@
 
 ## Backlog
 
-### K-062 · Declare the benchmark profile
-
-  - tags: [slice-8, test, fr-6, sc-13]
-  - priority: medium
-  - workload: Easy
-  - steps:
-      - [ ] Declares positional asymmetry present, so mirrored pairings are required
-      - [ ] Declares outcome shape, variance class and interaction character
-      - [ ] Declares the decision-length distribution
-      - [ ] A test asserts the profile is complete
-    ```md
-    - **Cuts through:** the plugin, the runner's future needs, documented experimental design
-    - **Depends on:** K-053
-    - **PRD:** FR-6.7, SC-13
-    - **Why:** Blocked by open question Q8: declarative data or computed in plugin code. Seat order is a real advantage in Catan, so unmirrored pairings silently flatter whoever moves first.
-    ```
-
 ### K-063 · Audit the rejection-code declaration
 
   - tags: [slice-8, test, fr-6, sc-13]
@@ -1398,4 +1381,25 @@
     - **The third rendering is a step, not a position.** Full and compact describe one state; a delta describes the move between two, which is what a reader of a long game wants and what a prompt would show a model already told the position. It reports one line per field that moved, in a fixed order, and a pair that changed nothing renders to the sentence delta: no change rather than to an empty string - the same determinism the other two renderings are held to.
     - **It lives in the core, and that is the design decision worth recording.** Comparing two projections is game-agnostic by construction: the fields are canonical JSON and the comparison never looks inside one, so the CLI can offer the delta without learning what a board looks like - the rule the other renderings live under, and the one the CLI's own comment about not learning boards states. A field that appears or vanishes counts as moved, which is why the walk is over the union of the two key sets.
     - **All three are reachable from the command line**, which is the card's second criterion: lgbg replay --print-states prints positions, and --delta prints the steps instead. The CLI test asserts the step output is shorter than the whole, so a delta that quietly became a full rendering would fail.
+    ```
+
+### K-062 · Declare the benchmark profile
+
+  - tags: [slice-8, test, fr-6, sc-13]
+  - priority: medium
+  - workload: Easy
+  - steps:
+      - [x] Declares positional asymmetry present, so mirrored pairings are required
+      - [x] Declares outcome shape, variance class and interaction character
+      - [x] Declares the decision-length distribution
+      - [x] A test asserts the profile is complete
+    ```md
+    - **Cuts through:** the plugin, the runner's future needs, documented experimental design
+    - **Depends on:** K-053
+    - **PRD:** FR-6.7, SC-13
+    - **Q8, and how this card proceeds.** The open question is whether the profile should be declarative data or computed in plugin code. It is declared in the plugin today - one frozen dataclass, no computation - and the declaration is what the platform reads, so this card audits what is already there rather than moving it. A computed profile would be a different answer to the same question and would not change a single assertion below.
+    - **Evidence:** tests/games/test_catan_profile.py (4 tests), lgbg/games/catan/game.py (benchmark_profile).
+    - **The audit is the card.** A declaration nobody checks is a guess with a straight face, so the numbers are held to measurement: the five recorded games run from 16 to 743 actions with a median of 476, inside a declared typical of 250 and worst case of 1500, and the test asserts both that no recorded game exceeds the worst case and that the declared typical is within a factor of four of the measured median. The tolerance is deliberate and stated: the campaign that replaces the estimate with a measured distribution is K-067.
+    - **Positional asymmetry is structural, not a claim.** The profile says seat order is an advantage, and the test shows why the platform must mirror pairings: the draft opens with seat 0 and *nobody else may act* - seat 1 has no legal action at all - so an unmirrored pairing hands the first pick to whoever is listed first.
+    - **And the audit found something, which is what an audit is for.** A uniform-random driver played the 4000-action cap without finishing: the declared worst case is a statement about play that *ends*, and the harness has to report a game that will not end distinctly from a rule failure. That is K-064's requirement and it is now motivated by a measurement rather than by a worry, and the plugin's own docstring records the finding beside the numbers it qualifies.
     ```

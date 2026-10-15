@@ -107,18 +107,29 @@ def an_effect(monkeypatch: pytest.MonkeyPatch) -> list[DevCard]:
     return ran
 
 
-def test_only_the_cards_whose_effect_exists_are_playable() -> None:
-    """A card whose effect has not landed is not offered, rather than played for nothing."""
+def test_the_four_playable_cards_are_playable_and_the_fifth_is_not() -> None:
+    """The set of playable kinds is the rule, not an accident of what has been implemented."""
     state = _with_cards(_opening(), held=3)
+
     assert playable_cards(state, 0) == (DevCard.KNIGHT,)
 
     cards = [list(row) for row in state.dev_cards]
-    cards[0][CARD_ORDER.index(DevCard.MONOPOLY)] = 1
+    for kind in (DevCard.KNIGHT, DevCard.MONOPOLY, DevCard.YEAR_OF_PLENTY, DevCard.ROAD_BUILDING):
+        cards[0][CARD_ORDER.index(kind)] = 1
     pending = replace(state, dev_cards=tuple(tuple(row) for row in cards))
 
-    assert playable_cards(pending, 0) == (DevCard.KNIGHT,), "the progress card is not playable yet"
-    refusal = _refusal(pending, card=DevCard.MONOPOLY.value)
+    assert set(playable_cards(pending, 0)) == {
+        DevCard.KNIGHT,
+        DevCard.MONOPOLY,
+        DevCard.YEAR_OF_PLENTY,
+    }, "road building needs a road in supply and somewhere legal to put it"
+
+    cards[0][CARD_ORDER.index(DevCard.VICTORY_POINT)] = 1
+    with_points = replace(state, dev_cards=tuple(tuple(row) for row in cards))
+    refusal = _refusal(with_points, card=DevCard.VICTORY_POINT.value)
+
     assert refusal.code == CARD_NOT_PLAYABLE
+    assert DevCard.VICTORY_POINT not in PLAYABLE
 
 
 def test_a_card_may_be_played_in_the_action_phase(an_effect: list[DevCard]) -> None:

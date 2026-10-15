@@ -98,6 +98,9 @@ def road_building_effect(
     return entered, announced
 
 
+ANNOUNCEMENT: Final[int] = 1
+"""How many resources a monopoly names: exactly one (RULES.md 4.8)."""
+
 PLENTY: Final[int] = 2
 """How many cards the Year of Plenty takes: exactly two, the same resource or two (A-4)."""
 
@@ -134,6 +137,12 @@ def _chosen(action: Action, how_many: int) -> list[Resource] | Rejected:
             )
         )
     return chosen
+
+
+def _named(action: Action, how_many: int) -> Rejected | None:
+    """The monopoly announcement, which needs a resource and nothing else (RULES.md 4.8)."""
+    chosen = _chosen(action, how_many)
+    return chosen if isinstance(chosen, Rejected) else None
 
 
 def _bank_holds(state: CatanState, action: Action) -> Rejected | None:
@@ -192,16 +201,64 @@ def year_of_plenty_effect(
     )
 
 
+def monopoly_effect(
+    state: CatanState, action: Action, rng: RandomSource
+) -> tuple[CatanState, list[Event]]:
+    """Every other player gives all of one resource, in one event (FR-13.7; RULES.md 4.8).
+
+    Nothing comes from the bank: a monopoly moves cards between hands, which the test asserts by
+    checking the bank to the card. A player who holds none of the named resource gives nothing,
+    and the mover is not told in advance which of them those are - the *count* of every hand is
+    public and its contents are not, which is what makes the choice a guess.
+    """
+    _ = rng  # a monopoly is an announcement, not a draw
+    chosen = _chosen(action, ANNOUNCEMENT)
+    if isinstance(chosen, Rejected):
+        raise ValueError("the requirement runs before the effect, so this cannot be reached")
+    wanted = RESOURCE_ORDER.index(chosen[0])
+    given: dict[str, int] = {}
+    hands = [list(row) for row in state.hands]
+    taken = 0
+    for seat in range(state.players):
+        if seat == action.player:
+            continue
+        count = hands[seat][wanted]
+        if not count:
+            continue
+        hands[seat][wanted] = 0
+        hands[action.player][wanted] += count
+        taken += count
+        given[str(seat)] = count
+    return (
+        replace(state, hands=tuple(tuple(row) for row in hands)),
+        [
+            Event(
+                type="monopoly_taken",
+                payload={
+                    "player": action.player,
+                    "resource": chosen[0].value,
+                    "given": given,
+                    "total": taken,
+                },
+            )
+        ],
+    )
+
+
 EFFECTS: Mapping[DevCard, Effect] = MappingProxyType(
     {
         DevCard.KNIGHT: knight_effect,
         DevCard.ROAD_BUILDING: road_building_effect,
         DevCard.YEAR_OF_PLENTY: year_of_plenty_effect,
+        DevCard.MONOPOLY: monopoly_effect,
     }
 )
 
 REQUIREMENTS: Mapping[DevCard, Requirement] = MappingProxyType(
-    {DevCard.YEAR_OF_PLENTY: _bank_holds}
+    {
+        DevCard.YEAR_OF_PLENTY: _bank_holds,
+        DevCard.MONOPOLY: lambda state, action: _named(action, ANNOUNCEMENT),
+    }
 )
 """What each playable card does, filled in by the cards that implement them (K-042 to K-046).
 
@@ -258,6 +315,8 @@ def choices(state: CatanState, card: DevCard) -> list[dict[str, JsonValue]]:
     told nothing. Every pair is offered, duplicates included, limited to what the bank holds
     (A-4, A-5).
     """
+    if card is DevCard.MONOPOLY:
+        return [{"resources": [item.value]} for item in RESOURCE_ORDER]
     if card is not DevCard.YEAR_OF_PLENTY:
         return [{}]
     pairs: list[dict[str, JsonValue]] = []

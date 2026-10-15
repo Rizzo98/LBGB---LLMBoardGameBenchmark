@@ -35,19 +35,6 @@
 
 
 
-### K-045 · Implement the Monopoly card
-
-  - tags: [slice-5, devcards, fr-13]
-  - priority: medium
-  - workload: Easy
-  - steps:
-      - [ ] All of the named resource transfers from every other player
-      - [ ] The transfer is atomic in one event
-    ```md
-    - **Cuts through:** rules/devcards, every player's hand, events, projection
-    - **Depends on:** K-041
-    - **PRD:** FR-13.7
-    ```
 
 ### K-046 · Implement victory point cards and hidden VP
 
@@ -1334,4 +1321,24 @@
     - **Availability is the bank's, and the refusal says so** (A-5): a bank holding one wheat refuses `wheat, wheat` with `BANK_LACKS_RESOURCE` - the code RULES.md 4.12.1 names for the same situation in maritime trade, declared here rather than invented twice - and the card is asserted to still be in hand.
     - **The enumeration had to grow a dimension, and the performance tests caught it.** `legal_actions` offered `{card: year_of_plenty}` with no resources, which the rule then refused for being told nothing - so the fuzz driver's "every offered action is accepted" assertion failed, exactly as it should. The card now declares its choices (`choices`), and the enumeration offers every pair the bank can cover, in canonical order, duplicates included. FR-17.5 is a promise about *parameters* too, and this is the first card that has any.
     - **One K-042 test moved with the rule:** it asserted that only the knight was offered while the progress cards had no effects; it now uses Monopoly, which is still waiting for its card (K-045).
+    ```
+
+### K-045 · Implement the Monopoly card
+
+  - tags: [slice-5, devcards, fr-13]
+  - priority: medium
+  - workload: Easy
+  - steps:
+      - [x] One resource announced; every other player gives all of it
+      - [x] Nothing taken from the bank
+      - [x] Atomic, and the record names each contribution
+    ```md
+    - **Cuts through:** rules/devcards, hands, the per-observer projection, events
+    - **Depends on:** K-044
+    - **PRD:** FR-13.7
+    - **Evidence:** lgbg/games/catan/rules/devcards.py (`monopoly_effect`, `_named`, `choices`), tests/games/test_catan_monopoly.py (9 tests).
+    - **The three ways to get it wrong are the three tests.** The mover's own holding is not taken - the card says *every other* player, and a mover holding three wool ends with nine rather than giving to themselves; nothing comes from the bank, asserted by checking the bank to the card and the conservation law per resource; and a player holding none gives nothing rather than blocking the take, which the event makes visible by naming each contribution as `{"1": 2, "3": 4}`.
+    - **It reuses the machinery the Year of Plenty needed**, which is why it is a small card: the announcement goes through `_chosen` and the same `REQUIREMENTS` table, so a bad announcement costs the attempt and not the card, and `choices` gives the enumeration its five announcements. One parameter shape (`resources`, a list) for both cards rather than two, because the count is the card's own rule - two for Plenty, one for Monopoly - and not a different kind of parameter.
+    - **The choice is a guess, and the rules make it one:** every hand's *count* is public and its contents are not, so a monopoly on a resource nobody holds is legal and worthless. The test asserts that directly - four empty hands, a legal card, and a take of zero.
+    - **Two older tests had to catch up, and that is the pattern of this slice.** K-041's "only the cards whose effect exists are playable" and K-042's "the knight is the only card offered" were both written while the progress cards had no effects. They now assert the current truth instead: the four playable kinds are playable, the victory-point card is not, and a card in hand is offered under its own name. A test that encodes the *state of the implementation* rather than the rule has to be rewritten by the next card, and both said so when they failed.
     ```

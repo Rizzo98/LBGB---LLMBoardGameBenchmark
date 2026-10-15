@@ -13,7 +13,8 @@ played until the next one (K-041). Three counters, one writer.
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
+from collections import Counter
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import replace
 from types import MappingProxyType
 from typing import Final
@@ -21,18 +22,29 @@ from typing import Final
 from lgbg.core.errors import BAD_PARAMS, NOT_YOUR_DECISION, WRONG_PHASE, Rejection
 from lgbg.core.game import Applied, ApplyResult, Rejected
 from lgbg.core.rng import RandomSource
-from lgbg.core.types import Action, Event
+from lgbg.core.types import Action, Event, JsonValue
 from lgbg.games.catan import phases
+from lgbg.games.catan.board.layout import Resource
 from lgbg.games.catan.rejections import (
+    BANK_LACKS_RESOURCE,
     CARD_BOUGHT_THIS_TURN,
     CARD_NOT_PLAYABLE,
     NO_DEV_CARDS_REMAINING,
     ONE_CARD_PER_TURN,
 )
 from lgbg.games.catan.rules import building
-from lgbg.games.catan.state import CARD_ORDER, CatanState, DevCard, Phase
+from lgbg.games.catan.state import CARD_ORDER, RESOURCE_ORDER, CatanState, DevCard, Phase
 
-Effect = Callable[[CatanState, int, RandomSource], tuple[CatanState, list[Event]]]
+Effect = Callable[[CatanState, Action, RandomSource], tuple[CatanState, list[Event]]]
+"""What a played card does: a function of the position, the action, and the source of randomness.
+
+The action is part of it because two of the five cards are *told* something by the player - which
+resources to take, which to monopolise - and an effect that could not see the action could not
+implement those cards at all.
+"""
+
+Requirement = Callable[[CatanState, Action], "Rejected | None"]
+"""What a card must be told, checked while the card is still in the player's hand."""
 """What a played card does: a function of the position it is played in."""
 
 PLAYABLE: tuple[DevCard, ...] = (
@@ -46,7 +58,7 @@ revealing one is not an action, it is what winning looks like."""
 
 
 def knight_effect(
-    state: CatanState, player: int, rng: RandomSource
+    state: CatanState, action: Action, rng: RandomSource
 ) -> tuple[CatanState, list[Event]]:
     """A knight moves the robber and steals - the same flow a seven runs (FR-12.6; RULES.md 4.9).
 
@@ -58,6 +70,7 @@ def knight_effect(
     The card also counts itself: a knight that has been played stays face up for the rest of the
     game, and that count is what Largest Army is computed from (K-047).
     """
+    player = action.player
     played = list(state.knights_played)
     played[player] += 1
     with_knight = replace(state, knights_played=tuple(played))
@@ -71,7 +84,7 @@ FREE_ROADS: Final[int] = 2
 
 
 def road_building_effect(
-    state: CatanState, player: int, rng: RandomSource
+    state: CatanState, action: Action, rng: RandomSource
 ) -> tuple[CatanState, list[Event]]:
     """Two free roads, one decision at a time (FR-13.5; RULES.md 4.8 and 5.6 A-6).
 
@@ -85,8 +98,110 @@ def road_building_effect(
     return entered, announced
 
 
+PLENTY: Final[int] = 2
+"""How many cards the Year of Plenty takes: exactly two, the same resource or two (A-4)."""
+
+
+def _chosen(action: Action, how_many: int) -> list[Resource] | Rejected:
+    """Read the resources a card was told to take, refusing anything the rules would not."""
+    value = action.params.get("resources")
+    if isinstance(value, str) or not isinstance(value, Sequence):
+        return Rejected(
+            Rejection(
+                code=BAD_PARAMS,
+                message=f"this card takes {how_many} named resources",
+                details={"resources": None},
+            )
+        )
+    chosen: list[Resource] = []
+    for name in value:
+        named = next((item for item in RESOURCE_ORDER if item.value == name), None)
+        if named is None:
+            return Rejected(
+                Rejection(
+                    code=BAD_PARAMS,
+                    message=f"{name!r} is not a resource of this game",
+                    details={"resource": name if isinstance(name, str) else None},
+                )
+            )
+        chosen.append(named)
+    if len(chosen) != how_many:
+        return Rejected(
+            Rejection(
+                code=BAD_PARAMS,
+                message=f"this card takes exactly {how_many} resources, not {len(chosen)}",
+                details={"resources": [item.value for item in chosen]},
+            )
+        )
+    return chosen
+
+
+def _bank_holds(state: CatanState, action: Action) -> Rejected | None:
+    """The Year of Plenty take, limited by what the bank holds (RULES.md 4.8, A-5).
+
+    Checked before the card is spent, so a take the bank cannot cover costs nothing but the
+    attempt: the card stays in hand and the player can try again with a resource that is there.
+    """
+    chosen = _chosen(action, PLENTY)
+    if isinstance(chosen, Rejected):
+        return chosen
+    wanted = Counter(chosen)
+    short = {
+        item.value: wanted[item] - state.bank[RESOURCE_ORDER.index(item)]
+        for item in RESOURCE_ORDER
+        if wanted[item] > state.bank[RESOURCE_ORDER.index(item)]
+    }
+    if short:
+        return Rejected(
+            Rejection(
+                code=BANK_LACKS_RESOURCE,
+                message="the bank does not hold that many of those resources",
+                details={"missing": short, "chosen": [item.value for item in chosen]},
+            )
+        )
+    return None
+
+
+def year_of_plenty_effect(
+    state: CatanState, action: Action, rng: RandomSource
+) -> tuple[CatanState, list[Event]]:
+    """Take two cards from the bank, which may be the same resource twice (FR-13.6; A-4)."""
+    _ = rng  # taking from the bank is a choice, not a draw
+    chosen = _chosen(action, PLENTY)
+    if isinstance(chosen, Rejected):
+        raise ValueError("the requirement runs before the effect, so this cannot be reached")
+    hand = list(state.hands[action.player])
+    bank = list(state.bank)
+    for item in chosen:
+        index = RESOURCE_ORDER.index(item)
+        hand[index] += 1
+        bank[index] -= 1
+    hands = list(state.hands)
+    hands[action.player] = tuple(hand)
+    return (
+        replace(state, hands=tuple(hands), bank=tuple(bank)),
+        [
+            Event(
+                type="resources_taken",
+                payload={
+                    "player": action.player,
+                    "resources": [item.value for item in chosen],
+                },
+            )
+        ],
+    )
+
+
 EFFECTS: Mapping[DevCard, Effect] = MappingProxyType(
-    {DevCard.KNIGHT: knight_effect, DevCard.ROAD_BUILDING: road_building_effect}
+    {
+        DevCard.KNIGHT: knight_effect,
+        DevCard.ROAD_BUILDING: road_building_effect,
+        DevCard.YEAR_OF_PLENTY: year_of_plenty_effect,
+    }
+)
+
+REQUIREMENTS: Mapping[DevCard, Requirement] = MappingProxyType(
+    {DevCard.YEAR_OF_PLENTY: _bank_holds}
 )
 """What each playable card does, filled in by the cards that implement them (K-042 to K-046).
 
@@ -133,6 +248,38 @@ def _has_somewhere_to_play(state: CatanState, player: int, card: DevCard) -> boo
     if card is not DevCard.ROAD_BUILDING:
         return True
     return state.supply[player].roads > 0 and bool(building.road_targets(state, player))
+
+
+def choices(state: CatanState, card: DevCard) -> list[dict[str, JsonValue]]:
+    """What a card must be told, enumerated - so the offer and the rule agree (FR-17.5).
+
+    The Year of Plenty is the card that needs this: it takes two named resources, and an
+    enumeration that named only the card would offer an action the rule then refuses for being
+    told nothing. Every pair is offered, duplicates included, limited to what the bank holds
+    (A-4, A-5).
+    """
+    if card is not DevCard.YEAR_OF_PLENTY:
+        return [{}]
+    pairs: list[dict[str, JsonValue]] = []
+    for first in RESOURCE_ORDER:
+        for second in RESOURCE_ORDER:
+            if second is first and state.bank[RESOURCE_ORDER.index(first)] < 2:
+                continue
+            if second is not first and (
+                state.bank[RESOURCE_ORDER.index(first)] < 1
+                or state.bank[RESOURCE_ORDER.index(second)] < 1
+            ):
+                continue
+            pair = sorted(
+                [first.value, second.value],
+                key=lambda name: next(
+                    index for index, item in enumerate(RESOURCE_ORDER) if item.value == name
+                ),
+            )
+            chosen: dict[str, JsonValue] = {"resources": list(pair)}
+            if chosen not in pairs:
+                pairs.append(chosen)
+    return pairs
 
 
 def play_dev_card(state: CatanState, action: Action, rng: RandomSource) -> ApplyResult:
@@ -210,6 +357,11 @@ def play_dev_card(state: CatanState, action: Action, rng: RandomSource) -> Apply
             )
         )
 
+    requirement = REQUIREMENTS.get(card)
+    if requirement is not None:
+        refused = requirement(state, action)
+        if refused is not None:
+            return refused
     if not _has_somewhere_to_play(state, action.player, card):
         return Rejected(
             Rejection(
@@ -225,7 +377,7 @@ def play_dev_card(state: CatanState, action: Action, rng: RandomSource) -> Apply
     played = list(state.played_this_turn)
     played[action.player] += 1
     after = replace(state, dev_cards=tuple(cards), played_this_turn=tuple(played))
-    after, effects = EFFECTS[card](after, action.player, rng)
+    after, effects = EFFECTS[card](after, action, rng)
     return Applied(
         state=after,
         events=[

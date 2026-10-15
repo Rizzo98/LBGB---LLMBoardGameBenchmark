@@ -34,19 +34,6 @@
 
 
 
-### K-044 · Implement the Year of Plenty card
-
-  - tags: [slice-5, devcards, fr-13]
-  - priority: medium
-  - workload: Easy
-  - steps:
-      - [ ] Two resources taken from the bank, subject to availability
-      - [ ] Whether duplicates are permitted follows RULES.md, with a test
-    ```md
-    - **Cuts through:** rules/devcards, bank, resource selection as a sub-decision
-    - **Depends on:** K-041
-    - **PRD:** FR-13.6
-    ```
 
 ### K-045 · Implement the Monopoly card
 
@@ -1327,4 +1314,24 @@
     - **The card is the first whose playability depends on the board rather than the hand** (A-6 item 1): with no road in supply or nowhere legal to build, it stays in hand and is refused with `CARD_NOT_PLAYABLE`. Writing that test found a real inconsistency - `play_dev_card` was accepting the card while `playable_cards` was not offering it - which is the FR-17.5 promise broken from the inside: an enumeration a driver trusts may not be a lie. The rule now consults the same predicate.
     - **The refusals kept their specific reasons.** Adding that guard in the wrong place made every refusal `CARD_NOT_PLAYABLE` and swallowed `ONE_CARD_PER_TURN` and `CARD_BOUGHT_THIS_TURN`; K-041's tests caught it, and the board-dependent check now sits after the hand and turn checks rather than in front of them.
     - **One older test had to move with the rule:** `test_a_closed_phase_whose_transition_has_not_landed_is_reported` used `road_building` as its example of a phase whose card has not landed. It has now landed, so the test uses `trade_response`, which is the last one still waiting for its card.
+    ```
+
+### K-044 · Implement the Year of Plenty card
+
+  - tags: [slice-5, devcards, fr-13]
+  - priority: medium
+  - workload: Easy
+  - steps:
+      - [x] Two resources taken from the bank, subject to availability
+      - [x] Whether duplicates are permitted follows RULES.md, with a test
+    ```md
+    - **Cuts through:** rules/devcards, bank, resource selection as a sub-decision
+    - **Depends on:** K-041
+    - **PRD:** FR-13.6
+    - **Evidence:** lgbg/games/catan/rules/devcards.py (`year_of_plenty_effect`, `_bank_holds`, `choices`, `REQUIREMENTS`), lgbg/games/catan/rejections.py (`BANK_LACKS_RESOURCE`), tests/games/test_catan_year_of_plenty.py (9 tests).
+    - **The card is resolved inside the play action, not in a sub-phase.** RULES.md 4.4's phase table has no Year of Plenty phase - only road building and trade responses are separate - so the choice travels in the action as named resources. That needed two things the card machinery did not have: an effect that can see the *action* (the signature was `(state, player, rng)`, which made the player's choice invisible), and a `REQUIREMENTS` table consulted **before the card leaves the hand**, because a take the bank cannot cover must cost nothing but the attempt.
+    - **Duplicates are permitted and asserted** (A-4): two of the same resource is what the card's own text says, and the test takes `wood, wood` from a bank that holds plenty. It is the kind of rule that gets implemented as "two different resources" by someone reading "any 2 resources" too quickly.
+    - **Availability is the bank's, and the refusal says so** (A-5): a bank holding one wheat refuses `wheat, wheat` with `BANK_LACKS_RESOURCE` - the code RULES.md 4.12.1 names for the same situation in maritime trade, declared here rather than invented twice - and the card is asserted to still be in hand.
+    - **The enumeration had to grow a dimension, and the performance tests caught it.** `legal_actions` offered `{card: year_of_plenty}` with no resources, which the rule then refused for being told nothing - so the fuzz driver's "every offered action is accepted" assertion failed, exactly as it should. The card now declares its choices (`choices`), and the enumeration offers every pair the bank can cover, in canonical order, duplicates included. FR-17.5 is a promise about *parameters* too, and this is the first card that has any.
+    - **One K-042 test moved with the rule:** it asserted that only the knight was offered while the progress cards had no effects; it now uses Monopoly, which is still waiting for its card (K-045).
     ```

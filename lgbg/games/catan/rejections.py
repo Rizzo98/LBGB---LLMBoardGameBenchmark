@@ -59,6 +59,10 @@ CARD_NOT_PLAYABLE: Final[RejectionCode] = RejectionCode(
     code="CARD_NOT_PLAYABLE",
     description="this card is not one that is played: a victory-point card is revealed, not played",
 )
+BANK_LACKS_RESOURCE: Final[RejectionCode] = RejectionCode(
+    code="BANK_LACKS_RESOURCE",
+    description="the bank does not hold the resource cards the action asks of it",
+)
 NOT_YOUR_SETTLEMENT: Final[RejectionCode] = RejectionCode(
     code="NOT_YOUR_SETTLEMENT",
     description="the vertex does not carry one of the player's own settlements to upgrade",
@@ -82,6 +86,7 @@ GAME_CODES: Final[tuple[RejectionCode, ...]] = (
     NO_PIECES_REMAINING,
     WRONG_DISCARD_TOTAL,
     NOT_ENOUGH_RESOURCES,
+    BANK_LACKS_RESOURCE,
     NO_DEV_CARDS_REMAINING,
     CARD_BOUGHT_THIS_TURN,
     ONE_CARD_PER_TURN,

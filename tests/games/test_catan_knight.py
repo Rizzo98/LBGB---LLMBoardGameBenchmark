@@ -181,8 +181,12 @@ def test_knights_accumulate_across_turns() -> None:
 
 
 def test_the_knight_is_the_card_that_is_offered_and_the_others_are_not() -> None:
-    """K-041's offer, now that an effect exists: one playable card, and it says which."""
+    """K-041's offer, now that an effect exists: the playable card, and not the others."""
     state = _with(_opening(), knights=1, plenty=1)
+    cards = [list(row) for row in state.dev_cards]
+    cards[0][CARD_ORDER.index(DevCard.YEAR_OF_PLENTY)] = 0
+    cards[0][CARD_ORDER.index(DevCard.MONOPOLY)] = 1
+    state = replace(state, dev_cards=tuple(tuple(row) for row in cards))
 
     offered = [
         dict(action.params)["card"]

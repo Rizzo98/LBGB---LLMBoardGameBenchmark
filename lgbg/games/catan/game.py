@@ -501,8 +501,13 @@ def _actions_of_type(state: CatanState, player: int, name: str) -> list[Action]:
         ]
     if name == phases.PLAY_DEV_CARD:
         return [
-            Action(player=player, type=phases.PLAY_DEV_CARD, params={"card": card.value})
+            Action(
+                player=player,
+                type=phases.PLAY_DEV_CARD,
+                params={"card": card.value, **told},
+            )
             for card in devcards.playable_cards(state, player)
+            for told in devcards.choices(state, card)
         ]
     parameter = PARAMETER.get(name)
     if parameter is None:

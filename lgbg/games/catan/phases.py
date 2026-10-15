@@ -331,6 +331,8 @@ def _robber_requests(state: CatanState) -> list[DecisionRequest]:
     """
     if state.robber_moved_at != state.phase_index:
         return [_request(state, state.turn, MOVE_ROBBER, context={"from": state.robber})]
+    if state.robber_stolen_at == state.phase_index:
+        return []  # both steps are resolved: the phase is over
     # One candidate is not a question: the move already robbed them (RULES.md 4.9 item 5). The
     # request exists only where there is a choice, and the phase closes when there is neither.
     candidates = robber.robber_victims(state)

@@ -69,7 +69,7 @@ from lgbg.games.catan.state import (
     initial_state,
 )
 
-RULES_VERSION: Final[str] = "catan-rules-4"
+RULES_VERSION: Final[str] = "catan-rules-5"
 """Bumped whenever a pinned rule changes (RULES.md section 1.2), which invalidates the corpus.
 
 Also bumped when the engine is corrected to a rule the document already pinned and the encoded

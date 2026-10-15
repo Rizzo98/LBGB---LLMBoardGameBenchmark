@@ -359,6 +359,34 @@ def test_the_thief_and_the_victim_learn_different_things() -> None:
     assert robbed.state.hands[1] != NOTHING, "the god view holds every hand, as always"
 
 
+def test_the_robber_phase_is_over_once_the_steal_has_been_made() -> None:
+    """Every step of a phase needs a mark of its own, or the step can be taken again.
+
+    This is a regression test with a story. The engine accepted a victim choice over and over
+    from the same mover, with the same two neighbours, for thousands of actions: the phase rule
+    read "the robber has moved" and asked for a victim again, because nothing in the state
+    recorded that the victim had already been chosen. It was found by the generator of golden
+    game 3, which never reached a winner because it never left the robber phase.
+    """
+    hex_id = _a_hex(_opening())
+    stocked = _stocked(_stocked(_opening(), 1, wood=2), 2, ore=2)
+    state = _move(_pair(stocked, hex_id), hex_id).state
+    assert GAME.pending_decisions(state), "the choice of victim is open"
+
+    robbed = _choose(state, 1, SeededRandomSource(SEED))
+
+    assert robbed.state.phase is Phase.ACTION, "the phase is over once the steal is made"
+    assert [request.kind for request in GAME.pending_decisions(robbed.state)] == [phases.TAKE_TURN]
+    again = GAME.apply(
+        robbed.state,
+        Action(player=0, type=phases.CHOOSE_ROBBER_VICTIM, params={"victim": 2}),
+        NullRandomSource(),
+    )
+    assert isinstance(again, Rejected), "and the same hand cannot be robbed twice"
+    assert sum(state.hands[1]) == 2, "the victim held two cards"
+    assert sum(robbed.state.hands[1]) == 1, "exactly one of them left"
+
+
 def test_the_whole_robber_flow_replays_from_its_record(tmp_path: Any) -> None:
     """FR-12.4 end to end: a steal made for real, replayed from the draws it recorded."""
     run = GameRun(

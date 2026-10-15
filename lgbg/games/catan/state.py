@@ -192,6 +192,13 @@ class CatanState:
     longest_road: int
     largest_army: int
     robber: int
+    robber_stolen_at: int
+    """The `phase_index` in which the robber phase's second step was resolved, or `NO_OWNER`.
+
+    A phase rule sees only the state, so each step of a phase needs a mark of its own or the
+    step can be taken again. The move has one; the steal needs this one, or a player with two
+    neighbouring victims could rob for ever.
+    """
     robber_moved_at: int
     """The `phase_index` the robber was last moved in, or `NO_OWNER` if never.
 
@@ -236,6 +243,7 @@ def initial_state(board: Board, *, players: int, rng: RandomSource) -> CatanStat
         largest_army=NO_OWNER,
         robber=board.desert_hex,
         robber_moved_at=NO_OWNER,
+        robber_stolen_at=NO_OWNER,
         dice=None,
     )
 
@@ -264,6 +272,7 @@ def encode_state(state: CatanState) -> JsonValue:
         "responses": list(state.responses),
         "robber": state.robber,
         "robber_moved_at": state.robber_moved_at,
+        "robber_stolen_at": state.robber_stolen_at,
         "round": state.round,
         "supply": [[item.roads, item.settlements, item.cities] for item in state.supply],
         "turn": state.turn,
@@ -303,6 +312,7 @@ def decode_state(blob: JsonValue) -> CatanState:
         largest_army=_integer(fields, "largest_army", "state"),
         robber=_integer(fields, "robber", "state"),
         robber_moved_at=_integer(fields, "robber_moved_at", "state"),
+        robber_stolen_at=_integer(fields, "robber_stolen_at", "state"),
         dice=None if dice is None else _pair(dice, "state.dice"),
     )
 

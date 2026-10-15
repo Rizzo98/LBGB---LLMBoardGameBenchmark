@@ -1,0 +1,4244 @@
+{
+  "game": "catan",
+  "config": {
+    "seed": 20250717,
+    "players": 4,
+    "interaction_protocol": "decline_only",
+    "board": "fixed:standard_a"
+  },
+  "actions": [
+    {
+      "player": 0,
+      "type": "place_settlement",
+      "params": {
+        "vertex": 14
+      }
+    },
+    {
+      "player": 0,
+      "type": "place_road",
+      "params": {
+        "edge": 17
+      }
+    },
+    {
+      "player": 1,
+      "type": "place_settlement",
+      "params": {
+        "vertex": 25
+      }
+    },
+    {
+      "player": 1,
+      "type": "place_road",
+      "params": {
+        "edge": 33
+      }
+    },
+    {
+      "player": 2,
+      "type": "place_settlement",
+      "params": {
+        "vertex": 28
+      }
+    },
+    {
+      "player": 2,
+      "type": "place_road",
+      "params": {
+        "edge": 28
+      }
+    },
+    {
+      "player": 3,
+      "type": "place_settlement",
+      "params": {
+        "vertex": 9
+      }
+    },
+    {
+      "player": 3,
+      "type": "place_road",
+      "params": {
+        "edge": 5
+      }
+    },
+    {
+      "player": 3,
+      "type": "place_settlement",
+      "params": {
+        "vertex": 39
+      }
+    },
+    {
+      "player": 3,
+      "type": "place_road",
+      "params": {
+        "edge": 45
+      }
+    },
+    {
+      "player": 2,
+      "type": "place_settlement",
+      "params": {
+        "vertex": 23
+      }
+    },
+    {
+      "player": 2,
+      "type": "place_road",
+      "params": {
+        "edge": 30
+      }
+    },
+    {
+      "player": 1,
+      "type": "place_settlement",
+      "params": {
+        "vertex": 18
+      }
+    },
+    {
+      "player": 1,
+      "type": "place_road",
+      "params": {
+        "edge": 15
+      }
+    },
+    {
+      "player": 0,
+      "type": "place_settlement",
+      "params": {
+        "vertex": 35
+      }
+    },
+    {
+      "player": 0,
+      "type": "place_road",
+      "params": {
+        "edge": 47
+      }
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "move_robber",
+      "params": {
+        "hex": 0
+      }
+    },
+    {
+      "player": 3,
+      "type": "build_road",
+      "params": {
+        "edge": 1
+      }
+    },
+    {
+      "player": 3,
+      "type": "build_road",
+      "params": {
+        "edge": 0
+      }
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "build_road",
+      "params": {
+        "edge": 8
+      }
+    },
+    {
+      "player": 0,
+      "type": "build_settlement",
+      "params": {
+        "vertex": 5
+      }
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "move_robber",
+      "params": {
+        "hex": 1
+      }
+    },
+    {
+      "player": 1,
+      "type": "choose_robber_victim",
+      "params": {
+        "victim": 3
+      }
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "discard_resources",
+      "params": {
+        "wheat": 3,
+        "ore": 2
+      }
+    },
+    {
+      "player": 1,
+      "type": "move_robber",
+      "params": {
+        "hex": 0
+      }
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "discard_resources",
+      "params": {
+        "brick": 2,
+        "wool": 2,
+        "wheat": 1
+      }
+    },
+    {
+      "player": 1,
+      "type": "discard_resources",
+      "params": {
+        "wool": 2,
+        "wheat": 1,
+        "ore": 1
+      }
+    },
+    {
+      "player": 3,
+      "type": "discard_resources",
+      "params": {
+        "wool": 3,
+        "wheat": 2
+      }
+    },
+    {
+      "player": 3,
+      "type": "move_robber",
+      "params": {
+        "hex": 1
+      }
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "discard_resources",
+      "params": {
+        "brick": 2,
+        "wool": 2
+      }
+    },
+    {
+      "player": 1,
+      "type": "discard_resources",
+      "params": {
+        "wood": 1,
+        "wool": 1,
+        "wheat": 2
+      }
+    },
+    {
+      "player": 3,
+      "type": "discard_resources",
+      "params": {
+        "wood": 2,
+        "wheat": 2
+      }
+    },
+    {
+      "player": 1,
+      "type": "move_robber",
+      "params": {
+        "hex": 0
+      }
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "discard_resources",
+      "params": {
+        "wood": 1,
+        "wool": 1,
+        "wheat": 1,
+        "ore": 1
+      }
+    },
+    {
+      "player": 2,
+      "type": "move_robber",
+      "params": {
+        "hex": 1
+      }
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "discard_resources",
+      "params": {
+        "ore": 4
+      }
+    },
+    {
+      "player": 0,
+      "type": "move_robber",
+      "params": {
+        "hex": 0
+      }
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "discard_resources",
+      "params": {
+        "wood": 2,
+        "ore": 3
+      }
+    },
+    {
+      "player": 0,
+      "type": "move_robber",
+      "params": {
+        "hex": 1
+      }
+    },
+    {
+      "player": 0,
+      "type": "choose_robber_victim",
+      "params": {
+        "victim": 3
+      }
+    },
+    {
+      "player": 0,
+      "type": "build_road",
+      "params": {
+        "edge": 4
+      }
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "build_city",
+      "params": {
+        "vertex": 23
+      }
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "build_settlement",
+      "params": {
+        "vertex": 0
+      }
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "build_road",
+      "params": {
+        "edge": 3
+      }
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "build_road",
+      "params": {
+        "edge": 6
+      }
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "discard_resources",
+      "params": {
+        "brick": 2,
+        "wood": 1,
+        "wool": 2,
+        "wheat": 3
+      }
+    },
+    {
+      "player": 1,
+      "type": "discard_resources",
+      "params": {
+        "wool": 1,
+        "wheat": 4,
+        "ore": 1
+      }
+    },
+    {
+      "player": 2,
+      "type": "discard_resources",
+      "params": {
+        "wheat": 6
+      }
+    },
+    {
+      "player": 3,
+      "type": "discard_resources",
+      "params": {
+        "wool": 5
+      }
+    },
+    {
+      "player": 3,
+      "type": "move_robber",
+      "params": {
+        "hex": 0
+      }
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "discard_resources",
+      "params": {
+        "brick": 3,
+        "wheat": 1
+      }
+    },
+    {
+      "player": 1,
+      "type": "discard_resources",
+      "params": {
+        "wood": 3,
+        "wheat": 1,
+        "ore": 1
+      }
+    },
+    {
+      "player": 2,
+      "type": "discard_resources",
+      "params": {
+        "wood": 1,
+        "wheat": 2,
+        "ore": 1
+      }
+    },
+    {
+      "player": 3,
+      "type": "discard_resources",
+      "params": {
+        "wood": 1,
+        "wool": 2,
+        "wheat": 1
+      }
+    },
+    {
+      "player": 2,
+      "type": "move_robber",
+      "params": {
+        "hex": 1
+      }
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "discard_resources",
+      "params": {
+        "brick": 3,
+        "wheat": 1
+      }
+    },
+    {
+      "player": 2,
+      "type": "discard_resources",
+      "params": {
+        "wood": 2,
+        "wheat": 2
+      }
+    },
+    {
+      "player": 1,
+      "type": "move_robber",
+      "params": {
+        "hex": 0
+      }
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "build_road",
+      "params": {
+        "edge": 18
+      }
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "discard_resources",
+      "params": {
+        "brick": 1,
+        "wool": 2,
+        "wheat": 1
+      }
+    },
+    {
+      "player": 1,
+      "type": "discard_resources",
+      "params": {
+        "wood": 1,
+        "wool": 2,
+        "wheat": 2,
+        "ore": 1
+      }
+    },
+    {
+      "player": 3,
+      "type": "discard_resources",
+      "params": {
+        "wood": 2,
+        "wool": 4
+      }
+    },
+    {
+      "player": 3,
+      "type": "move_robber",
+      "params": {
+        "hex": 1
+      }
+    },
+    {
+      "player": 3,
+      "type": "build_road",
+      "params": {
+        "edge": 2
+      }
+    },
+    {
+      "player": 3,
+      "type": "build_road",
+      "params": {
+        "edge": 10
+      }
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "move_robber",
+      "params": {
+        "hex": 0
+      }
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "build_settlement",
+      "params": {
+        "vertex": 7
+      }
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "build_city",
+      "params": {
+        "vertex": 18
+      }
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "build_city",
+      "params": {
+        "vertex": 28
+      }
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "discard_resources",
+      "params": {
+        "brick": 5,
+        "wool": 3,
+        "wheat": 1,
+        "ore": 1
+      }
+    },
+    {
+      "player": 1,
+      "type": "discard_resources",
+      "params": {
+        "wheat": 10,
+        "ore": 2
+      }
+    },
+    {
+      "player": 3,
+      "type": "discard_resources",
+      "params": {
+        "wool": 3,
+        "wheat": 6,
+        "ore": 1
+      }
+    },
+    {
+      "player": 2,
+      "type": "move_robber",
+      "params": {
+        "hex": 1
+      }
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "discard_resources",
+      "params": {
+        "brick": 5
+      }
+    },
+    {
+      "player": 1,
+      "type": "discard_resources",
+      "params": {
+        "wood": 3,
+        "wool": 2,
+        "wheat": 1
+      }
+    },
+    {
+      "player": 3,
+      "type": "discard_resources",
+      "params": {
+        "wool": 5
+      }
+    },
+    {
+      "player": 3,
+      "type": "move_robber",
+      "params": {
+        "hex": 0
+      }
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "move_robber",
+      "params": {
+        "hex": 1
+      }
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "discard_resources",
+      "params": {
+        "brick": 1,
+        "wood": 1,
+        "wool": 1,
+        "wheat": 2
+      }
+    },
+    {
+      "player": 1,
+      "type": "discard_resources",
+      "params": {
+        "wood": 1,
+        "wool": 1,
+        "wheat": 2,
+        "ore": 2
+      }
+    },
+    {
+      "player": 2,
+      "type": "discard_resources",
+      "params": {
+        "wheat": 3,
+        "ore": 4
+      }
+    },
+    {
+      "player": 3,
+      "type": "discard_resources",
+      "params": {
+        "wool": 6
+      }
+    },
+    {
+      "player": 0,
+      "type": "move_robber",
+      "params": {
+        "hex": 0
+      }
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "build_road",
+      "params": {
+        "edge": 7
+      }
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "build_road",
+      "params": {
+        "edge": 14
+      }
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "build_road",
+      "params": {
+        "edge": 11
+      }
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "build_settlement",
+      "params": {
+        "vertex": 6
+      }
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "discard_resources",
+      "params": {
+        "brick": 7,
+        "ore": 1
+      }
+    },
+    {
+      "player": 1,
+      "type": "discard_resources",
+      "params": {
+        "wheat": 7
+      }
+    },
+    {
+      "player": 2,
+      "type": "discard_resources",
+      "params": {
+        "wood": 1,
+        "wheat": 4
+      }
+    },
+    {
+      "player": 3,
+      "type": "discard_resources",
+      "params": {
+        "wool": 5,
+        "wheat": 3,
+        "ore": 1
+      }
+    },
+    {
+      "player": 3,
+      "type": "move_robber",
+      "params": {
+        "hex": 1
+      }
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "discard_resources",
+      "params": {
+        "brick": 4
+      }
+    },
+    {
+      "player": 1,
+      "type": "discard_resources",
+      "params": {
+        "wood": 3,
+        "wool": 1
+      }
+    },
+    {
+      "player": 3,
+      "type": "discard_resources",
+      "params": {
+        "wood": 5
+      }
+    },
+    {
+      "player": 0,
+      "type": "move_robber",
+      "params": {
+        "hex": 0
+      }
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "move_robber",
+      "params": {
+        "hex": 1
+      }
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "build_road",
+      "params": {
+        "edge": 9
+      }
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "discard_resources",
+      "params": {
+        "wood": 1,
+        "wool": 1,
+        "ore": 2
+      }
+    },
+    {
+      "player": 2,
+      "type": "discard_resources",
+      "params": {
+        "wood": 1,
+        "wheat": 2,
+        "ore": 2
+      }
+    },
+    {
+      "player": 1,
+      "type": "move_robber",
+      "params": {
+        "hex": 0
+      }
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "move_robber",
+      "params": {
+        "hex": 1
+      }
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "move_robber",
+      "params": {
+        "hex": 0
+      }
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "build_road",
+      "params": {
+        "edge": 16
+      }
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "build_road",
+      "params": {
+        "edge": 24
+      }
+    },
+    {
+      "player": 2,
+      "type": "build_road",
+      "params": {
+        "edge": 12
+      }
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "build_road",
+      "params": {
+        "edge": 13
+      }
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "build_road",
+      "params": {
+        "edge": 19
+      }
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "build_road",
+      "params": {
+        "edge": 20
+      }
+    },
+    {
+      "player": 0,
+      "type": "build_settlement",
+      "params": {
+        "vertex": 15
+      }
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "build_road",
+      "params": {
+        "edge": 41
+      }
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "build_road",
+      "params": {
+        "edge": 23
+      }
+    },
+    {
+      "player": 2,
+      "type": "build_road",
+      "params": {
+        "edge": 25
+      }
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "build_city",
+      "params": {
+        "vertex": 5
+      }
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "build_city",
+      "params": {
+        "vertex": 0
+      }
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "build_city",
+      "params": {
+        "vertex": 25
+      }
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "discard_resources",
+      "params": {
+        "brick": 1,
+        "wool": 5,
+        "wheat": 1,
+        "ore": 7
+      }
+    },
+    {
+      "player": 1,
+      "type": "discard_resources",
+      "params": {
+        "wool": 2,
+        "wheat": 6,
+        "ore": 1
+      }
+    },
+    {
+      "player": 2,
+      "type": "discard_resources",
+      "params": {
+        "wheat": 5,
+        "ore": 4
+      }
+    },
+    {
+      "player": 3,
+      "type": "discard_resources",
+      "params": {
+        "wool": 7,
+        "ore": 4
+      }
+    },
+    {
+      "player": 1,
+      "type": "move_robber",
+      "params": {
+        "hex": 1
+      }
+    },
+    {
+      "player": 1,
+      "type": "choose_robber_victim",
+      "params": {
+        "victim": 3
+      }
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "discard_resources",
+      "params": {
+        "brick": 5,
+        "wool": 6
+      }
+    },
+    {
+      "player": 1,
+      "type": "discard_resources",
+      "params": {
+        "wool": 2,
+        "wheat": 4,
+        "ore": 6
+      }
+    },
+    {
+      "player": 2,
+      "type": "discard_resources",
+      "params": {
+        "wheat": 2,
+        "ore": 6
+      }
+    },
+    {
+      "player": 3,
+      "type": "discard_resources",
+      "params": {
+        "wool": 4,
+        "wheat": 2
+      }
+    },
+    {
+      "player": 3,
+      "type": "move_robber",
+      "params": {
+        "hex": 0
+      }
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "discard_resources",
+      "params": {
+        "brick": 5,
+        "ore": 2
+      }
+    },
+    {
+      "player": 1,
+      "type": "discard_resources",
+      "params": {
+        "wood": 3,
+        "wool": 3
+      }
+    },
+    {
+      "player": 2,
+      "type": "discard_resources",
+      "params": {
+        "wood": 1,
+        "wheat": 3
+      }
+    },
+    {
+      "player": 3,
+      "type": "discard_resources",
+      "params": {
+        "wood": 3,
+        "ore": 1
+      }
+    },
+    {
+      "player": 1,
+      "type": "move_robber",
+      "params": {
+        "hex": 1
+      }
+    },
+    {
+      "player": 1,
+      "type": "choose_robber_victim",
+      "params": {
+        "victim": 2
+      }
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "discard_resources",
+      "params": {
+        "brick": 3,
+        "wood": 1,
+        "wool": 2,
+        "wheat": 1
+      }
+    },
+    {
+      "player": 1,
+      "type": "discard_resources",
+      "params": {
+        "wood": 2,
+        "wool": 2,
+        "wheat": 2,
+        "ore": 2
+      }
+    },
+    {
+      "player": 2,
+      "type": "discard_resources",
+      "params": {
+        "wheat": 3,
+        "ore": 2
+      }
+    },
+    {
+      "player": 3,
+      "type": "discard_resources",
+      "params": {
+        "wool": 4
+      }
+    },
+    {
+      "player": 3,
+      "type": "move_robber",
+      "params": {
+        "hex": 0
+      }
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "discard_resources",
+      "params": {
+        "brick": 3,
+        "wheat": 2
+      }
+    },
+    {
+      "player": 1,
+      "type": "discard_resources",
+      "params": {
+        "wood": 2,
+        "wheat": 4,
+        "ore": 2
+      }
+    },
+    {
+      "player": 2,
+      "type": "discard_resources",
+      "params": {
+        "wheat": 3,
+        "ore": 2
+      }
+    },
+    {
+      "player": 3,
+      "type": "discard_resources",
+      "params": {
+        "wool": 7,
+        "wheat": 1
+      }
+    },
+    {
+      "player": 1,
+      "type": "move_robber",
+      "params": {
+        "hex": 1
+      }
+    },
+    {
+      "player": 1,
+      "type": "choose_robber_victim",
+      "params": {
+        "victim": 3
+      }
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "build_city",
+      "params": {
+        "vertex": 6
+      }
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "discard_resources",
+      "params": {
+        "brick": 7,
+        "wheat": 1,
+        "ore": 1
+      }
+    },
+    {
+      "player": 1,
+      "type": "discard_resources",
+      "params": {
+        "wheat": 8,
+        "ore": 2
+      }
+    },
+    {
+      "player": 2,
+      "type": "discard_resources",
+      "params": {
+        "wheat": 6,
+        "ore": 2
+      }
+    },
+    {
+      "player": 3,
+      "type": "discard_resources",
+      "params": {
+        "wool": 11,
+        "wheat": 1,
+        "ore": 2
+      }
+    },
+    {
+      "player": 3,
+      "type": "move_robber",
+      "params": {
+        "hex": 0
+      }
+    },
+    {
+      "player": 3,
+      "type": "build_road",
+      "params": {
+        "edge": 43
+      }
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "build_settlement",
+      "params": {
+        "vertex": 30
+      }
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "discard_resources",
+      "params": {
+        "brick": 4,
+        "wool": 1
+      }
+    },
+    {
+      "player": 1,
+      "type": "discard_resources",
+      "params": {
+        "wood": 2,
+        "wheat": 2,
+        "ore": 6
+      }
+    },
+    {
+      "player": 2,
+      "type": "discard_resources",
+      "params": {
+        "ore": 6
+      }
+    },
+    {
+      "player": 3,
+      "type": "discard_resources",
+      "params": {
+        "wool": 4,
+        "ore": 1
+      }
+    },
+    {
+      "player": 3,
+      "type": "move_robber",
+      "params": {
+        "hex": 1
+      }
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "discard_resources",
+      "params": {
+        "wood": 2,
+        "wheat": 6,
+        "ore": 2
+      }
+    },
+    {
+      "player": 2,
+      "type": "discard_resources",
+      "params": {
+        "wheat": 5,
+        "ore": 2
+      }
+    },
+    {
+      "player": 3,
+      "type": "discard_resources",
+      "params": {
+        "wool": 7,
+        "wheat": 1,
+        "ore": 1
+      }
+    },
+    {
+      "player": 2,
+      "type": "move_robber",
+      "params": {
+        "hex": 2
+      }
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "discard_resources",
+      "params": {
+        "wood": 5
+      }
+    },
+    {
+      "player": 2,
+      "type": "discard_resources",
+      "params": {
+        "wheat": 4
+      }
+    },
+    {
+      "player": 3,
+      "type": "discard_resources",
+      "params": {
+        "wool": 4
+      }
+    },
+    {
+      "player": 3,
+      "type": "move_robber",
+      "params": {
+        "hex": 0
+      }
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "discard_resources",
+      "params": {
+        "wheat": 4,
+        "ore": 2
+      }
+    },
+    {
+      "player": 1,
+      "type": "discard_resources",
+      "params": {
+        "wheat": 8
+      }
+    },
+    {
+      "player": 2,
+      "type": "discard_resources",
+      "params": {
+        "wheat": 5
+      }
+    },
+    {
+      "player": 3,
+      "type": "discard_resources",
+      "params": {
+        "wool": 7,
+        "wheat": 2,
+        "ore": 1
+      }
+    },
+    {
+      "player": 0,
+      "type": "move_robber",
+      "params": {
+        "hex": 1
+      }
+    },
+    {
+      "player": 0,
+      "type": "choose_robber_victim",
+      "params": {
+        "victim": 3
+      }
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "discard_resources",
+      "params": {
+        "brick": 1,
+        "wood": 1,
+        "wool": 1,
+        "wheat": 1
+      }
+    },
+    {
+      "player": 1,
+      "type": "discard_resources",
+      "params": {
+        "wood": 3,
+        "wheat": 2
+      }
+    },
+    {
+      "player": 3,
+      "type": "discard_resources",
+      "params": {
+        "wool": 6
+      }
+    },
+    {
+      "player": 2,
+      "type": "move_robber",
+      "params": {
+        "hex": 2
+      }
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "build_settlement",
+      "params": {
+        "vertex": 16
+      }
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "build_road",
+      "params": {
+        "edge": 31
+      }
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "build_city",
+      "params": {
+        "vertex": 16
+      }
+    },
+    {
+      "player": 2,
+      "type": "build_road",
+      "params": {
+        "edge": 26
+      }
+    },
+    {
+      "player": 2,
+      "type": "build_road",
+      "params": {
+        "edge": 29
+      }
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "build_city",
+      "params": {
+        "vertex": 7
+      }
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "discard_resources",
+      "params": {
+        "brick": 4,
+        "wood": 1,
+        "wool": 4,
+        "ore": 2
+      }
+    },
+    {
+      "player": 1,
+      "type": "discard_resources",
+      "params": {
+        "wool": 1,
+        "wheat": 6,
+        "ore": 6
+      }
+    },
+    {
+      "player": 2,
+      "type": "discard_resources",
+      "params": {
+        "wheat": 6,
+        "ore": 3
+      }
+    },
+    {
+      "player": 3,
+      "type": "discard_resources",
+      "params": {
+        "wool": 7,
+        "wheat": 1,
+        "ore": 1
+      }
+    },
+    {
+      "player": 0,
+      "type": "move_robber",
+      "params": {
+        "hex": 0
+      }
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "discard_resources",
+      "params": {
+        "brick": 5,
+        "wood": 1
+      }
+    },
+    {
+      "player": 1,
+      "type": "discard_resources",
+      "params": {
+        "wood": 3,
+        "wool": 3,
+        "ore": 2
+      }
+    },
+    {
+      "player": 2,
+      "type": "discard_resources",
+      "params": {
+        "wheat": 3,
+        "ore": 2
+      }
+    },
+    {
+      "player": 3,
+      "type": "discard_resources",
+      "params": {
+        "wool": 4,
+        "ore": 1
+      }
+    },
+    {
+      "player": 2,
+      "type": "move_robber",
+      "params": {
+        "hex": 1
+      }
+    },
+    {
+      "player": 2,
+      "type": "build_road",
+      "params": {
+        "edge": 27
+      }
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "discard_resources",
+      "params": {
+        "wood": 4
+      }
+    },
+    {
+      "player": 3,
+      "type": "move_robber",
+      "params": {
+        "hex": 0
+      }
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "discard_resources",
+      "params": {
+        "brick": 6
+      }
+    },
+    {
+      "player": 3,
+      "type": "discard_resources",
+      "params": {
+        "wood": 2,
+        "wool": 2
+      }
+    },
+    {
+      "player": 2,
+      "type": "move_robber",
+      "params": {
+        "hex": 1
+      }
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "build_city",
+      "params": {
+        "vertex": 14
+      }
+    }
+  ]
+}

@@ -31,8 +31,8 @@ SCRIPT: Final[Path] = REPO_ROOT / "tests" / "fixtures" / "catan" / "seven_game.j
 RECORD: Final[Path] = REPO_ROOT / "tests" / "golden" / "catan" / "seven_game.god.jsonl"
 SETUP_RECORD: Final[Path] = REPO_ROOT / "tests" / "golden" / "catan" / "setup_game.god.jsonl"
 
-INITIAL_STATE_HASH: Final[str] = "f3e41966e34584fb"
-FINAL_STATE_HASH: Final[str] = "1755bbcef4c9b9f9"
+INITIAL_STATE_HASH: Final[str] = "7a877da60ee1871f"
+FINAL_STATE_HASH: Final[str] = "885d7e1d0f485de8"
 ACTIONS: Final[int] = 43
 DRAFT_ACTIONS: Final[int] = 16
 SEATS: Final[int] = 4
@@ -225,7 +225,7 @@ def test_the_record_carries_the_versions_it_was_produced_under() -> None:
     header = _log().header
 
     assert header.game == "catan"
-    assert header.rules_version == "catan-rules-4"
+    assert header.rules_version == "catan-rules-5"
     assert header.schema_version == "catan-actions-1"
     assert header.schema == "lgbg.game.v1"
     assert header.engine_version

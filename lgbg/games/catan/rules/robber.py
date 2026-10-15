@@ -107,6 +107,13 @@ def move_robber(state: CatanState, action: Action, rng: RandomSource) -> ApplyRe
         )
     ]
     candidates = robber_victims(moved)
+    if len(candidates) != 1:
+        # Two or more candidates: the phase will ask which one. One or none: this action has
+        # already resolved the second step, and says so, so the phase can close.
+        return Applied(
+            state=replace(moved, robber_stolen_at=state.phase_index) if not candidates else moved,
+            events=events,
+        )
     if len(candidates) == 1:
         # RULES.md 4.9 item 5: one candidate settles the choice, so the engine does not ask a
         # question whose answer is already determined - it robs them as part of the move.
@@ -160,7 +167,9 @@ def choose_robber_victim(state: CatanState, action: Action, rng: RandomSource) -
             )
         )
     robbed, stolen = steal(state, action.player, victim, rng)
-    return Applied(state=robbed, events=[stolen])
+    # The steal is the phase's last step, and it has to say so: a phase rule reads only the
+    # state, and without this mark the same mover could rob again with the same neighbours.
+    return Applied(state=replace(robbed, robber_stolen_at=state.phase_index), events=[stolen])
 
 
 def steal(

@@ -7,21 +7,6 @@
 
 ## Backlog
 
-### K-055 · Add the assist-equivalence test
-
-  - tags: [slice-7, test, assist, sc-8]
-  - priority: high
-  - workload: Easy
-  - steps:
-      - [ ] Running one scripted action file at L0, L1 and L2 produces byte-identical god logs
-      - [ ] The only permitted difference is config.assist in the header
-    ```md
-    - **Cuts through:** config, engine, log, replay
-    - **Depends on:** K-054
-    - **PRD:** FR-17.2, SC-8
-    - **Why:** The test that proves assist level is a clean experimental variable rather than an uncontrolled confound.
-    ```
-
 ### K-056 · Declare action_schema and enforce conformance during play
 
   - tags: [slice-7, schemas, core, fr-18]
@@ -1370,4 +1355,23 @@
     - **The level is unreachable from the engine.** apply takes a state, an action and a source (asserted against the protocol's own signature), and a scan of the source asserts that no module outside config.py, assist.py and the front-ends names AssistLevel or RejectionDetail at all. That is the structural half of FR-17.1: a rule that imported the enum to decide something by it would fail the build rather than the benchmark. The behavioural half - the same script at three levels producing the same log - is K-055, and this card asserts its small form below.
     - **The record keeps the refusal in full whatever the tier is.** Three runs of the same refused attempt at L0, L1 and L2 produce byte-identical action records, and headers that differ only in the two fields the level determines (assist, and the rejection_detail derived from it). So the tier changes what a player is told and never what is recorded, which is what keeps one recorded game re-renderable at another level.
     - **And it is reachable from the product, not only from tests:** lgbg inspect --player N --assist L0|L1|L2 prints the decision that player would be given, so an operator can read one position through all three lenses. The CLI test asserts the ladder at the command line: L0 shows the observation and no action, L1 names the type with the domain of its parameter, L2 gives the actions themselves.
+    ```
+
+### K-055 · Add the assist-equivalence test
+
+  - tags: [slice-7, test, assist, sc-8]
+  - priority: high
+  - workload: Easy
+  - steps:
+      - [x] Running one scripted action file at L0, L1 and L2 produces byte-identical god logs
+      - [x] The only permitted difference is config.assist in the header
+    ```md
+    - **Cuts through:** config, engine, log, replay
+    - **Depends on:** K-054
+    - **PRD:** FR-17.2, SC-8
+    - **Evidence:** tests/games/test_catan_assist.py (3 further tests, 9 in the module), driving tests/fixtures/catan/trade_game.json - 598 actions, every phase of the game including the trades.
+    - **The whole script, not a sample of it.** SC-8 says the same action file at three levels produces one log, so that is what is run: the committed trade fixture is driven three times end to end and the records are compared line by line after the header. 598 actions is the widest decision surface the corpus has - concurrent answers to an offer, partner choices, discards, robber moves - and it costs under a second, so there is no reason to sample.
+    - **The header is compared as data, not as text.** Blanking two fields and comparing bytes would hide a third field moving with them, so the test also loads both headers and asserts that the set of fields which differ is exactly {assist, rejection_detail} - the second being the tier the first implies (FR-5.3) - and that every other header field, and every action line, is identical.
+    - **And the test the invariant is actually about:** with rejection_detail overridden to full at L0 and to minimal at L2, the records are still identical after the header. ARCHITECTURE.md 9.4 calls that combination a genuinely interesting condition - enumeration without explanation, or explanation without enumeration - and it can only be a condition rather than a contradiction if neither field reaches the engine. The two are separate fields precisely so somebody can measure the crossed condition.
+    - **Why this is a test and not a review note.** Assist level is the benchmark's most important knob, and a leak would not look like a bug: it would look like a slightly better score at L1. The equality is asserted over recorded bytes, where a rule that consulted the level, a renderer that fed back into the state, or a tier that reached the log would all show up as a diff.
     ```

@@ -19,9 +19,10 @@ from dataclasses import replace
 from pathlib import Path
 from typing import Any, Final
 
+from lgbg.adapters.cli.script import drive, load_script
 from lgbg.core.assist import render_decision
 from lgbg.core.canonical import to_canonical_json
-from lgbg.core.config import AssistLevel, GameConfig, RunConfig
+from lgbg.core.config import AssistLevel, GameConfig, RejectionDetail, RunConfig
 from lgbg.core.game import Rejected, get_game
 from lgbg.core.log import god_log_path
 from lgbg.core.rng import SeededRandomSource
@@ -58,6 +59,87 @@ def _text(state: CatanState, level: AssistLevel, seat: int = 0) -> str:
 
 def _lines(text: str, kind: str) -> list[str]:
     return [line for line in text.splitlines() if line.startswith(f"  {kind}")]
+
+
+FIXTURE: Final[Path] = (
+    Path(__file__).resolve().parents[2] / "tests" / "fixtures" / "catan" / "trade_game.json"
+)
+"""The scripted half of golden game 5: 598 actions, every phase, and the trades."""
+
+
+def _driven(tmp_path: Path, level: AssistLevel, tier: RejectionDetail | None = None) -> list[str]:
+    """Drive the committed script at one level, and return the record as lines."""
+    script = load_script(FIXTURE)
+    config = RunConfig(
+        seed=script.config.seed,
+        players=script.config.players,
+        assist=level,
+        rejection_detail=tier,
+        interaction_protocol=script.config.interaction_protocol,
+        game_config=script.config.game_config,
+    )
+    directory = tmp_path / f"{level.value}-{tier.value if tier else 'default'}"
+    run = GameRun(GAME, config, game_id="g-0005", directory=directory)
+    drive(run, script)
+    run.finish()
+    text = god_log_path(directory, "g-0005").read_text(encoding="utf-8")
+    return text.splitlines()
+
+
+def _without_the_level(lines: list[str]) -> list[str]:
+    """The record with the two fields the level determines blanked out of its header."""
+    header = json.loads(lines[0])
+    config = dict(header["config"])
+    config["assist"] = "?"
+    config["rejection_detail"] = "?"
+    header["config"] = config
+    return [to_canonical_json(header), *lines[1:]]
+
+
+def test_the_same_script_at_three_levels_produces_one_record(tmp_path: Path) -> None:
+    """SC-8 and FR-17.2: 598 actions driven three times, and one set of bytes."""
+    records = {level: _driven(tmp_path, level) for level in LEVELS}
+    lengths = {level: len(record) for level, record in records.items()}
+
+    assert len(set(lengths.values())) == 1, f"different lengths: {lengths}"
+    assert lengths[AssistLevel.L0] > 500, "the fixture must play a game"
+    for level in LEVELS:
+        assert records[level][1:] == records[AssistLevel.L0][1:]
+    for level in LEVELS:
+        assert _without_the_level(records[level]) == _without_the_level(records[AssistLevel.L0])
+
+
+def test_the_header_is_the_only_place_the_level_appears(tmp_path: Path) -> None:
+    """The difference is one line, and inside it two fields - not the whole header."""
+    honest = json.loads(_driven(tmp_path, AssistLevel.L0)[0])
+    told = json.loads(_driven(tmp_path, AssistLevel.L2)[0])
+
+    assert honest["config"]["assist"] == "L0"
+    assert told["config"]["assist"] == "L2"
+    assert honest["config"]["rejection_detail"] == "minimal", "the tier follows the level"
+    assert told["config"]["rejection_detail"] == "full"
+    for key, value in honest.items():
+        if key == "config":
+            continue
+        assert value == told[key], f"{key} moved with the level"
+    moved = {key for key in honest["config"] if honest["config"][key] != told["config"][key]}
+    assert moved == {"assist", "rejection_detail"}, "and nothing else in the header moved"
+
+
+def test_the_tier_can_be_overridden_without_touching_the_record(tmp_path: Path) -> None:
+    """FR-5.3 and ARCHITECTURE 9.4: enumeration at one tier, errors at another.
+
+    The two fields are separate on purpose - a run that enumerates actions while refusing them
+    in one word is a condition somebody will want to measure - and neither of them reaches the
+    engine, which is what this pair of runs shows.
+    """
+    bare = _driven(tmp_path, AssistLevel.L0, RejectionDetail.FULL)
+    rich = _driven(tmp_path, AssistLevel.L2, RejectionDetail.MINIMAL)
+
+    assert json.loads(bare[0])["config"]["rejection_detail"] == "full"
+    assert json.loads(rich[0])["config"]["rejection_detail"] == "minimal"
+    assert bare[1:] == rich[1:]
+    assert _without_the_level(bare) == _without_the_level(rich)
 
 
 def test_l0_is_the_observation_and_nothing_else() -> None:

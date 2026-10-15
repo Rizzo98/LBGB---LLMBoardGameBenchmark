@@ -246,8 +246,30 @@ class CatanGame:
     def observation_schema(self) -> JsonSchema:
         return {
             "type": "object",
-            "required": ["awards", "bank", "board", "pieces", "robber", "supply", "turn", "phase"],
+            "required": [
+                "awards",
+                "bank",
+                "board",
+                "hand_counts",
+                "phase",
+                "pieces",
+                "robber",
+                "supply",
+                "turn",
+            ],
             "additionalProperties": True,
+            "properties": {
+                "hand": {
+                    "type": ["object", "null"],
+                    "description": "the observer's own hand, exact; absent for the spectator, "
+                    "which sees every hand as 'hands'",
+                },
+                "hand_counts": {
+                    "type": "array",
+                    "items": {"type": "integer", "minimum": 0},
+                    "description": "how many resource cards each seat holds, in seat order",
+                },
+            },
         }
 
     def rejection_codes(self) -> list[RejectionCode]:

@@ -18,19 +18,6 @@
 
 
 
-### K-028 · Extend projection to resource hands
-
-  - tags: [slice-3, projection, test, fr-16]
-  - priority: high
-  - workload: Normal
-  - steps:
-      - [ ] Own hand exact; other players' total count only
-      - [ ] A leak test asserts no other player's card composition is reachable from a projection, including through the notation rendering
-    ```md
-    - **Cuts through:** projection.py, the allow-list, leak tests, notation
-    - **Depends on:** K-027
-    - **PRD:** FR-16.1, FR-16.2, FR-16.6
-    ```
 
 ### K-029 · Commit golden game 2: a 7, a discard, a steal
 
@@ -1196,4 +1183,25 @@
     - **The engine does not ask a question whose answer is already settled** (RULES.md 4.9 item 5). With exactly one candidate, the move *is* the steal: it draws D8 and robs that player, and the phase closes into the action phase. Only with two or more candidates is `choose_robber_victim` opened, and only then does a name mean anything - naming a victim before the move, or in the phase that follows it, is refused. A mandatory steal is never left unrunnable, and the same hand cannot be robbed twice.
     - **The first observer-relative field.** The projection was built from an allow-list that took no account of who was asking; FR-12.5 needs the opposite, so `OBSERVER_FIELDS` now declares the fields that answer differently per observer, and the player's view is the public position plus their own hand. The thief sees the card it gained, the victim sees it leave, and a third player is told nothing about anybody's cards - all asserted on one position. `hands` (the spectator's view of everyone) stays a different field with a different shape, and the "the spectator sees everything a player sees" assertion now excludes the observer-relative fields explicitly instead of pretending they line up.
     - **FR-12.4's wording is corrected (RULES.md D-5).** The PRD says the steal is from an opponent "holding at least one card"; the rulebook lets the mover name a card-less victim and get nothing, and the steal is mandatory, so reading the PRD literally would make the move unrunnable when every candidate is empty-handed. The candidates are every other player with a building on the robber's hex, a victim who holds nothing yields nothing, and no draw is consumed - asserted with the null source. Two inline-code spans mangled into section signs in the D-4 row are repaired in the same change.
+    ```
+
+### K-028 · Extend projection to resource hands
+
+  - tags: [slice-3, projection, test, fr-16]
+  - priority: high
+  - workload: Normal
+  - steps:
+      - [x] Own hand exact; other players' total count only
+      - [x] A leak test asserts no other player's card composition is reachable from a projection, including through the notation rendering
+    ```md
+    - **Cuts through:** projection.py, the allow-list, leak tests, notation
+    - **Depends on:** K-027
+    - **PRD:** FR-16.1, FR-16.2, FR-16.6
+    - **Evidence:** lgbg/games/catan/projection.py (`_hand_counts` in the allow-list), lgbg/games/catan/notation.py, tests/games/test_catan_leaks.py (10 tests). The player's view now holds both halves of the FR-16.1 row: `hand`, exact and the observer's own, and `hand_counts`, how many cards each seat holds - a fact the rules assume everybody has, since hands are counted across the table. The composition of anybody else's hand is nowhere in it.
+    - **The leak tests are indistinguishability tests, not searches.** Reading a dictionary and failing to spot the hand proves nothing, so each hidden field is held to a stronger property: two positions that differ *only* in that field must project to exactly the same observation for every observer not entitled to see it. For hands the two positions are built by making two seats trade hands, which leaves the bank, every hand size and every other public fact identical - so any observable difference would have to have come from the cards themselves.
+    - **Every test carries its own control.** The two owners and the spectator *do* see the difference between those two positions; without that, a passing test could be passing because the two positions were the same position. This is the failure mode of leak tests, and it is cheap to rule out.
+    - **The renderer is held to the same standard** (FR-16.6, 'including through the notation rendering'). A projection that is clean and a renderer that prints something else is still a leak, and the renderer here prints every field it does not recognise - it fails open, deliberately - so the assertion has to be made on the rendered text: identical for the two positions, in both details, and containing no hand but the observer's own.
+    - **The blunt test is kept as well**, for the reader who wants to see the claim without the argument: walk the whole observation, at any depth, and assert that it contains no row of five counts and no other seat's hand - and that the one composition it does hold is the observer's own.
+    - **The other hidden fields each got their test in the same shape:** the deck order, another player's development cards, what another player owes the bank on a seven, and an unconsumed trade response. FR-16.6 asks for one leak test per hidden field, and every hidden field that exists at this point has one; the hidden victory-point cards arrive with K-036 and will bring theirs.
+    - **`observation_schema()` now requires `hand_counts` and documents `hand`** (FR-16.8): the declared shape and the projection cannot drift apart unnoticed. `hand` is declared as optional rather than required because the spectator has no hand of their own - it sees every hand as `hands` - and the schema describes both views.
     ```

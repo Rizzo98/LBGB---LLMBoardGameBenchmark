@@ -34,6 +34,7 @@ HANDLED_FIELDS: Final[frozenset[str]] = frozenset(
         "board",
         "dice",
         "hand",
+        "hand_counts",
         "hands",
         "phase",
         "pieces",
@@ -101,6 +102,7 @@ def _full(observation: Observation) -> str:
     lines.append(f"bank: {_bank(observation)}")
     if "hand" in observation:
         lines.append(f"hand: {_hand(observation)}")
+    lines.append(f"hand_counts: {_hand_counts(observation)}")
     lines.append(f"supply: {_supply(observation)}")
     lines.append(f"awards: {_awards(observation)}")
     lines.append(f"dice: {_dice(observation)}")
@@ -126,6 +128,7 @@ def _compact(observation: Observation) -> str:
     parts.append(f"bank {_bank(observation)}")
     if "hand" in observation:
         parts.append(f"hand {_hand(observation)}")
+    parts.append(f"hand_counts {_hand_counts(observation)}")
     parts.append(f"supply {_supply(observation)}")
     parts.append(f"awards {_awards(observation)}")
     parts.append(f"dice {_dice(observation)}")
@@ -255,6 +258,16 @@ def _hand(observation: Observation) -> str:
         return "-"
     held = [f"{name} {count}" for name, count in hand.items() if count]
     return " ".join(held) if held else "empty"
+
+
+def _hand_counts(observation: Observation) -> str:
+    """How many cards each seat holds: the public half of a hand."""
+    counts = observation.get("hand_counts")
+    if not isinstance(counts, Sequence):
+        return "-"
+    return " ".join(
+        f"p{seat} {count}" for seat, count in enumerate(counts) if isinstance(count, int)
+    )
 
 
 def _hands(observation: Observation) -> str:

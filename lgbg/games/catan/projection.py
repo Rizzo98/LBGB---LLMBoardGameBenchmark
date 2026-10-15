@@ -76,6 +76,17 @@ def _bank(state: CatanState) -> JsonValue:
     return {resource.value: state.bank[index] for index, resource in enumerate(RESOURCE_ORDER)}
 
 
+def _hand_counts(state: CatanState) -> JsonValue:
+    """How many cards each seat holds: public, and the only thing said about their hands (16.2).
+
+    A hand is held face up in count and face down in kind - players count each other's cards
+    across the table - so the size of a hand is information the rules assume everybody has. What
+    the size is *made of* is what the projection must not say, and the leak test asserts it by
+    swapping two hands of equal size and requiring every other observer to see no change.
+    """
+    return [sum(hand) for hand in state.hands]
+
+
 def _awards(state: CatanState) -> JsonValue:
     return {"largest_army": state.largest_army, "longest_road": state.longest_road}
 
@@ -85,6 +96,7 @@ PLAYER_FIELDS: Final[tuple[tuple[str, Projector], ...]] = (
     ("bank", _bank),
     ("board", _board),
     ("dice", lambda state: None if state.dice is None else list(state.dice)),
+    ("hand_counts", _hand_counts),
     ("phase", lambda state: state.phase.value),
     ("pieces", _pieces),
     ("robber", _robber),

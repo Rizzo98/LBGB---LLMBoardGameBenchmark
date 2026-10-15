@@ -1,0 +1,264 @@
+{
+  "game": "catan",
+  "config": {
+    "seed": 20250701,
+    "players": 4,
+    "interaction_protocol": "decline_only",
+    "board": "fixed:standard_a"
+  },
+  "actions": [
+    {
+      "player": 0,
+      "type": "place_settlement",
+      "params": {
+        "vertex": 0
+      }
+    },
+    {
+      "player": 0,
+      "type": "place_road",
+      "params": {
+        "edge": 0
+      }
+    },
+    {
+      "player": 1,
+      "type": "place_settlement",
+      "params": {
+        "vertex": 2
+      }
+    },
+    {
+      "player": 1,
+      "type": "place_road",
+      "params": {
+        "edge": 3
+      }
+    },
+    {
+      "player": 2,
+      "type": "place_settlement",
+      "params": {
+        "vertex": 4
+      }
+    },
+    {
+      "player": 2,
+      "type": "place_road",
+      "params": {
+        "edge": 6
+      }
+    },
+    {
+      "player": 3,
+      "type": "place_settlement",
+      "params": {
+        "vertex": 7
+      }
+    },
+    {
+      "player": 3,
+      "type": "place_road",
+      "params": {
+        "edge": 2
+      }
+    },
+    {
+      "player": 3,
+      "type": "place_settlement",
+      "params": {
+        "vertex": 9
+      }
+    },
+    {
+      "player": 3,
+      "type": "place_road",
+      "params": {
+        "edge": 5
+      }
+    },
+    {
+      "player": 2,
+      "type": "place_settlement",
+      "params": {
+        "vertex": 11
+      }
+    },
+    {
+      "player": 2,
+      "type": "place_road",
+      "params": {
+        "edge": 8
+      }
+    },
+    {
+      "player": 1,
+      "type": "place_settlement",
+      "params": {
+        "vertex": 13
+      }
+    },
+    {
+      "player": 1,
+      "type": "place_road",
+      "params": {
+        "edge": 9
+      }
+    },
+    {
+      "player": 0,
+      "type": "place_settlement",
+      "params": {
+        "vertex": 16
+      }
+    },
+    {
+      "player": 0,
+      "type": "place_road",
+      "params": {
+        "edge": 12
+      }
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "discard_resources",
+      "params": {
+        "wool": 2,
+        "wheat": 2,
+        "ore": 2
+      }
+    },
+    {
+      "player": 0,
+      "type": "move_robber",
+      "params": {
+        "hex": 3
+      }
+    }
+  ]
+}

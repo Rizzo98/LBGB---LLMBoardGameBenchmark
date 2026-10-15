@@ -19,20 +19,6 @@
 
 
 
-### K-029 · Commit golden game 2: a 7, a discard, a steal
-
-  - tags: [slice-3, test, acceptance, sc-1]
-  - priority: medium
-  - workload: Easy
-  - steps:
-      - [ ] Committed fixture whose log provably contains a discard and a steal
-      - [ ] Replays with every hash verified
-    ```md
-    - **Cuts through:** everything in slice 3
-    - **Depends on:** K-028
-    - **PRD:** SC-1
-    - **Why:** Slice 3 exit: a mid-game record replays to a state where resources have moved through dice, a forced discard and a seizure.
-    ```
 
 ### K-030 · Implement costs, spending and game rejection codes
 
@@ -1204,4 +1190,24 @@
     - **The blunt test is kept as well**, for the reader who wants to see the claim without the argument: walk the whole observation, at any depth, and assert that it contains no row of five counts and no other seat's hand - and that the one composition it does hold is the observer's own.
     - **The other hidden fields each got their test in the same shape:** the deck order, another player's development cards, what another player owes the bank on a seven, and an unconsumed trade response. FR-16.6 asks for one leak test per hidden field, and every hidden field that exists at this point has one; the hidden victory-point cards arrive with K-036 and will bring theirs.
     - **`observation_schema()` now requires `hand_counts` and documents `hand`** (FR-16.8): the declared shape and the projection cannot drift apart unnoticed. `hand` is declared as optional rather than required because the spectator has no hand of their own - it sees every hand as `hands` - and the schema describes both views.
+    ```
+
+### K-029 · Commit golden game 2: a 7, a discard, a steal
+
+  - tags: [slice-3, test, acceptance, sc-1]
+  - priority: medium
+  - workload: Easy
+  - steps:
+      - [x] Committed fixture whose log provably contains a discard and a steal
+      - [x] Replays with every hash verified
+    ```md
+    - **Cuts through:** everything in slice 3
+    - **Depends on:** K-028
+    - **PRD:** SC-1
+    - **Why:** Slice 3 exit: a mid-game record replays to a state where resources have moved through dice, a forced discard and a seizure.
+    - **Evidence:** tests/fixtures/catan/seven_game.json, tests/golden/catan/seven_game.god.jsonl, tests/golden/test_golden_midgame.py (11 tests), scripts/make_golden_midgame.py. Forty-three actions over three rounds, and in them exactly one forced discard - seat 3 returns six cards, two ore, two wheat and two wool - and exactly one seizure - seat 0 takes a wool off seat 3 after moving the robber from the desert onto hex 3. Every hash is pinned as a literal and the record is compared byte for byte when the fixture is replayed.
+    - **The fixture is played, not written.** Every action in it came from the game's own `legal_actions`, so the script cannot drift from the rules it is supposed to pin, and the test that drives the committed script through a fresh run and compares the bytes is what turns the pair into a regression net rather than a transcript nobody checks.
+    - **The two golden games are one game.** This fixture uses golden game 1's seed and its first sixteen actions are the draft, so its first sixteen *records* are byte-identical to game 1's - asserted, not assumed. A change to the opening moves both fixtures and the two tests fail together, which is the cheap half of a cross-check that would otherwise need a third artefact.
+    - **"Provably contains" is taken literally.** The test does not merely find a `discarded` event: it replays the log, takes the state the discard was answered against, and asserts that the player was over the limit, that the number returned is `floor(hand / 2)`, that every returned card arrived in the bank, that the roll which forced it paid no production at all, and that the steal moved exactly one card of the named resource from the victim's hand to the thief's. The conservation invariants hold after it, so the game moved cards rather than making them.
+    - **Slice 3 ends here** (SC-1): a mid-game record in which resources have moved through the dice, the endowment, a forced discard and a seizure replays with every hash verified, every intermediate state renders for the table and for each player, and the file is deterministic text with the versions it was produced under.
     ```

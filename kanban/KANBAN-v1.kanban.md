@@ -20,20 +20,6 @@
 
 
 
-### K-030 · Implement costs, spending and game rejection codes
-
-  - tags: [slice-4, rules, building, fr-11]
-  - priority: high
-  - workload: Normal
-  - steps:
-      - [ ] Costs exactly as in PRD Appendix A
-      - [ ] Insufficient-resource and unavailable-target rejections carry structured details
-      - [ ] Every code raised is declared via rejection_codes()
-    ```md
-    - **Cuts through:** rules/building, bank, core/errors, the plugin's code declaration
-    - **Depends on:** K-018
-    - **PRD:** FR-11.1, FR-11.7, FR-6.8
-    ```
 
 ### K-031 · Implement road building
 
@@ -1210,4 +1196,26 @@
     - **The two golden games are one game.** This fixture uses golden game 1's seed and its first sixteen actions are the draft, so its first sixteen *records* are byte-identical to game 1's - asserted, not assumed. A change to the opening moves both fixtures and the two tests fail together, which is the cheap half of a cross-check that would otherwise need a third artefact.
     - **"Provably contains" is taken literally.** The test does not merely find a `discarded` event: it replays the log, takes the state the discard was answered against, and asserts that the player was over the limit, that the number returned is `floor(hand / 2)`, that every returned card arrived in the bank, that the roll which forced it paid no production at all, and that the steal moved exactly one card of the named resource from the victim's hand to the thief's. The conservation invariants hold after it, so the game moved cards rather than making them.
     - **Slice 3 ends here** (SC-1): a mid-game record in which resources have moved through the dice, the endowment, a forced discard and a seizure replays with every hash verified, every intermediate state renders for the table and for each player, and the file is deterministic text with the versions it was produced under.
+    ```
+
+### K-030 · Implement costs, spending and game rejection codes
+
+  - tags: [slice-4, rules, building, fr-11]
+  - priority: high
+  - workload: Normal
+  - steps:
+      - [x] Costs exactly as in PRD Appendix A
+      - [x] Insufficient-resource and unavailable-target rejections carry structured details
+      - [x] Every code raised is declared via rejection_codes()
+    ```md
+    - **Cuts through:** rules/building, bank, core/errors, the plugin's code declaration
+    - **Depends on:** K-018
+    - **PRD:** FR-11.1, FR-11.7, FR-6.8
+    - **Evidence:** lgbg/games/catan/rules/building.py (`COSTS`, `cost_of`, `shortfall`, `affordable`, `pay`), tests/games/test_catan_building_costs.py (13 tests), tests/games/test_catan_rejections.py (5 tests).
+    - **The prices are one table, and they are not five-count tuples.** Each price is written resource by resource - the way RULES.md 4.7 and Appendix A write it - and turned into a hand by `cost_of`, which is the single place the canonical resource order is applied to a price. A cost can therefore only be wrong in one place, and the test that checks it writes the four prices out a third time by hand from the rulebook rather than from the table under test.
+    - **Paying is atomic by construction** (FR-11.7). The shortfall is computed before a single card moves, so a player who cannot afford something loses nothing and the rejection carries the reason in a form a metric can read: the build, the cost, and exactly which resources were short by how much. Half-paying is not a state the code can reach, which is why there is no test for it.
+    - **A payment is a fact in the record.** `pay` returns the position and a `resources_spent` event naming the build and its cost, so a build that was paid for is stated rather than inferred from a smaller hand. The caller keeps its own event (a road placed, a settlement built) and the two sit side by side in the action.
+    - **Every rejection code is declared, and the test that proves it reads the source.** A behavioural test can only provoke the refusals it thinks of; the interesting failure is the code somebody raised in a branch nobody thought about. So the audit parses every module under `lgbg/` except the two vocabularies, collects the name passed as `code=` to every `Rejection(...)`, and asserts that each one was imported from the declared vocabulary and appears in the plugin's own `rejection_codes()`. It also refuses a `RejectionCode(...)` built anywhere but in the two vocabulary files, and refuses a code written at the call site instead of named.
+    - **The audit has a control**, because a scan that finds nothing passes every assertion above: it asserts that the scan sees at least fifteen raised codes and that `game.py` is among the modules seen. The declaration must also cover what the *runtime* raises, not only what the game does - a rejection the runtime can produce and the plugin does not declare is a hole the fuzz audit of K-063 would find in a much more expensive way.
+    - **The unavailable-target codes were already declared and structured** by the setup work (occupied vertex, occupied edge, too close, not connected, no pieces remaining), so this card's contribution to that step is the proof that none of them is missing from the declaration - and the vocabulary is now closed, which is what makes an illegal-move rate by code comparable across games (FR-6.8).
     ```

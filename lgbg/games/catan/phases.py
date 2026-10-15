@@ -35,7 +35,7 @@ from lgbg.core.errors import NOT_YOUR_DECISION, WRONG_PHASE, Rejection
 from lgbg.core.game import Applied, ApplyResult, Rejected
 from lgbg.core.rng import RandomSource
 from lgbg.core.types import PHASE_STARTED_EVENT, Action, DecisionRequest, Event, JsonValue
-from lgbg.games.catan.rules import building, devcards, robber
+from lgbg.games.catan.rules import building, devcards, robber, trading
 from lgbg.games.catan.state import CARD_ORDER, NO_OWNER, CatanState, Phase
 
 PLACE_SETTLEMENT: Final[str] = "place_settlement"
@@ -50,6 +50,7 @@ BUILD_SETTLEMENT: Final[str] = "build_settlement"
 BUILD_CITY: Final[str] = "build_city"
 BUY_DEV_CARD: Final[str] = "buy_dev_card"
 PLAY_DEV_CARD: Final[str] = "play_dev_card"
+MARITIME_TRADE: Final[str] = "maritime_trade"
 PLACE_FREE_ROAD: Final[str] = "place_free_road"
 MOVE_ROBBER: Final[str] = "move_robber"
 CHOOSE_ROBBER_VICTIM: Final[str] = "choose_robber_victim"
@@ -291,6 +292,7 @@ def _action_requests(state: CatanState) -> list[DecisionRequest]:
             BUILD_CITY,
             BUY_DEV_CARD,
             PLAY_DEV_CARD,
+            MARITIME_TRADE,
             END_TURN,
         )
         if _can_take(state, name)
@@ -318,6 +320,8 @@ def _can_take(state: CatanState, action: str) -> bool:
         return devcards.can_buy_dev_card(state, state.turn)
     if action == PLAY_DEV_CARD:
         return bool(devcards.playable_cards(state, state.turn))
+    if action == MARITIME_TRADE:
+        return trading.can_trade(state, state.turn)
     return True
 
 

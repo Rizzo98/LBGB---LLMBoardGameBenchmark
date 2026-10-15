@@ -56,7 +56,16 @@ from lgbg.games.catan.notation import Detail
 from lgbg.games.catan.projection import observe as project
 from lgbg.games.catan.projection import observe_spectator as project_spectator
 from lgbg.games.catan.rejections import DECLARED_CODES
-from lgbg.games.catan.rules import building, devcards, production, robber, setup, victory
+from lgbg.games.catan.rules import (
+    building,
+    devcards,
+    production,
+    robber,
+    setup,
+    trading,
+    victory,
+)
+from lgbg.games.catan.rules.trading import GENERAL, SPECIFIC
 from lgbg.games.catan.state import (
     BANK_PER_RESOURCE,
     NO_OWNER,
@@ -98,6 +107,7 @@ ACTIONS: Final[dict[str, RuleFunction]] = {
     phases.BUY_DEV_CARD: devcards.buy_dev_card,
     phases.PLAY_DEV_CARD: devcards.play_dev_card,
     phases.PLACE_FREE_ROAD: building.place_free_road,
+    phases.MARITIME_TRADE: trading.maritime_trade,
     phases.MOVE_ROBBER: robber.move_robber,
     phases.CHOOSE_ROBBER_VICTIM: robber.choose_robber_victim,
 }
@@ -234,6 +244,16 @@ class CatanGame:
             phases.ROLL_DICE: _no_parameters(),
             phases.END_TURN: _no_parameters(),
             phases.DISCARD_RESOURCES: _resource_counts(),
+            phases.MARITIME_TRADE: {
+                "type": "object",
+                "properties": {
+                    "give_resource": {"type": "string"},
+                    "give_count": {"type": "integer", "minimum": 2, "maximum": 4},
+                    "want_resource": {"type": "string"},
+                },
+                "required": ["give_resource", "give_count", "want_resource"],
+                "additionalProperties": False,
+            },
             phases.PLACE_FREE_ROAD: {
                 "type": "object",
                 "properties": {"edge": {"type": "integer", "minimum": 0, "maximum": 71}},
@@ -509,6 +529,19 @@ def _actions_of_type(state: CatanState, player: int, name: str) -> list[Action]:
             for card in devcards.playable_cards(state, player)
             for told in devcards.choices(state, card)
         ]
+    if name == phases.MARITIME_TRADE:
+        return [
+            Action(
+                player=player,
+                type=phases.MARITIME_TRADE,
+                params={
+                    "give_resource": give.value,
+                    "give_count": count,
+                    "want_resource": want.value,
+                },
+            )
+            for give, count, want in trading.trades(state, player)
+        ]
     parameter = PARAMETER.get(name)
     if parameter is None:
         return [Action(player=player, type=name, params={})]
@@ -530,6 +563,23 @@ def _domain_of(state: CatanState, player: int, name: str) -> ActionDomain:
     """
     bought = COST_OF.get(name)
     cost = dict(building.COSTS[bought]) if bought is not None else None
+    if name == phases.MARITIME_TRADE:
+        available = trading.trades(state, player)
+        return ActionDomain(
+            type=name,
+            cost=None,
+            params={
+                "give_resource": ParamDomain(
+                    kind="id_set",
+                    values=sorted({give.value for give, _count, _want in available}),
+                ),
+                "want_resource": ParamDomain(
+                    kind="id_set",
+                    values=sorted({want.value for _give, _count, want in available}),
+                ),
+                "give_count": ParamDomain(kind="int_range", lo=SPECIFIC, hi=GENERAL),
+            },
+        )
     if name == phases.DISCARD_RESOURCES:
         hand = state.hands[player]
         return ActionDomain(

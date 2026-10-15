@@ -59,6 +59,14 @@ CARD_NOT_PLAYABLE: Final[RejectionCode] = RejectionCode(
     code="CARD_NOT_PLAYABLE",
     description="this card is not one that is played: a victory-point card is revealed, not played",
 )
+SAME_RESOURCE_TRADE: Final[RejectionCode] = RejectionCode(
+    code="SAME_RESOURCE_TRADE",
+    description="a trade must exchange one resource for a different one",
+)
+WRONG_TRADE_RATIO: Final[RejectionCode] = RejectionCode(
+    code="WRONG_TRADE_RATIO",
+    description="the offered number of cards is not the ratio this player trades at",
+)
 BANK_LACKS_RESOURCE: Final[RejectionCode] = RejectionCode(
     code="BANK_LACKS_RESOURCE",
     description="the bank does not hold the resource cards the action asks of it",
@@ -86,6 +94,8 @@ GAME_CODES: Final[tuple[RejectionCode, ...]] = (
     NO_PIECES_REMAINING,
     WRONG_DISCARD_TOTAL,
     NOT_ENOUGH_RESOURCES,
+    SAME_RESOURCE_TRADE,
+    WRONG_TRADE_RATIO,
     BANK_LACKS_RESOURCE,
     NO_DEV_CARDS_REMAINING,
     CARD_BOUGHT_THIS_TURN,

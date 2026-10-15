@@ -40,20 +40,6 @@
 
 
 
-### K-050 · Implement maritime trade
-
-  - tags: [slice-6, trading, rules, fr-14]
-  - priority: medium
-  - workload: Normal
-  - steps:
-      - [ ] 4:1, 3:1 and 2:1 ratios applied correctly per port access
-      - [ ] Bank availability respected
-      - [ ] An invalid ratio is rejected with a game code rather than silently accepted
-    ```md
-    - **Cuts through:** rules/trading, bank, port access, rejection codes
-    - **Depends on:** K-049
-    - **PRD:** FR-14.1
-    ```
 
 ### K-051 · Implement player offers and concurrent responses
 
@@ -1368,4 +1354,26 @@
     - **Both directions of the ownership rule are asserted.** A building of the player's own - settlement or city - gives access; somebody else's building on that harbour gives *them* access and not you (S5: "May I trade via a harbor where an opponent has a settlement? No."). The second is the half implementations forget, because the first is what the rulebook's picture shows.
     - **The specific harbour's narrowness is asserted as a negative** (S2 Almanac p.9): a 2:1 wood port leaves every other resource at 4:1, *not* at 3:1, and a player who also holds a generic port gets 3:1 for those - so the rule is the minimum of the applicable terms and not "the best port you own".
     - **No turn or phase condition lives here.** A harbour may be used the turn it is built, so the derivation is a pure function of the board and the buildings; the turn and phase conditions belong to the action (K-050), which is where they will be read.
+    ```
+
+### K-050 · Implement maritime trade
+
+  - tags: [slice-6, trading, rules, fr-14]
+  - priority: medium
+  - workload: Normal
+  - steps:
+      - [x] 4:1, 3:1 and 2:1 ratios applied correctly per port access
+      - [x] Bank availability respected
+      - [x] An invalid ratio is rejected with a game code rather than silently accepted
+    ```md
+    - **Cuts through:** rules/trading, ports, bank, action_domains, events
+    - **Depends on:** K-049
+    - **PRD:** FR-14.2, FR-14.3
+    - **Evidence:** lgbg/games/catan/rules/trading.py (`maritime_trade`, `trades`, `can_trade`), lgbg/games/catan/rejections.py (`SAME_RESOURCE_TRADE`, `WRONG_TRADE_RATIO`), tests/games/test_catan_maritime_trade.py (12 tests).
+    - **One code path, three ratios**, and the tests walk all three through it: 4:1 with no harbour, 3:1 with a generic one, 2:1 with the port printed for the resource being given away. The difference between them is the whole rule, and the action does not branch on it - it asks K-049's derivation what the player's rate is and refuses anything else.
+    - **The ratio is not negotiable, in both directions.** Offering three for one when the rate is four is refused with `WRONG_TRADE_RATIO`, and so is offering four when the rate is three: a player who could pay more is not being generous, they are proposing a trade the rules do not have. The refusal carries the rate and the offer, so a driver can see which way round it was wrong.
+    - **The bank's side is respected in both directions** (A-7): the cards the player gives go *into* the bank and the one they take comes out, asserted per resource; and a bank holding none of the wanted resource refuses the trade, which also removes it from the offer - the enumeration and the rule read the same list.
+    - **Trading a resource for itself is refused even at 4:1** (item 2), which the test states as an explicit case rather than leaving to the ratio arithmetic: four wood for one wood is not a trade, it is a way to lose three cards.
+    - **The domain describes the trade without enumerating it** (ARCHITECTURE 7.2): the two resources are sets and the count is a range from the specific rate to the general one, rather than a list of every pair - while `legal_actions` still offers every pair the rules accept, and the test applies each one.
+    - **What arrives next:** player-to-player trade (K-051 onwards), which is the concurrent offer-and-response protocol and the first phase since the discarded cards where several players are asked at once.
     ```

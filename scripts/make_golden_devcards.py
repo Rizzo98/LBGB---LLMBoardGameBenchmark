@@ -67,7 +67,7 @@ def config_for(seed: int) -> RunConfig:
     )
 
 
-def play(seed: int, *, directory: Path | None = None, limit: int = MAX_ACTIONS) -> tuple[Any, Any]:
+def play(seed: int, *, directory: Path | None = None, limit: int = MAX_ACTIONS) -> Any:
     """Play one game; returns the run (finished only when a directory is given) and the counts."""
     game = get_game("catan")
     run = GameRun(game, config_for(seed), game_id=GAME_ID, directory=directory)
@@ -218,13 +218,12 @@ def main(argv: list[str]) -> int:
         return probe(int(argv[1]) if len(argv) > 1 else 4)
     game = get_game("catan")
     with tempfile.TemporaryDirectory() as scratch:
-        run, actions, seen = play(BASE_SEED, directory=Path(scratch))
+        played = play(BASE_SEED, directory=Path(scratch))
+        run, actions, seen = played
         run.finish()
         produced = Path(scratch) / "games" / f"{GAME_ID}.god.jsonl"
         SCRIPT_PATH.parent.mkdir(parents=True, exist_ok=True)
         SCRIPT_PATH.write_text(
-            # newline="
-": the fixture is compared as bytes, so it may not depend on Windows.
             json.dumps(
                 {
                     "game": "catan",

@@ -7,21 +7,6 @@
 
 ## Backlog
 
-### K-053 · Commit golden game 5: a completed trade
-
-  - tags: [slice-6, test, acceptance, sc-1]
-  - priority: medium
-  - workload: Easy
-  - steps:
-      - [ ] Committed fixture containing a completed player-to-player trade
-      - [ ] Replays with every hash verified
-    ```md
-    - **Cuts through:** everything in slice 6
-    - **Depends on:** K-052
-    - **PRD:** SC-1
-    - **Why:** Slice 6 exit: the base game is feature-complete against PRD section 8.
-    ```
-
 ### K-054 · Implement assist levels and rejection-detail tiers
 
   - tags: [slice-7, assist, cli, fr-17, sc-8]
@@ -1358,4 +1343,25 @@
     - **An accept a responder cannot honour is refused, not recorded** (B-13): the request is still opened for them - FR-14.4 is about who holds cards, not about who holds the right ones - but the accept is rejected with INSUFFICIENT_RESOURCES, and the enumeration offers them decline alone, so an action the surface offers is always an action the engine accepts (FR-17.5). The validation happens when the answer is made, against the same cards it would be validated against when the round closes: no hand can change in between. RULES.md item 4 now says so.
     - **The offerer choices travel as a list on one request.** cancel_trade and choose_partner are what the offerer may do about an offer, and they are carried the way the turn own request carries the actions of the turn - one request per player per phase, because a request identifier is a phase and a seat (FR-9.3), and two requests to one player would have been two requests with one identifier.
     - **Replay is asserted in the small here.** The state after a completed trade encodes and decodes to itself and continues identically; the fixture game that replays a completed trade out of a record is K-053.
+    ```
+
+### K-053 · Commit golden game 5: a completed trade
+
+  - tags: [slice-6, test, acceptance, sc-1]
+  - priority: medium
+  - workload: Easy
+  - steps:
+      - [x] Committed fixture containing a completed player-to-player trade
+      - [x] Replays with every hash verified
+    ```md
+    - **Cuts through:** everything in slice 6
+    - **Depends on:** K-052
+    - **PRD:** SC-1
+    - **Evidence:** tests/fixtures/catan/trade_game.json, tests/golden/catan/trade_game.god.jsonl, tests/golden/test_golden_trade_game.py (11 tests), scripts/make_golden_trade.py. 598 actions, 29 rounds, seat 0 wins on ten points with four, four and four behind: forty-seven offers, every one of them answered by every eligible seat and every one of them taken, a hundred and forty answers of which seventy-four were accepts and sixty-six declines, and twenty offers that more than one seat wanted, so the offerer had to choose.
+    - **The fixture is required to trade**, exactly as game 4 is required to play cards: forty-seven offers, a hundred and forty answers with both answers present, and forty-seven completed trades. A fixture that quietly stopped trading would still replay perfectly, which is why the record is read for what it contains and not only for what it hashes.
+    - **Every transfer is checked against the record, move by move** (FR-14.8): for each of the forty-seven completions the test reconstructs the states on either side of the action and asserts that each participant moved exactly the announced cards - and that no other hand moved, and not the bank. Atomicity is asserted that way rather than by counting events, because a transfer done in two steps would show up as a state lying between the announcement and the delivery.
+    - **The twenty choices are asserted to be choices** (FR-14.5): each choose_partner action is read against the state it was made in, where the partner must already have answered accept, the offer must still be open, and the player must be the offerer. The engine never picks, and the fixture does not let it.
+    - **Every intermediate state conserves every resource** - not the fixture's own rule, but the one a trade is most likely to break, and it is checked over all 599 states rather than at the end.
+    - **What it does not contain, and why.** Nobody trades with the bank in this game (the policy only offers when a build is out of reach, and a 4:1 exchange never is), and nobody withdraws an offer: the driver answers the responders before it settles the offerer's request, so an offer always resolves on its own. Both rules are asserted by the unit tests of K-051; the corpus is not asked to carry a decision a player would not make.
+    - **The policy had to be written for the trade, not tuned for it.** The offer is built from the state - one card the player can spare, for one they hold none of that another seat holds two of - and it is taken only when the answering seat can keep a card of the kind it gives away, which is what puts declines in the record beside the accepts.
     ```

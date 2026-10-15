@@ -25,7 +25,7 @@ from lgbg.core.game import Applied, Game
 from lgbg.core.rng import Purpose, RandomSource, SeededRandomSource
 from lgbg.core.run import GameRun
 from lgbg.core.schema import validate_action
-from lgbg.core.types import Action
+from lgbg.core.types import Action, JsonSchema
 
 
 @dataclass(frozen=True, slots=True)
@@ -102,6 +102,7 @@ def run_fuzz(
     what game it is driving (FR-22.5).
     """
     chooser = SeededRandomSource(_driver_seed(game, config))
+    schema = game.action_schema()
     run = GameRun(game, config, game_id="fuzz", directory=directory)
     offenders: list[str] = []
     codes: list[str] = []
@@ -115,7 +116,7 @@ def run_fuzz(
             for request in run.pending
             for action in game.legal_actions(run.state, request.player)
         ]
-        offenders.extend(_offered_violations(game, offered))
+        offenders.extend(_offered_violations(schema, offered))
         before = hash_state(run.state, game)
         result = run.submit(policy(offered, chooser))
         if isinstance(result, Applied):
@@ -143,9 +144,13 @@ def _driver_seed(game: Game, config: RunConfig) -> int:
     return int(hashlib.sha256(text).hexdigest()[:12], 16)
 
 
-def _offered_violations(game: Game, offered: Sequence[Action]) -> list[str]:
-    """Every action a game offers is one its own declared schema accepts (FR-18.1)."""
-    schema = game.action_schema()
+def _offered_violations(schema: JsonSchema, offered: Sequence[Action]) -> list[str]:
+    """Every action a game offers is one its own declared schema accepts (FR-18.1).
+
+    The schema is handed in rather than asked for here: it is a pure function of the plugin, and
+    rebuilding eighteen nested objects for every action of every game was most of what the campaign
+    of K-067 spent its time on before this line moved.
+    """
     return [
         f"{action.type} {dict(action.params)} does not fit its declared schema"
         for action in offered

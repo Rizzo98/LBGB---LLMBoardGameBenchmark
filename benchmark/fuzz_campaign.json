@@ -1,0 +1,14 @@
+{
+  "failure_count": 0,
+  "failures": [],
+  "games": 30,
+  "games_played": 30,
+  "livelocks": 30,
+  "max_actions": 4000,
+  "median_actions": 4000,
+  "ms_per_game": 20685.67,
+  "offender_count": 0,
+  "offenders": [],
+  "seconds": 620.6,
+  "seeds": 30
+}

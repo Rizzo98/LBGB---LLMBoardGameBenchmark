@@ -26,7 +26,8 @@ from lgbg.games.catan.rejections import (
     TOO_CLOSE,
     VERTEX_OCCUPIED,
 )
-from lgbg.games.catan.state import NO_OWNER, RESOURCE_ORDER, CatanState, Placed, Supply
+from lgbg.games.catan.rules.building import piece_taken, spend_piece
+from lgbg.games.catan.state import NO_OWNER, RESOURCE_ORDER, CatanState, Placed
 
 
 def setup_order(players: int) -> tuple[int, ...]:
@@ -99,7 +100,7 @@ def place_settlement(state: CatanState, action: Action, rng: RandomSource) -> Ap
         cities=state.placed.cities,
         roads=state.placed.roads,
     )
-    supply = _spend(state, action.player, settlements=-1)
+    supply = spend_piece(state, action.player, "settlements")
     updated = replace(state, placed=placed, supply=supply, setup_vertex=site)
     events = [
         Event(
@@ -110,7 +111,7 @@ def place_settlement(state: CatanState, action: Action, rng: RandomSource) -> Ap
                 "terrain": _terrain_around(state, site),
             },
         ),
-        _piece_taken(action.player, "settlement", supply[action.player].settlements),
+        piece_taken(action.player, "settlement", supply[action.player].settlements),
     ]
     # The second settlement is endowed immediately, and that is also what makes the endowment
     # order of RULES.md 4.3 item 7 (seats 3, 2, 1, 0) a consequence rather than a rule: the
@@ -221,7 +222,7 @@ def place_road(state: CatanState, action: Action, rng: RandomSource) -> ApplyRes
         cities=state.placed.cities,
         roads=_with_seat(state.placed.roads, site, action.player),
     )
-    supply = _spend(state, action.player, roads=-1)
+    supply = spend_piece(state, action.player, "roads")
     following = _next_player(state)
     return Applied(
         state=replace(state, placed=placed, supply=supply, setup_vertex=NO_OWNER, turn=following),
@@ -230,7 +231,7 @@ def place_road(state: CatanState, action: Action, rng: RandomSource) -> ApplyRes
                 type="road_placed",
                 payload={"player": action.player, "edge": site, "next_player": following},
             ),
-            _piece_taken(action.player, "road", supply[action.player].roads),
+            piece_taken(action.player, "road", supply[action.player].roads),
         ],
     )
 
@@ -256,24 +257,6 @@ def _next_player(state: CatanState) -> int:
 def _terrain_around(state: CatanState, vertex: int) -> list[JsonValue]:
     """The terrain of the hexes meeting a vertex, which is what the endowment is made of."""
     return [state.board.terrain[hex_id].value for hex_id in state.board.topology.hexes_at(vertex)]
-
-
-def _piece_taken(player: int, piece: str, remaining: int) -> Event:
-    return Event(
-        type="piece_taken", payload={"player": player, "piece": piece, "remaining": remaining}
-    )
-
-
-def _spend(state: CatanState, player: int, **pieces: int) -> tuple[Supply, ...]:
-    """Take pieces from a player's supply, which is a state change the events describe."""
-    supply = list(state.supply)
-    current = supply[player]
-    supply[player] = Supply(
-        roads=current.roads + pieces.get("roads", 0),
-        settlements=current.settlements + pieces.get("settlements", 0),
-        cities=current.cities + pieces.get("cities", 0),
-    )
-    return tuple(supply)
 
 
 def _site(action: Action, key: str, size: int) -> int | Rejected:

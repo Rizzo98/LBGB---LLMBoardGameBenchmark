@@ -18,12 +18,19 @@ from dataclasses import replace
 from types import MappingProxyType
 from typing import Final
 
-from lgbg.core.errors import Rejection
-from lgbg.core.game import Rejected
-from lgbg.core.types import Event
+from lgbg.core.errors import BAD_PARAMS, Rejection
+from lgbg.core.game import Applied, ApplyResult, Rejected
+from lgbg.core.rng import RandomSource
+from lgbg.core.types import Action, Event, JsonValue
+from lgbg.games.catan import phases
 from lgbg.games.catan.board.layout import Resource
-from lgbg.games.catan.rejections import NOT_ENOUGH_RESOURCES
-from lgbg.games.catan.state import RESOURCE_ORDER, CatanState
+from lgbg.games.catan.rejections import (
+    EDGE_OCCUPIED,
+    NO_PIECES_REMAINING,
+    NOT_CONNECTED,
+    NOT_ENOUGH_RESOURCES,
+)
+from lgbg.games.catan.state import NO_OWNER, RESOURCE_ORDER, CatanState, Phase, Placed, Supply
 
 ROAD: Final[str] = "road"
 SETTLEMENT: Final[str] = "settlement"
@@ -122,3 +129,172 @@ def pay(state: CatanState, player: int, build: str) -> tuple[CatanState, Event] 
             payload={"player": player, "build": build, "cost": dict(COSTS[build])},
         ),
     )
+
+
+def spend_piece(state: CatanState, player: int, piece: str) -> tuple[Supply, ...]:
+    """Take one piece out of a player's supply, which is a state change its event describes.
+
+    The pieces are the player's own and finite (RULES.md 4.7), so the supply is the only place
+    that knows whether a build is available at all - and it is charged here rather than in each
+    build, so the ledger can only be wrong in one place.
+    """
+    if piece not in ("roads", "settlements", "cities"):
+        raise KeyError(f"{piece!r} is not a piece; it is roads, settlements or cities")
+    stock = list(state.supply)
+    held = stock[player]
+    stock[player] = Supply(
+        roads=held.roads - (piece == "roads"),
+        settlements=held.settlements - (piece == "settlements"),
+        cities=held.cities - (piece == "cities"),
+    )
+    return tuple(stock)
+
+
+def piece_taken(player: int, piece: str, remaining: int) -> Event:
+    """The piece leaving a supply, announced the same way wherever a piece is placed."""
+    return Event(
+        type="piece_taken", payload={"player": player, "piece": piece, "remaining": remaining}
+    )
+
+
+def connection_points(state: CatanState, player: int) -> frozenset[int]:
+    """The vertices this player's network reaches, and which a rival's building does not block.
+
+    RULES.md 4.7 items 2 and 3: a road must touch the player's own network - their road, their
+    settlement or their city - and an opponent's building is never itself a connection point.
+    The second half matters in exactly one case: a vertex carrying both this player's road and
+    somebody else's settlement connects nothing further, which is what stops a road from being
+    built "on the other side of" a building that happens to sit on the player's own line.
+    """
+    topology = state.board.topology
+    points = set()
+    for vertex in range(len(state.placed.settlements)):
+        if _held_by_another(state, player, vertex):
+            continue
+        if (
+            state.placed.settlements[vertex] == player
+            or state.placed.cities[vertex] == player
+            or any(state.placed.roads[edge] == player for edge in topology.edges_at(vertex))
+        ):
+            points.add(vertex)
+    return frozenset(points)
+
+
+def road_targets(state: CatanState, player: int) -> tuple[int, ...]:
+    """Every edge this player may put a road on: empty, and incident to their own network."""
+    topology = state.board.topology
+    points = connection_points(state, player)
+    return tuple(
+        edge
+        for edge in range(len(state.placed.roads))
+        if state.placed.roads[edge] == NO_OWNER
+        and any(vertex in points for vertex in topology.vertices_of_edge(edge))
+    )
+
+
+def can_build_road(state: CatanState, player: int) -> bool:
+    """Whether a road is on offer: a piece in supply, the price in hand, and somewhere to go.
+
+    This is the availability half of FR-11.5. A player at their road limit is not refused when
+    they ask - they are never asked to ask, because the action is not among the ones offered.
+    """
+    return (
+        state.supply[player].roads > 0
+        and affordable(state, player, ROAD)
+        and bool(road_targets(state, player))
+    )
+
+
+def build_road(state: CatanState, action: Action, rng: RandomSource) -> ApplyResult:
+    """Place a road on an empty edge of the player's own network (FR-11.2, FR-11.3, FR-11.5).
+
+    The refusals are ordered the way the rules treat the questions: is there a piece to place,
+    is the edge empty, does the edge connect, and is there a price in hand. The price is paid
+    last, so a road that is refused for any other reason costs nothing.
+    """
+    del rng  # placing a road decides nothing and draws nothing
+    refusal = phases.refuse_unless_acting(state, action, Phase.ACTION)
+    if refusal is not None:
+        return refusal
+    edge = _edge(action, len(state.placed.roads))
+    if isinstance(edge, Rejected):
+        return edge
+    if state.supply[action.player].roads < 1:
+        return Rejected(
+            Rejection(
+                code=NO_PIECES_REMAINING,
+                message="every road this player has is already on the board",
+                details={"player": action.player, "piece": ROAD},
+            )
+        )
+    if state.placed.roads[edge] != NO_OWNER:
+        return Rejected(
+            Rejection(
+                code=EDGE_OCCUPIED,
+                message="that edge already carries a road",
+                details={"edge": edge, "owner": state.placed.roads[edge]},
+            )
+        )
+    points = connection_points(state, action.player)
+    if not any(vertex in points for vertex in state.board.topology.vertices_of_edge(edge)):
+        return Rejected(
+            Rejection(
+                code=NOT_CONNECTED,
+                message="a road must extend the player's own network",
+                details={
+                    "edge": edge,
+                    "touches": list(state.board.topology.vertices_of_edge(edge)),
+                    "network": sorted(points),
+                },
+            )
+        )
+    paid = pay(state, action.player, ROAD)
+    if isinstance(paid, Rejected):
+        return paid
+
+    built, spent = paid
+    lines = list(built.placed.roads)
+    lines[edge] = action.player
+    supply = spend_piece(built, action.player, "roads")
+    return Applied(
+        state=replace(
+            built,
+            placed=Placed(built.placed.settlements, built.placed.cities, tuple(lines)),
+            supply=supply,
+        ),
+        events=[
+            spent,
+            Event(type="road_built", payload={"player": action.player, "edge": edge}),
+            piece_taken(action.player, ROAD, supply[action.player].roads),
+        ],
+    )
+
+
+def _edge(action: Action, edges: int) -> int | Rejected:
+    """Read an edge identifier, refusing anything the board does not have (FR-18.2)."""
+    value: JsonValue = action.params.get("edge")
+    if not isinstance(value, int) or isinstance(value, bool):
+        return Rejected(
+            Rejection(
+                code=BAD_PARAMS,
+                message=f"edge must be an integer between 0 and {edges - 1}",
+                details={"edge": value},
+            )
+        )
+    if not 0 <= value < edges:
+        return Rejected(
+            Rejection(
+                code=BAD_PARAMS,
+                message=f"edge {value} is not on this board, which has {edges}",
+                details={"edge": value, "edges": edges},
+            )
+        )
+    return value
+
+
+def _held_by_another(state: CatanState, player: int, vertex: int) -> bool:
+    for occupancy in (state.placed.settlements, state.placed.cities):
+        seat = occupancy[vertex]
+        if seat != NO_OWNER and seat != player:
+            return True
+    return False

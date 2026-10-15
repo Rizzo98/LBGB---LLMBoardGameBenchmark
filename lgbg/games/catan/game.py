@@ -17,7 +17,7 @@ for what the game can currently do, and each grows with the card that needs it.
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from typing import Any, Final
 
 from lgbg.core.config import GameConfig
@@ -54,7 +54,7 @@ from lgbg.games.catan.notation import Detail
 from lgbg.games.catan.projection import observe as project
 from lgbg.games.catan.projection import observe_spectator as project_spectator
 from lgbg.games.catan.rejections import DECLARED_CODES
-from lgbg.games.catan.rules import production, robber, setup
+from lgbg.games.catan.rules import building, production, robber, setup
 from lgbg.games.catan.state import (
     BANK_PER_RESOURCE,
     NO_OWNER,
@@ -91,6 +91,7 @@ ACTIONS: Final[dict[str, RuleFunction]] = {
     phases.ROLL_DICE: production.roll_dice,
     phases.END_TURN: phases.end_turn,
     phases.DISCARD_RESOURCES: robber.discard_resources,
+    phases.BUILD_ROAD: building.build_road,
     phases.MOVE_ROBBER: robber.move_robber,
     phases.CHOOSE_ROBBER_VICTIM: robber.choose_robber_victim,
 }
@@ -229,6 +230,12 @@ class CatanGame:
             phases.ROLL_DICE: _no_parameters(),
             phases.END_TURN: _no_parameters(),
             phases.DISCARD_RESOURCES: _resource_counts(),
+            phases.BUILD_ROAD: {
+                "type": "object",
+                "properties": {"edge": {"type": "integer", "minimum": 0, "maximum": 71}},
+                "required": ["edge"],
+                "additionalProperties": False,
+            },
             phases.MOVE_ROBBER: {
                 "type": "object",
                 "properties": {"hex": {"type": "integer", "minimum": 0, "maximum": 18}},
@@ -391,9 +398,11 @@ def _legal_actions_for(state: CatanState, request: DecisionRequest) -> list[Acti
             for edge in _legal_setup_road_edges(state)
         ]
     if request.kind == phases.TAKE_TURN:
-        # The request names the action that answers it; the rest of the action phase arrives
-        # with K-030 onwards.
-        return [Action(player=player, type=request.schema_ref, params={})]
+        # The request lists the actions it offers; each is enumerated from the rule that will
+        # judge it. The builds arrive one card at a time, and K-034 completes the surface.
+        return [
+            action for name in _offered(request) for action in _actions_of_type(state, player, name)
+        ]
     if request.kind == phases.DISCARD_RESOURCES:
         return [
             Action(player=player, type=phases.DISCARD_RESOURCES, params=composition)
@@ -410,6 +419,24 @@ def _legal_actions_for(state: CatanState, request: DecisionRequest) -> list[Acti
             for victim in robber.robber_victims(state)
         ]
     return []
+
+
+def _offered(request: DecisionRequest) -> list[str]:
+    """Which actions one request offers: the list it carries, or the one that answers it."""
+    names = request.context.get("actions")
+    if isinstance(names, str) or not isinstance(names, Sequence):
+        return [request.schema_ref]
+    return [str(name) for name in names]
+
+
+def _actions_of_type(state: CatanState, player: int, name: str) -> list[Action]:
+    """Every action of one offered type, enumerated from the rule that will judge it."""
+    if name == phases.BUILD_ROAD:
+        return [
+            Action(player=player, type=phases.BUILD_ROAD, params={"edge": edge})
+            for edge in building.road_targets(state, player)
+        ]
+    return [Action(player=player, type=name, params={})]
 
 
 def _legal_discards(state: CatanState, player: int) -> list[dict[str, JsonValue]]:

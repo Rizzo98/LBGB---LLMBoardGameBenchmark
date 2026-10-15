@@ -35,7 +35,7 @@ from lgbg.core.errors import NOT_YOUR_DECISION, WRONG_PHASE, Rejection
 from lgbg.core.game import Applied, ApplyResult, Rejected
 from lgbg.core.rng import RandomSource
 from lgbg.core.types import PHASE_STARTED_EVENT, Action, DecisionRequest, Event, JsonValue
-from lgbg.games.catan.rules import robber
+from lgbg.games.catan.rules import building, robber
 from lgbg.games.catan.state import NO_OWNER, CatanState, Phase
 
 PLACE_SETTLEMENT: Final[str] = "place_settlement"
@@ -45,6 +45,7 @@ ROLL_DICE: Final[str] = "roll_dice"
 END_TURN: Final[str] = "end_turn"
 DISCARD_RESOURCES: Final[str] = "discard_resources"
 """The request a forced discard is answered with, one per eligible player (RULES.md 4.4)."""
+BUILD_ROAD: Final[str] = "build_road"
 MOVE_ROBBER: Final[str] = "move_robber"
 CHOOSE_ROBBER_VICTIM: Final[str] = "choose_robber_victim"
 """The robber phase's two steps: it moves, and then somebody is robbed (RULES.md 4.9)."""
@@ -258,16 +259,30 @@ def _after_turn_production(state: CatanState) -> Phase:
 
 
 def _action_requests(state: CatanState) -> list[DecisionRequest]:
-    """The action phase, so far offering only the end of the turn (K-030 onwards adds the rest)."""
+    """The whole action phase, as one request that offers the actions which can be taken now.
+
+    The offered list is built from the rules rather than written down: a build appears when the
+    player has the piece, the price and somewhere to put it (FR-11.5). The complete enumeration
+    of *targets*, and the parameter domains, belong to the action surface (K-034); what this
+    request says is which actions are on the table.
+    """
+    offered = [name for name in (BUILD_ROAD, END_TURN) if _can_take(state, name)]
     return [
         _request(
             state,
             state.turn,
             TAKE_TURN,
             schema_ref=END_TURN,
-            context={"actions": [END_TURN]},
+            context={"actions": offered},
         )
     ]
+
+
+def _can_take(state: CatanState, action: str) -> bool:
+    """Whether one action of the action phase can be taken right now."""
+    if action == BUILD_ROAD:
+        return building.can_build_road(state, state.turn)
+    return True
 
 
 def _discard_requests(state: CatanState) -> list[DecisionRequest]:

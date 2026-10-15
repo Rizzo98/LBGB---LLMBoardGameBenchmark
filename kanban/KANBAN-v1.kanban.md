@@ -21,20 +21,6 @@
 
 
 
-### K-031 · Implement road building
-
-  - tags: [slice-4, rules, building, fr-11]
-  - priority: high
-  - workload: Normal
-  - steps:
-      - [ ] Connectivity to the player's own network enforced
-      - [ ] Edge occupancy rejected with a specific code
-      - [ ] 15-road limit tracked; exhaustion makes the action unavailable rather than erroring
-    ```md
-    - **Cuts through:** rules/building, topology, piece supply, projection, events
-    - **Depends on:** K-030
-    - **PRD:** FR-11.2, FR-11.3, FR-11.5
-    ```
 
 ### K-032 · Implement settlement building
 
@@ -1219,4 +1205,26 @@
     - **Every rejection code is declared, and the test that proves it reads the source.** A behavioural test can only provoke the refusals it thinks of; the interesting failure is the code somebody raised in a branch nobody thought about. So the audit parses every module under `lgbg/` except the two vocabularies, collects the name passed as `code=` to every `Rejection(...)`, and asserts that each one was imported from the declared vocabulary and appears in the plugin's own `rejection_codes()`. It also refuses a `RejectionCode(...)` built anywhere but in the two vocabulary files, and refuses a code written at the call site instead of named.
     - **The audit has a control**, because a scan that finds nothing passes every assertion above: it asserts that the scan sees at least fifteen raised codes and that `game.py` is among the modules seen. The declaration must also cover what the *runtime* raises, not only what the game does - a rejection the runtime can produce and the plugin does not declare is a hole the fuzz audit of K-063 would find in a much more expensive way.
     - **The unavailable-target codes were already declared and structured** by the setup work (occupied vertex, occupied edge, too close, not connected, no pieces remaining), so this card's contribution to that step is the proof that none of them is missing from the declaration - and the vocabulary is now closed, which is what makes an illegal-move rate by code comparable across games (FR-6.8).
+    ```
+
+### K-031 · Implement road building
+
+  - tags: [slice-4, rules, building, fr-11]
+  - priority: high
+  - workload: Normal
+  - steps:
+      - [x] Connectivity to the player's own network enforced
+      - [x] Edge occupancy rejected with a specific code
+      - [x] 15-road limit tracked; exhaustion makes the action unavailable rather than erroring
+    ```md
+    - **Cuts through:** rules/building, topology, piece supply, projection, events
+    - **Depends on:** K-030
+    - **PRD:** FR-11.2, FR-11.3, FR-11.5
+    - **Evidence:** lgbg/games/catan/rules/building.py (`connection_points`, `road_targets`, `can_build_road`, `build_road`), lgbg/games/catan/phases.py (the action phase offers what can be taken), lgbg/games/catan/game.py, tests/games/test_catan_roads.py (16 tests).
+    - **Connectivity is a property of the vertex, not of the edge.** `connection_points` answers the only question the rules ask - which vertices does this player's network reach - and it answers it once for the whole board. RULES.md 4.7 item 3 is a statement about that set: a vertex carrying both the player's road and an opponent's building connects nothing further, which is exactly what stops a road from being built on the other side of somebody else's settlement. Both halves are asserted, the refusal and the legal case where the network reaches the *other* end.
+    - **The refusals are ordered the way the rules treat the questions** - is there a piece, is the edge empty, does it connect, is there a price in hand - so the code a player sees is the first thing that was actually wrong, and the price is paid last. A road refused for any other reason therefore costs nothing, which the test asserts by refusing on an empty hand after all the geometry is settled.
+    - **Exhaustion is unavailability, not an error** (FR-11.5, RULES.md 4.7). `can_build_road` reports whether the action is on the table, and the action phase's request lists what it offers, so a player at their road limit is never offered a road; an attempt anyway is refused with `NO_PIECES_REMAINING` naming the piece. The boundary is tested from both sides: the fifteenth road can still be built, and the sixteenth cannot.
+    - **Every fixture is charged for what it places.** The test positions lay pieces on the board and take them out of their owners' supplies, and take cards out of the bank - so `check_invariants` on the result means something. The exhaustion fixture lays out the rest of the player's fifteen roads rather than simply declaring the supply empty.
+    - **The action is enumerated from the rule that judges it.** The action phase lists the actions it offers, and each offered action is enumerated by the rule that will accept or refuse it, so what is offered is exactly what is accepted - asserted by building every offered road and refusing an edge that is not offered. This is the shape K-034 completes for the rest of the action surface.
+    - **One vocabulary for pieces.** The piece-supply helpers moved into building.py (the module the layout gives 'piece placement, costs, piece and adjacency constraints' to) and the draft now uses them, so `piece_taken` has a single definition rather than one per builder.
     ```

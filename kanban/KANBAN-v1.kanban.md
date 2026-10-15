@@ -7,22 +7,6 @@
 
 ## Backlog
 
-### K-058 · Generate tool definitions from the declared schemas
-
-  - tags: [slice-7, schemas, test, fr-18]
-  - priority: medium
-  - workload: Normal
-  - steps:
-      - [ ] Tool definitions generated from action_schema with no game-specific code
-      - [ ] A test asserts every action type appears with a correct parameter list
-      - [ ] No MCP server is built; this proves the plug-and-play claim without pulling v2 scope into v1
-    ```md
-    - **Cuts through:** the schemas, a generator, a proof test
-    - **Depends on:** K-057
-    - **PRD:** FR-18.4
-    - **Why:** If adding a game required hand-written tool definitions, the plugin system would have failed. This card is the evidence that it did not.
-    ```
-
 ### K-059 · Write the shared game prompt
 
   - tags: [slice-7, prompts, notation, fr-19]
@@ -1386,4 +1370,23 @@
     - **Writing the schema found two things the projection does that a guess would have got wrong.** A spectator's hands are the state's own lists in resource order, while an observer's own hand is written by resource name - two shapes, deliberately not one reused for both; and a seat's development cards are five counts in the deck's canonical order, not a list of card names. Both were caught by validating the corpus, which is the argument for doing it that way rather than by reading the projection and trusting the reading.
     - **9185 observations of the five recorded games validate, and the test keeps a stride.** Every state of the short records and every twentieth state of the long ones - 500-odd observations, about two seconds - because the shape is what is being checked and a game of 743 states exercises no shape a game of 40 does not. The full sweep was measured first (39 seconds) and the sampling is a deliberate cost, not an accident.
     - **The validator reported what was wrong, and that was fixed too.** "Neither shape fits" is a refusal nobody can act on, so a failed oneOf now quotes the branch that came closest: the message that found the two projection surprises above was value.hands[0]: expected object, got array.
+    ```
+
+### K-058 · Generate tool definitions from the declared schemas
+
+  - tags: [slice-7, schemas, test, fr-18]
+  - priority: medium
+  - workload: Normal
+  - steps:
+      - [x] Tool definitions generated from action_schema with no game-specific code
+      - [x] A test asserts every action type appears with a correct parameter list
+      - [x] No MCP server is built; this proves the plug-and-play claim without pulling v2 scope into v1
+    ```md
+    - **Cuts through:** the schemas, a generator, a proof test
+    - **Depends on:** K-057
+    - **PRD:** FR-18.4
+    - **Evidence:** lgbg/core/tools.py (tool_definitions, parameters), tests/games/test_catan_tools.py (4 tests).
+    - **The generator is small because the claim is that it can be.** One tool per declared action type, with a name, a description and the input schema exactly as the plugin declared it - every word of a definition comes from the plugin, and the module names no game concept at all. The test reads that off the syntax: no import from lgbg.games, and no identifier that mentions a board, a vertex, an edge or a resource. (The module's *docstring* does mention Catan, which is why the check is on the code and not on the prose: a scan that failed on documentation would be a scan nobody could keep.)
+    - **The parameter lists are checked against the rules, not against the schema.** A hand-written table of all nineteen actions and what each is told - from RULES.md, which is a different account from the schema - must agree with what the generator derives; a card that takes two resources and one that takes none are in it, since that is where the two accounts could most easily drift. One action has several shapes (oneOf over the development cards), so the parameter reader unions the branches: the shapes differ in what is required, not in what exists.
+    - **No server, and that is the point of the card.** A list of JSON tool definitions is what an MCP adapter would serve; generating one is the part that proves plug-and-play, and serving it is v2 scope. The test asserts the definitions serialise, so nothing about them depends on being in memory.
     ```

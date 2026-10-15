@@ -38,6 +38,7 @@ HANDLED_FIELDS: Final[frozenset[str]] = frozenset(
         "hands",
         "phase",
         "pieces",
+        "points",
         "robber",
         "round",
         "supply",
@@ -102,6 +103,8 @@ def _full(observation: Observation) -> str:
     lines.append(f"bank: {_bank(observation)}")
     if "hand" in observation:
         lines.append(f"hand: {_hand(observation)}")
+    if "points" in observation:
+        lines.append(f"points: {_points(observation)}")
     lines.append(f"hand_counts: {_hand_counts(observation)}")
     lines.append(f"supply: {_supply(observation)}")
     lines.append(f"awards: {_awards(observation)}")
@@ -128,6 +131,8 @@ def _compact(observation: Observation) -> str:
     parts.append(f"bank {_bank(observation)}")
     if "hand" in observation:
         parts.append(f"hand {_hand(observation)}")
+    if "points" in observation:
+        parts.append(f"points {_points(observation)}")
     parts.append(f"hand_counts {_hand_counts(observation)}")
     parts.append(f"supply {_supply(observation)}")
     parts.append(f"awards {_awards(observation)}")
@@ -268,6 +273,14 @@ def _hand_counts(observation: Observation) -> str:
     return " ".join(
         f"p{seat} {count}" for seat, count in enumerate(counts) if isinstance(count, int)
     )
+
+
+def _points(observation: Observation) -> str:
+    """Everybody's score, which is what a player is trying to work out from the table."""
+    points = observation.get("points")
+    if not isinstance(points, Mapping):
+        return "-"
+    return " ".join(f"p{seat} {value}" for seat, value in sorted(points.items()))
 
 
 def _hands(observation: Observation) -> str:

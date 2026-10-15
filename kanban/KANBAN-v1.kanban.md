@@ -36,21 +36,6 @@
 
 
 
-### K-046 · Implement victory point cards and hidden VP
-
-  - tags: [slice-5, devcards, projection, victory, fr-13, fr-16]
-  - priority: high
-  - workload: Normal
-  - steps:
-      - [ ] VP cards count toward the owner's total
-      - [ ] Excluded from every other player's public total
-      - [ ] Leak test asserts no projection, and no notation rendering of it, reveals another player's VP cards
-    ```md
-    - **Cuts through:** rules/victory, the projection allow-list, leak tests, notation
-    - **Depends on:** K-041, K-036
-    - **PRD:** FR-13.8, FR-16.4
-    - **Why:** This is what makes who-is-leading indeterminate from any player's view, and why the spectator projection is a separate tested artefact.
-    ```
 
 ### K-047 · Implement Largest Army
 
@@ -1341,4 +1326,25 @@
     - **It reuses the machinery the Year of Plenty needed**, which is why it is a small card: the announcement goes through `_chosen` and the same `REQUIREMENTS` table, so a bad announcement costs the attempt and not the card, and `choices` gives the enumeration its five announcements. One parameter shape (`resources`, a list) for both cards rather than two, because the count is the card's own rule - two for Plenty, one for Monopoly - and not a different kind of parameter.
     - **The choice is a guess, and the rules make it one:** every hand's *count* is public and its contents are not, so a monopoly on a resource nobody holds is legal and worthless. The test asserts that directly - four empty hands, a legal card, and a take of zero.
     - **Two older tests had to catch up, and that is the pattern of this slice.** K-041's "only the cards whose effect exists are playable" and K-042's "the knight is the only card offered" were both written while the progress cards had no effects. They now assert the current truth instead: the four playable kinds are playable, the victory-point card is not, and a card in hand is offered under its own name. A test that encodes the *state of the implementation* rather than the rule has to be rewritten by the next card, and both said so when they failed.
+    ```
+
+### K-046 · Implement victory point cards and hidden VP
+
+  - tags: [slice-5, devcards, projection, victory, fr-13, fr-16]
+  - priority: high
+  - workload: Normal
+  - steps:
+      - [x] VP cards count toward the owner's total
+      - [x] Excluded from every other player's public total
+      - [x] Leak test asserts no projection, and no notation rendering of it, reveals another player's VP cards
+    ```md
+    - **Cuts through:** rules/victory, the projection allow-list, leak tests, notation
+    - **Depends on:** K-041, K-036
+    - **PRD:** FR-13.8, FR-16.4
+    - **Why:** This is what makes who-is-leading indeterminate from any player's view, and why the spectator projection is a separate tested artefact.
+    - **Evidence:** lgbg/games/catan/rules/victory.py (`public_points`), lgbg/games/catan/projection.py (`_points` as an observer-relative field), lgbg/games/catan/notation.py, tests/games/test_catan_hidden_victory_points.py (9 tests).
+    - **The projection now carries two numbers per seat**, which is the smallest shape that can express the rule: the observer's own total exactly, and everybody else's as far as it can be computed - the true total less the cards nobody has seen. RULES.md 4.13 item 3 is what makes that subtraction total: a victory-point card is revealed only as a consequence of winning, so *every* such card is hidden until the game is over.
+    - **It is the second observer-relative field**, beside the observer's own hand, and the two behave the same way: neither is in the spectator's view, because the spectator has every hand and needs no per-observer score. Both the account of the player's view and the spectator-superset assertion were updated to say so.
+    - **The leak test is K-028's, applied to a number rather than a hand.** Two positions that differ only in how many hidden cards one seat holds must project identically for every observer who is not entitled to see them - one card and four produce the same view for the other three seats - with the owner and the spectator as the controls that the two positions really are different. It is repeated through the renderer in both details, because a projection that is clean and a renderer that prints the truth anyway is still a leak.
+    - **The last test is the one the card is really about:** the field is in the view that has an observer and not in the spectator's, and the spectator keeps `dev_cards`. That is the asymmetry the PRD's Why names - "who is leading" is indeterminate from any player's view - and it is now a property with a test rather than a consequence nobody checked.
     ```

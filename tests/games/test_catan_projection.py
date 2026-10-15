@@ -112,7 +112,7 @@ def test_the_spectator_projection_is_a_distinct_superset() -> None:
     observer_relative = {name for name, _ in OBSERVER_FIELDS}
 
     assert set(spectator) == SPECTATOR_OBSERVATION_FIELDS
-    assert observer_relative == {"hand"}
+    assert observer_relative == {"hand", "points"}
     assert SPECTATOR_OBSERVATION_FIELDS | observer_relative > PLAYER_OBSERVATION_FIELDS
     assert observer_relative.isdisjoint(SPECTATOR_OBSERVATION_FIELDS)
 

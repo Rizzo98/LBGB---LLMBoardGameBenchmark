@@ -49,6 +49,18 @@ def victory_points(state: CatanState, player: int) -> int:
     )
 
 
+def public_points(state: CatanState, player: int) -> int:
+    """What other players can compute about this player, which is not their true total (FR-16.4).
+
+    A victory-point card is worth a point to its owner and nothing to anybody else until it is
+    revealed, and revealing is not an action - it happens only as a consequence of winning
+    (RULES.md 4.13 item 3). So the public total is the true total less the cards nobody has seen,
+    and the difference between the two numbers is the whole of what makes "who is winning" a
+    question a player has to reason about rather than read off the table.
+    """
+    return victory_points(state, player) - state.dev_cards[player][CARD]
+
+
 def check(state: CatanState) -> tuple[CatanState, list[Event]]:
     """End the game if the player to move has reached the target (RULES.md 4.13 items 4 to 6).
 

@@ -26,6 +26,7 @@ from collections.abc import Callable
 from typing import Final
 
 from lgbg.core.types import JsonValue, Observation, PlayerId
+from lgbg.games.catan.rules import victory
 from lgbg.games.catan.state import NO_OWNER, RESOURCE_ORDER, CatanState
 
 Projector = Callable[[CatanState], JsonValue]
@@ -143,7 +144,29 @@ def _own_hand(state: CatanState, player: PlayerId) -> JsonValue:
     }
 
 
-OBSERVER_FIELDS: Final[tuple[tuple[str, ObserverProjector], ...]] = (("hand", _own_hand),)
+def _points(state: CatanState, player: PlayerId) -> JsonValue:
+    """Every player's score: the observer's exact, everybody else's as far as it can be computed.
+
+    A player can always count their own victory-point cards and can never see anybody else's
+    (FR-16.4), so this is the one field whose answer depends on both who is asking and which seat
+    it is about.
+    """
+    if not 0 <= player < state.players:
+        return None
+    return {
+        str(seat): (
+            victory.victory_points(state, seat)
+            if seat == player
+            else victory.public_points(state, seat)
+        )
+        for seat in range(state.players)
+    }
+
+
+OBSERVER_FIELDS: Final[tuple[tuple[str, ObserverProjector], ...]] = (
+    ("hand", _own_hand),
+    ("points", _points),
+)
 """The fields whose answer depends on *who is asking*.
 
 An observer-relative field is not in the spectator's view at all, which is why the spectator's

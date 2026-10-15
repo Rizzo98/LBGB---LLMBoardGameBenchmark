@@ -39,19 +39,6 @@
 
 
 
-### K-049 · Model port access
-
-  - tags: [slice-6, trading, board, fr-14]
-  - priority: medium
-  - workload: Normal
-  - steps:
-      - [ ] A player's available exchange ratios are derived from their coastal settlements and the board's port placement
-      - [ ] The derivation is computed, not authored
-    ```md
-    - **Cuts through:** board ports, topology, a player's coastal settlements, action_domains
-    - **Depends on:** K-032, K-013
-    - **PRD:** FR-14.1
-    ```
 
 ### K-050 · Implement maritime trade
 
@@ -1361,4 +1348,24 @@
     - **It is also the fixture where hidden points matter most.** Every intermediate state is rendered for every seat, and each view is asserted to carry `points` - the score that seat can compute - while none of them carries `dev_cards`. With fifteen cards moving through four hands and four points of the winner's ten coming from cards, that is no longer a hypothetical projection rule.
     - **The generator needed a policy, not just a seed.** The three earlier generators never bought a card; this one buys when the points are affordable, plays a knight when it has one, and chooses the progress cards *from what the engine offers*, because the bank limits what a Year of Plenty may take and the offer already knows it - the first version built the choice by hand and was refused at the table.
     - **No older fixture moved:** the state encoding has not changed since catan-rules-6, so games 1 to 3 keep their pinned hashes and only this one's are new.
+    ```
+
+### K-049 · Model port access
+
+  - tags: [slice-6, trading, board, fr-14]
+  - priority: medium
+  - workload: Normal
+  - steps:
+      - [x] A player's available exchange ratios are derived from their coastal settlements and the board's port placement
+      - [x] The derivation is computed, not authored
+    ```md
+    - **Cuts through:** board ports, topology, a player's coastal settlements, action_domains
+    - **Depends on:** K-032, K-013
+    - **PRD:** FR-14.1
+    - **Evidence:** lgbg/games/catan/rules/trading.py (`controls`, `port_edges`, `ratios`, `ratio`, `GENERAL`), tests/games/test_catan_ports.py (10 tests).
+    - **This is the module RULES.md 7's table gives to maritime trade**, and the card is its first half: a harbour is not a property of the board but of a *player's position* on it, so what the rule needs is a derivation rather than a table. `port_edges` asks the board which edges carry a harbour and the board's topology which intersections that edge has, and answers with the ones this player has built on - settlement or city, since the rules say either controls a harbour.
+    - **The derivation is recomputed independently in the test**, the long way round, and the two must agree: for each port, walk its two vertices, ask whether the player has a building there, and take the minimum ratio that applies. A function asserted against itself proves nothing, which is why the K-030 price table and the K-035 candidate set are checked the same way.
+    - **Both directions of the ownership rule are asserted.** A building of the player's own - settlement or city - gives access; somebody else's building on that harbour gives *them* access and not you (S5: "May I trade via a harbor where an opponent has a settlement? No."). The second is the half implementations forget, because the first is what the rulebook's picture shows.
+    - **The specific harbour's narrowness is asserted as a negative** (S2 Almanac p.9): a 2:1 wood port leaves every other resource at 4:1, *not* at 3:1, and a player who also holds a generic port gets 3:1 for those - so the rule is the minimum of the applicable terms and not "the best port you own".
+    - **No turn or phase condition lives here.** A harbour may be used the turn it is built, so the derivation is a pure function of the board and the buildings; the turn and phase conditions belong to the action (K-050), which is where they will be read.
     ```

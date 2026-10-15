@@ -29,19 +29,6 @@
 
 
 
-### K-039 · Measure performance against NFR-2
-
-  - tags: [slice-4, test, core]
-  - priority: low
-  - workload: Easy
-  - steps:
-      - [ ] Single-game simulation time and replay cost measured and recorded
-      - [ ] If canonical JSON plus SHA-256 is the bottleneck, that finding is written down while it is still cheap to change
-    ```md
-    - **Cuts through:** the full pipeline, the profiler, the hash path
-    - **Depends on:** K-038
-    - **PRD:** NFR-2, risk R8
-    ```
 
 ### K-040 · Implement the development deck, shuffle and purchase
 
@@ -1283,4 +1270,25 @@
     - **The CLI is exercised, not just the renderer** (the card asks for a legible rendering): the test runs `replay --print-states --compact` over the committed record through `main`, and asserts the output contains the board and the terminal phase. The renderer is separately swept over every one of the 744 states, for the table and for each player.
     - **The terminal totals are recomputed, not trusted**: for every seat, the score in the terminal record is compared to the scoring rule applied to the final position. A record that disagreed with the rules would replay and verify perfectly and still be wrong.
     - **Both earlier fixtures moved with the encoding.** A field added to the state changes every hash, so golden games 1 and 2 were regenerated and their pinned hashes updated in the same change - which is exactly the cost RULES.md 1.2 describes, and the reason the pinning discipline exists.
+    ```
+
+### K-039 · Measure performance against NFR-2
+
+  - tags: [slice-4, test, core]
+  - priority: low
+  - workload: Easy
+  - steps:
+      - [x] Single-game simulation time and replay cost measured and recorded
+      - [x] If canonical JSON plus SHA-256 is the bottleneck, that finding is written down while it is still cheap to change
+    ```md
+    - **Cuts through:** the full pipeline, the profiler, the hash path
+    - **Depends on:** K-038
+    - **PRD:** NFR-2, risk R8
+    - **Evidence:** scripts/benchmark_simulation.py (the instrument), tests/games/test_catan_performance.py (5 regression guards). Measured with ten fuzz games, four players, full logging, on the machine this was written on: median **932 ms per game** over a median of 1209 actions (0.77 ms an action), replay **0.25x** the play, and the whole hash path about **91 ms per game, a tenth of it**.
+    - **NFR-2 is missed, and the number is 19x rather than 2x.** The requirement asks for a four-player game in under 50 ms with the fuzz driver; the measurement is 932 ms. That is a fact about this engine today, recorded rather than explained away, and the useful part is *where* it goes.
+    - **Risk R8 is confirmed for the JSON traversal and not for the digest.** A two-game profile puts `canonical.normalise` first by a wide margin - 2.6 million calls, a third of the total time - with `json.iterencode` and the `isinstance`/enum machinery inside it. SHA-256 itself is noise: `hash_state` on a whole game costs about a tenth of playing it, and the rest of the canonicalisation is the *record* the log writer produces, not the hash. So the risk was named correctly and the fix, when somebody wants the 50 ms, is to make one traversal do the work of the three that happen today (two hashes and one record per action).
+    - **The second cost is the driver, not the rules.** `cProfile` puts the fuzz driver's own `legal_actions` enumeration third (the composition walk that enumerates every discard, 0.9 s over two games). NFR-2 measures the engine *with that driver*, so it belongs in the number, but it is not the engine's per-action path: a driver that knew what it wanted would not pay it.
+    - **Replay is comfortably inside its budget** - a quarter of the play against the 2x the requirement allows - which is the one part of NFR-2 that already holds, and it holds for a reason worth stating: replay re-derives draws and re-applies actions, and it does not write anything.
+    - **The tests assert what does not depend on the machine.** The measured numbers are recorded here and in the script, because an assertion about wall-clock time is an assertion about the computer it runs on. What the test file does assert is the part that would be a *bug* rather than a slow afternoon: a per-action budget with twenty-five times the headroom of the measurement (an accidental quadratic fails it), replay under four times the play, and a `hash_state` call under five milliseconds.
+    - **What to do about it is deliberately not this card.** K-039 asks for a measurement and a written finding, and the finding is that nothing is pathological: the engine is linear in the number of actions, replay is cheap, and the constant factor is a triple traversal that is obvious to a reader and easy to collapse when the budget is taken literally. Writing that down now is the point - it is cheap to change today and will not be once there is a corpus of goldens to regenerate.
     ```

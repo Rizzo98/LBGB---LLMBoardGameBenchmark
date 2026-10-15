@@ -30,6 +30,7 @@ from lgbg.adapters.cli.script import ScriptError, drive, load_script
 from lgbg.core.assist import render_decision
 from lgbg.core.canonical import hash_state, to_canonical_json
 from lgbg.core.config import DEFAULT_PLAYERS, AssistLevel, ConfigError, RunConfig
+from lgbg.core.delta import render_delta
 from lgbg.core.game import Applied, GamePluginError, get_game
 from lgbg.core.log import GOD_LOG_SUFFIX, GameLogReader, LogError
 from lgbg.core.replay import ReplayError, replay, verify
@@ -97,6 +98,11 @@ def build_parser() -> argparse.ArgumentParser:
     replay_command.add_argument("log", help="a .god.jsonl record")
     replay_command.add_argument(
         "--print-states", action="store_true", help="print the state after every action"
+    )
+    replay_command.add_argument(
+        "--delta",
+        action="store_true",
+        help="with --print-states, print only what changed at each step",
     )
     replay_command.add_argument(
         "--compact",
@@ -371,8 +377,15 @@ def _replay(args: argparse.Namespace) -> int:
             f"{record.state_hash_prev} -> {record.state_hash}"
         )
         if args.print_states:
-            print(f"state after seq {record.seq}:")
-            print(game.render(game.observe_spectator(replayed.states[index + 1]), detail=detail))
+            now = game.observe_spectator(replayed.states[index + 1])
+            if args.delta:
+                # A step, not a position (FR-19.4). The comparison is of two projections, so it
+                # is the core's and the CLI still knows nothing about boards.
+                print(f"delta after seq {record.seq}:")
+                print(render_delta(game.observe_spectator(replayed.states[index]), now))
+            else:
+                print(f"state after seq {record.seq}:")
+                print(game.render(now, detail=detail))
     print(
         f"verified {replayed.actions} action(s), {replayed.rejections} rejection(s); "
         f"final hash {replayed.terminal_hash}"

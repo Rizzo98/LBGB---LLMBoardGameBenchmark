@@ -289,6 +289,26 @@ def test_inspect_needs_a_player_to_show_a_decision(
     assert "--player is required" in err
 
 
+def test_the_cli_offers_the_step_as_well_as_the_position(
+    capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
+    """K-060: the third rendering is observable before an agent ever sees it."""
+    script = _catan_draft_script(tmp_path, actions=4)
+    out_dir = tmp_path / "run"
+    assert main(["play", "--script", str(script), "--out", str(out_dir)]) == 0
+    capsys.readouterr()
+    record = str(god_log_path(out_dir, "g-0001"))
+
+    assert main(["replay", record, "--print-states", "--delta"]) == 0
+    steps, _err = _capsys_text(capsys)
+
+    assert "delta after seq 0:" in steps
+    assert "-> " in steps, "a step says what moved"
+    assert main(["replay", record, "--print-states"]) == 0
+    whole, _err = _capsys_text(capsys)
+    assert len(steps.splitlines()) < len(whole.splitlines()), "a step is shorter than a position"
+
+
 def test_play_interactively_applies_actions_from_stdin(
     capsys: pytest.CaptureFixture[str], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

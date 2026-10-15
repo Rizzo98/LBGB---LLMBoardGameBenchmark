@@ -7,21 +7,6 @@
 
 ## Backlog
 
-### K-060 · Add notation detail levels
-
-  - tags: [slice-7, notation, prompts, fr-19]
-  - priority: low
-  - workload: Normal
-  - steps:
-      - [ ] Full, compact and delta-only renderings, all deterministic and stable
-      - [ ] All three consumed by the CLI so their behaviour is observable before an agent ever sees them
-    ```md
-    - **Cuts through:** notation.py, projection, CLI, the prompt
-    - **Depends on:** K-059
-    - **PRD:** FR-19.4
-    - **Why:** How the state is rendered measurably changes model performance, so renderings must be held constant across models. That makes them a first-class artefact, not a debugging convenience.
-    ```
-
 ### K-062 · Declare the benchmark profile
 
   - tags: [slice-8, test, fr-6, sc-13]
@@ -1395,4 +1380,22 @@
     - **Evidence:** lgbg/games/catan/game.py (check_invariants), tests/games/test_catan_invariants.py (4 tests).
     - **Two laws, and now four ways of checking them.** They hold in every position of the recorded corpus (five games, more than a thousand states); they hold after *every* action of two fuzzed games, which is the form a generic harness will use them in (K-064); the checker bites when a position is broken by hand - a card added to a hand without leaving the bank, a road added to a supply without appearing on the board - because an invariant nothing can violate is an invariant nothing checks; and it is a reading rather than a step: the protocol's signature takes a state and nothing else, the answer is the same twice, and the position is unchanged after asking.
     - **The invariants were already declared in the plugin** (K-011's slice, filled in by the building slice); what this card adds is the evidence that they are true of play and sharp enough to catch a lie. The board's order made it the dependency of the rejection-code audit (K-063) and of the fuzz harness, so it is the card that makes those two worth writing.
+    ```
+
+### K-060 · Add notation detail levels
+
+  - tags: [slice-7, notation, prompts, fr-19]
+  - priority: low
+  - workload: Normal
+  - steps:
+      - [x] Full, compact and delta-only renderings, all deterministic and stable
+      - [x] All three consumed by the CLI so their behaviour is observable before an agent ever sees them
+    ```md
+    - **Cuts through:** notation.py, projection, CLI, the prompt
+    - **Depends on:** K-059
+    - **PRD:** FR-19.4
+    - **Evidence:** lgbg/core/delta.py (changed_fields, render_delta), lgbg/adapters/cli/main.py (replay --print-states --delta), tests/core/test_delta.py (5 tests), tests/cli/test_cli.py (1 further test).
+    - **The third rendering is a step, not a position.** Full and compact describe one state; a delta describes the move between two, which is what a reader of a long game wants and what a prompt would show a model already told the position. It reports one line per field that moved, in a fixed order, and a pair that changed nothing renders to the sentence delta: no change rather than to an empty string - the same determinism the other two renderings are held to.
+    - **It lives in the core, and that is the design decision worth recording.** Comparing two projections is game-agnostic by construction: the fields are canonical JSON and the comparison never looks inside one, so the CLI can offer the delta without learning what a board looks like - the rule the other renderings live under, and the one the CLI's own comment about not learning boards states. A field that appears or vanishes counts as moved, which is why the walk is over the union of the two key sets.
+    - **All three are reachable from the command line**, which is the card's second criterion: lgbg replay --print-states prints positions, and --delta prints the steps instead. The CLI test asserts the step output is shorter than the whole, so a delta that quietly became a full rendering would fail.
     ```

@@ -50,6 +50,7 @@ BUILD_SETTLEMENT: Final[str] = "build_settlement"
 BUILD_CITY: Final[str] = "build_city"
 BUY_DEV_CARD: Final[str] = "buy_dev_card"
 PLAY_DEV_CARD: Final[str] = "play_dev_card"
+PLACE_FREE_ROAD: Final[str] = "place_free_road"
 MOVE_ROBBER: Final[str] = "move_robber"
 CHOOSE_ROBBER_VICTIM: Final[str] = "choose_robber_victim"
 """The robber phase's two steps: it moves, and then somebody is robbed (RULES.md 4.9)."""
@@ -367,6 +368,32 @@ def _robber_requests(state: CatanState) -> list[DecisionRequest]:
     ]
 
 
+def _road_building_requests(state: CatanState) -> list[DecisionRequest]:
+    """The free roads the card still owes, one decision at a time (RULES.md 4.4; 5.6 A-6).
+
+    The phase ends when the counter runs out, when the supply does, or when the board offers no
+    legal edge - the three stoppers A-6 item 2 lists - and it is the *request set* that ends it,
+    because an empty set is what makes a phase over.
+    """
+    if state.free_roads < 1 or state.supply[state.turn].roads < 1:
+        return []
+    if not building.road_targets(state, state.turn):
+        return []
+    return [
+        _request(
+            state,
+            state.turn,
+            PLACE_FREE_ROAD,
+            context={"roads_left": state.free_roads},
+        )
+    ]
+
+
+def _after_road_building(state: CatanState) -> Phase:
+    """Where the turn goes when the card is done: the action phase, or back to the roll."""
+    return Phase.TURN_PRODUCTION if state.dice is None else Phase.ACTION
+
+
 def _after_robber(state: CatanState) -> Phase:
     """Where the turn goes on: the action phase, or back to the roll a knight interrupted.
 
@@ -386,6 +413,7 @@ PHASE_RULES: Final[Mapping[Phase, PhaseRule]] = MappingProxyType(
         Phase.ACTION: PhaseRule(_action_requests, None),
         Phase.DISCARD: PhaseRule(_discard_requests, _after_discard),
         Phase.ROBBER: PhaseRule(_robber_requests, _after_robber),
+        Phase.ROAD_BUILDING: PhaseRule(_road_building_requests, _after_road_building),
     }
 )
 """What each implemented phase asks, and where it goes. The rest arrive with their cards."""

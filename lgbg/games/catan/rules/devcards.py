@@ -16,6 +16,7 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping
 from dataclasses import replace
 from types import MappingProxyType
+from typing import Final
 
 from lgbg.core.errors import BAD_PARAMS, NOT_YOUR_DECISION, WRONG_PHASE, Rejection
 from lgbg.core.game import Applied, ApplyResult, Rejected
@@ -65,7 +66,28 @@ def knight_effect(
     return entered, announced
 
 
-EFFECTS: Mapping[DevCard, Effect] = MappingProxyType({DevCard.KNIGHT: knight_effect})
+FREE_ROADS: Final[int] = 2
+"""How many free roads the card owes (RULES.md 5.6 A-6 item 2)."""
+
+
+def road_building_effect(
+    state: CatanState, player: int, rng: RandomSource
+) -> tuple[CatanState, list[Event]]:
+    """Two free roads, one decision at a time (FR-13.5; RULES.md 4.8 and 5.6 A-6).
+
+    The card does not place anything: it opens the sub-phase and records how many placements are
+    owed, and the phase machine asks for them one at a time, so each one is judged against the
+    board the previous one left behind (A-6 item 6). A road that cannot be placed is lost, which
+    is why the counter can end above zero without anything being wrong.
+    """
+    _ = rng
+    entered, announced = phases.begin(replace(state, free_roads=FREE_ROADS), Phase.ROAD_BUILDING)
+    return entered, announced
+
+
+EFFECTS: Mapping[DevCard, Effect] = MappingProxyType(
+    {DevCard.KNIGHT: knight_effect, DevCard.ROAD_BUILDING: road_building_effect}
+)
 """What each playable card does, filled in by the cards that implement them (K-042 to K-046).
 
 A card whose effect is not in here is not playable, and that is deliberate: an action that took a
@@ -95,8 +117,22 @@ def playable_cards(state: CatanState, player: int) -> tuple[DevCard, ...]:
     return tuple(
         card
         for card in PLAYABLE
-        if card in EFFECTS and held[CARD_ORDER.index(card)] > bought[CARD_ORDER.index(card)]
+        if card in EFFECTS
+        and held[CARD_ORDER.index(card)] > bought[CARD_ORDER.index(card)]
+        and _has_somewhere_to_play(state, player, card)
     )
+
+
+def _has_somewhere_to_play(state: CatanState, player: int, card: DevCard) -> bool:
+    """The one card whose playability depends on the board rather than on the hand.
+
+    RULES.md 5.6 A-6 item 1: the Road Building card may be played only when the player has a road
+    left in supply *and* a legal edge to put it on. A card that could not do anything would be an
+    action that took it out of the hand for nothing, and A-6 item 5 says it stays in hand instead.
+    """
+    if card is not DevCard.ROAD_BUILDING:
+        return True
+    return state.supply[player].roads > 0 and bool(building.road_targets(state, player))
 
 
 def play_dev_card(state: CatanState, action: Action, rng: RandomSource) -> ApplyResult:
@@ -171,6 +207,15 @@ def play_dev_card(state: CatanState, action: Action, rng: RandomSource) -> Apply
                 code=CARD_BOUGHT_THIS_TURN,
                 message="a card bought this turn may not be played this turn",
                 details={"player": action.player, "card": card.value, "held": held[index]},
+            )
+        )
+
+    if not _has_somewhere_to_play(state, action.player, card):
+        return Rejected(
+            Rejection(
+                code=CARD_NOT_PLAYABLE,
+                message=f"a {card.value} could not do anything here",
+                details={"card": card.value, "player": action.player},
             )
         )
 

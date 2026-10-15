@@ -18,7 +18,7 @@ from dataclasses import replace
 from types import MappingProxyType
 from typing import Final
 
-from lgbg.core.errors import BAD_PARAMS, Rejection
+from lgbg.core.errors import BAD_PARAMS, NO_SUCH_REQUEST, Rejection
 from lgbg.core.game import Applied, ApplyResult, Rejected
 from lgbg.core.rng import RandomSource
 from lgbg.core.types import Action, Event, JsonValue
@@ -552,6 +552,79 @@ def build_road(state: CatanState, action: Action, rng: RandomSource) -> ApplyRes
         events=[
             spent,
             Event(type="road_built", payload={"player": action.player, "edge": edge}),
+            piece_taken(action.player, ROAD, supply[action.player].roads),
+            *award_events,
+        ],
+    )
+
+
+def place_free_road(state: CatanState, action: Action, rng: RandomSource) -> ApplyResult:
+    """Place one of the Road Building card's free roads (FR-13.5; RULES.md 4.8, 5.6 A-6).
+
+    The constraints are the ones a paid road has - an empty edge, the player's own network, a
+    piece in supply - and the only differences are that nothing is paid and that the turn's
+    counter of free roads goes down. A road that cannot be placed is lost rather than refused,
+    which is why the phase stops asking instead of complaining.
+    """
+    del rng
+    refusal = phases.refuse_unless_acting(state, action, Phase.ROAD_BUILDING)
+    if refusal is not None:
+        return refusal
+    if state.free_roads < 1:
+        return Rejected(
+            Rejection(
+                code=NO_SUCH_REQUEST,
+                message="no free road is being placed",
+                details={"free_roads": state.free_roads, "phase": state.phase.value},
+            )
+        )
+    edge = _edge(action, len(state.placed.roads))
+    if isinstance(edge, Rejected):
+        return edge
+    if state.supply[action.player].roads < 1:
+        return Rejected(
+            Rejection(
+                code=NO_PIECES_REMAINING,
+                message="every road this player has is already on the board",
+                details={"player": action.player, "piece": ROAD},
+            )
+        )
+    if state.placed.roads[edge] != NO_OWNER:
+        return Rejected(
+            Rejection(
+                code=EDGE_OCCUPIED,
+                message="that edge already carries a road",
+                details={"edge": edge, "owner": state.placed.roads[edge]},
+            )
+        )
+    points = connection_points(state, action.player)
+    if not any(vertex in points for vertex in state.board.topology.vertices_of_edge(edge)):
+        return Rejected(
+            Rejection(
+                code=NOT_CONNECTED,
+                message="a road must extend the player's own network",
+                details={
+                    "edge": edge,
+                    "touches": list(state.board.topology.vertices_of_edge(edge)),
+                    "network": sorted(points),
+                },
+            )
+        )
+
+    lines = list(state.placed.roads)
+    lines[edge] = action.player
+    supply = spend_piece(state.supply, action.player, ROADS)
+    built = replace(
+        state,
+        placed=Placed(state.placed.settlements, state.placed.cities, tuple(lines)),
+        supply=supply,
+        free_roads=state.free_roads - 1,
+    )
+    awarded, award_events = longest_road.recompute(built)
+    return Applied(
+        state=awarded,
+        events=[
+            Event(type="road_built", payload={"player": action.player, "edge": edge, "free": True}),
             piece_taken(action.player, ROAD, supply[action.player].roads),
             *award_events,
         ],

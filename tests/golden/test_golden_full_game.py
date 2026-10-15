@@ -34,8 +34,8 @@ REPO_ROOT: Final[Path] = Path(__file__).resolve().parents[2]
 SCRIPT: Final[Path] = REPO_ROOT / "tests" / "fixtures" / "catan" / "full_game.json"
 RECORD: Final[Path] = REPO_ROOT / "tests" / "golden" / "catan" / "full_game.god.jsonl"
 
-INITIAL_STATE_HASH: Final[str] = "bc9a9cef2413019d"
-FINAL_STATE_HASH: Final[str] = "808fcbb962cd15e2"
+INITIAL_STATE_HASH: Final[str] = "77dc715bc5abf370"
+FINAL_STATE_HASH: Final[str] = "e57e23d3c4839159"
 ACTIONS: Final[int] = 743
 ROUNDS: Final[int] = 68
 WINNER: Final[int] = 0
@@ -206,7 +206,7 @@ def test_the_record_carries_the_versions_it_was_produced_under() -> None:
     header = _log().header
 
     assert header.game == "catan"
-    assert header.rules_version == "catan-rules-5"
+    assert header.rules_version == "catan-rules-6"
     assert header.schema_version == "catan-actions-1"
     assert header.schema == "lgbg.game.v1"
     assert header.engine_version

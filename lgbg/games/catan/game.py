@@ -69,7 +69,7 @@ from lgbg.games.catan.state import (
     initial_state,
 )
 
-RULES_VERSION: Final[str] = "catan-rules-5"
+RULES_VERSION: Final[str] = "catan-rules-6"
 """Bumped whenever a pinned rule changes (RULES.md section 1.2), which invalidates the corpus.
 
 Also bumped when the engine is corrected to a rule the document already pinned and the encoded
@@ -97,6 +97,7 @@ ACTIONS: Final[dict[str, RuleFunction]] = {
     phases.BUILD_CITY: building.build_city,
     phases.BUY_DEV_CARD: devcards.buy_dev_card,
     phases.PLAY_DEV_CARD: devcards.play_dev_card,
+    phases.PLACE_FREE_ROAD: building.place_free_road,
     phases.MOVE_ROBBER: robber.move_robber,
     phases.CHOOSE_ROBBER_VICTIM: robber.choose_robber_victim,
 }
@@ -233,6 +234,12 @@ class CatanGame:
             phases.ROLL_DICE: _no_parameters(),
             phases.END_TURN: _no_parameters(),
             phases.DISCARD_RESOURCES: _resource_counts(),
+            phases.PLACE_FREE_ROAD: {
+                "type": "object",
+                "properties": {"edge": {"type": "integer", "minimum": 0, "maximum": 71}},
+                "required": ["edge"],
+                "additionalProperties": False,
+            },
             phases.BUILD_ROAD: {
                 "type": "object",
                 "properties": {"edge": {"type": "integer", "minimum": 0, "maximum": 71}},
@@ -434,6 +441,7 @@ PARAMETER: Final[Mapping[str, str]] = MappingProxyType(
         phases.PLACE_SETTLEMENT: "vertex",
         phases.PLACE_ROAD: "edge",
         phases.BUILD_ROAD: "edge",
+        phases.PLACE_FREE_ROAD: "edge",
         phases.BUILD_SETTLEMENT: "vertex",
         phases.BUILD_CITY: "vertex",
         phases.MOVE_ROBBER: "hex",
@@ -471,7 +479,7 @@ def _targets(state: CatanState, player: int, name: str) -> list[int]:
         return _legal_settlement_vertices(state)
     if name == phases.PLACE_ROAD:
         return _legal_setup_road_edges(state)
-    if name == phases.BUILD_ROAD:
+    if name in (phases.BUILD_ROAD, phases.PLACE_FREE_ROAD):
         return list(building.road_targets(state, player))
     if name == phases.BUILD_SETTLEMENT:
         return list(building.settlement_targets(state, player))

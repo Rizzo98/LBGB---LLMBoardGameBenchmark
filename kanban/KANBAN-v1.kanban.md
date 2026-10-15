@@ -33,19 +33,6 @@
 
 
 
-### K-043 · Implement the Road Building card
-
-  - tags: [slice-5, devcards, building, fr-13]
-  - priority: medium
-  - workload: Normal
-  - steps:
-      - [ ] Two free roads placed through the normal road constraints
-      - [ ] When fewer than two roads remain in supply, the shortfall follows the behaviour pinned in RULES.md, with a test
-    ```md
-    - **Cuts through:** rules/devcards, road building, piece supply
-    - **Depends on:** K-041, K-031
-    - **PRD:** FR-13.5
-    ```
 
 ### K-044 · Implement the Year of Plenty card
 
@@ -1318,4 +1305,26 @@
     - **The count accumulates across turns**, which is what Largest Army will read (K-047): played knights stay face up for the rest of the game, and there is no way back. The test plays one knight, resolves the flow, ends the turn, and plays another on the next turn.
     - **The knight is the only card offered, and the test says so.** With a knight and a Year of Plenty in hand, the offer is `[knight]` - the progress card has no effect yet, so it is not playable, which is K-041's rule doing its job one card later. The K-041 test that asserted "nothing is playable" while the table was empty has been rewritten to the same statement in its current form: the cards whose effect exists are playable, and the ones whose effect has not landed are refused with `CARD_NOT_PLAYABLE`.
     - **What arrives next:** the three progress cards (K-043 to K-046), each of which slots into the same `EFFECTS` table.
+    ```
+
+### K-043 · Implement the Road Building card
+
+  - tags: [slice-5, devcards, building, fr-13]
+  - priority: medium
+  - workload: Normal
+  - steps:
+      - [x] Two free roads placed through the normal road constraints
+      - [x] When fewer than two roads remain in supply, the shortfall follows the behaviour pinned in RULES.md, with a test
+    ```md
+    - **Cuts through:** rules/devcards, road building, piece supply
+    - **Depends on:** K-041, K-031
+    - **PRD:** FR-13.5
+    - **Evidence:** lgbg/games/catan/rules/devcards.py (`road_building_effect`), lgbg/games/catan/phases.py (`_road_building_requests`), lgbg/games/catan/rules/building.py (`place_free_road`), lgbg/games/catan/state.py (`free_roads`), tests/games/test_catan_road_building.py (11 tests).
+    - **The phase has a counter, not a marker, and that cost a rules_version.** The robber's two steps needed only "has this one happened"; a card that hands out *two* roads needs "how many are left", or the phase rule - which reads only the state - would ask for a third road. `free_roads` is that counter, `rules_version` went to `catan-rules-6`, RULES.md 1.2 records the reason, and all three golden fixtures were regenerated. RULES.md 5.6 A-6 item 2 is then almost literally the request set: ask while the counter, the supply and the board all still allow it.
+    - **A free road obeys every rule a paid one does, and only the price differs.** `place_free_road` runs the same checks as `build_road` - an empty edge, the player's own network, a piece in supply - and the test asserts the refusal for an edge that is not connected, because "free" is easy to read as "unconstrained". A free road also counts for the fifteen and for Longest Road: it goes through the same `recompute` the paid road does.
+    - **The shortfall is the pinned behaviour, and it is *silence* rather than an error** (A-6 items 3 and 4): one road in supply, two owed, one placed, and the phase simply stops asking - the card is spent either way and the second road is lost. The test asserts the counter is still 1, the phase has closed, and the card has left the hand.
+    - **The second road is judged against the board the first one made** (A-6 item 6), which the test shows by asserting the target set has changed and that the edge just built is no longer among the targets.
+    - **The card is the first whose playability depends on the board rather than the hand** (A-6 item 1): with no road in supply or nowhere legal to build, it stays in hand and is refused with `CARD_NOT_PLAYABLE`. Writing that test found a real inconsistency - `play_dev_card` was accepting the card while `playable_cards` was not offering it - which is the FR-17.5 promise broken from the inside: an enumeration a driver trusts may not be a lie. The rule now consults the same predicate.
+    - **The refusals kept their specific reasons.** Adding that guard in the wrong place made every refusal `CARD_NOT_PLAYABLE` and swallowed `ONE_CARD_PER_TURN` and `CARD_BOUGHT_THIS_TURN`; K-041's tests caught it, and the board-dependent check now sits after the hand and turn checks rather than in front of them.
+    - **One older test had to move with the rule:** `test_a_closed_phase_whose_transition_has_not_landed_is_reported` used `road_building` as its example of a phase whose card has not landed. It has now landed, so the test uses `trade_response`, which is the last one still waiting for its card.
     ```

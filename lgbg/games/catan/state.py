@@ -192,6 +192,14 @@ class CatanState:
     longest_road: int
     largest_army: int
     robber: int
+    free_roads: int
+    """How many free roads the Road Building card still owes, or 0 when no card is running.
+
+    A phase rule sees only the state, so a phase that hands out *several* things needs a counter
+    rather than a marker: the robber's two steps need only "has this one happened", and the two
+    free roads need "how many are left". The card opens the phase with two, each placement takes
+    one, and the phase ends when the counter, the supply or the board says so (RULES.md 5.6 A-6).
+    """
     robber_stolen_at: int
     """The `phase_index` in which the robber phase's second step was resolved, or `NO_OWNER`.
 
@@ -244,6 +252,7 @@ def initial_state(board: Board, *, players: int, rng: RandomSource) -> CatanStat
         robber=board.desert_hex,
         robber_moved_at=NO_OWNER,
         robber_stolen_at=NO_OWNER,
+        free_roads=0,
         dice=None,
     )
 
@@ -273,6 +282,7 @@ def encode_state(state: CatanState) -> JsonValue:
         "robber": state.robber,
         "robber_moved_at": state.robber_moved_at,
         "robber_stolen_at": state.robber_stolen_at,
+        "free_roads": state.free_roads,
         "round": state.round,
         "supply": [[item.roads, item.settlements, item.cities] for item in state.supply],
         "turn": state.turn,
@@ -313,6 +323,7 @@ def decode_state(blob: JsonValue) -> CatanState:
         robber=_integer(fields, "robber", "state"),
         robber_moved_at=_integer(fields, "robber_moved_at", "state"),
         robber_stolen_at=_integer(fields, "robber_stolen_at", "state"),
+        free_roads=_integer(fields, "free_roads", "state"),
         dice=None if dice is None else _pair(dice, "state.dice"),
     )
 

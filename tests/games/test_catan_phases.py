@@ -191,9 +191,9 @@ def test_a_phase_that_closes_the_moment_it_opens_closes_in_the_same_action() -> 
 
 def test_a_closed_phase_whose_transition_has_not_landed_is_reported() -> None:
     """A phase nobody has implemented is where the machine waits, loudly, not silently."""
-    state = replace(_opening(), phase=Phase.ROAD_BUILDING)
+    state = replace(_opening(), phase=Phase.TRADE_RESPONSE)
 
-    with pytest.raises(PhaseError, match="road_building"):
+    with pytest.raises(PhaseError, match="trade_response"):
         advance(state)
 
 

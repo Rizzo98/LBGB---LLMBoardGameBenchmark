@@ -25,25 +25,6 @@
 
 
 
-### K-035 · Implement Longest Road and award transfer rules
-
-  - tags: [slice-4, rules, victory, fr-13, sc-11]
-  - priority: high
-  - workload: Extreme
-  - defaultExpanded: true
-  - steps:
-      - [ ] Exhaustive simple-path search; never a heuristic or greedy approximation
-      - [ ] Minimum 5 continuous roads
-      - [ ] Broken by opposing settlements or cities
-      - [ ] Ties vacate the award; re-acquisition handled per RULES.md
-      - [ ] Dedicated test matrix covering branching, breaking, tying and re-acquisition
-      - [ ] 100 percent coverage on longest_road.py
-    ```md
-    - **Cuts through:** rules/longest_road, topology, victory accounting, projection, events
-    - **Depends on:** K-031
-    - **PRD:** FR-13.9, FR-13.10, SC-11
-    - **Why:** Pulled forward out of milestone M6 deliberately. Settlements and cities alone cap at 9 VP, so without an award slice 4 cannot end with a winnable game. Classic bug magnet: breadth is not length, and an opposing settlement truncates a path.
-    ```
 
 ### K-036 · Implement victory accounting and win detection
 
@@ -1252,4 +1233,30 @@
     - **Purity is asserted in the strongest form available**: neither function takes a source of randomness at all - the test reads their signatures - and calling either twice gives the same answer with the encoded state unchanged (FR-17.6).
     - **Completeness is asserted over a whole recorded game**, not one convenient position: the test replays golden game 2 and applies *every* action the surface offers at *every* step, asserting each is accepted - more than a hundred checks. FR-17.5 is a promise about the enumeration, and a promise is only worth as much as the range it was tested over; the failures that matter are at the steps nobody wrote a fixture for. The same test file checks the converse on a rich position: a road on an occupied edge, a settlement one vertex too close, an upgrade of a vertex nobody built on, an action type the game does not have and an action by a seat that is not to move are all refused.
     - **The schema cannot drift from the implementation** (FR-18.1, FR-18.5): `set(action_schema()) == set(ACTIONS)`, and every action type the enumeration or the domains produce is a key of the schema.
+    ```
+
+### K-035 · Implement Longest Road and award transfer rules
+
+  - tags: [slice-4, rules, victory, fr-13, sc-11]
+  - priority: high
+  - workload: Extreme
+  - defaultExpanded: true
+  - steps:
+      - [x] Exhaustive simple-path search; never a heuristic or greedy approximation
+      - [x] Minimum 5 continuous roads
+      - [x] Broken by opposing settlements or cities
+      - [x] Ties vacate the award; re-acquisition handled per RULES.md
+      - [x] Dedicated test matrix covering branching, breaking, tying and re-acquisition
+      - [x] 100 percent coverage on longest_road.py
+    ```md
+    - **Cuts through:** rules/longest_road, topology, victory accounting, projection, events
+    - **Depends on:** K-031
+    - **PRD:** FR-13.9, FR-13.10, SC-11
+    - **Why:** Pulled forward out of milestone M6 deliberately. Settlements and cities alone cap at 9 VP, so without an award slice 4 cannot end with a winnable game. Classic bug magnet: breadth is not length, and an opposing settlement truncates a path.
+    - **Evidence:** lgbg/games/catan/rules/longest_road.py (`road_length`, `holder`, `recompute`), wired into `build_road`, `build_settlement` and `build_city`; tests/games/test_catan_longest_road.py (14 tests). Measured with `coverage run --source=lgbg`: 58 statements, 0 missed, **100 percent** on the module.
+    - **The search is the rulebook's definition and nothing else** (FR-13.10): a continuous road is a simple path *or* a simple cycle, so the walk is a depth-first enumeration of every simple road with two endings - an edge back to the start closes a cycle, and a vertex already on the walk cannot be visited twice. RULES.md 4.10 item 4 forbids a greedy or approximate computation, so there is no shortcut here: the branching a fifteen-road network has is small, and being wrong about a two-point award is worse than being slow about it.
+    - **The matrix is the six ways this rule is usually got wrong.** A T of six roads is a longest road of *four*, not six - breadth is not length, and it is the assertion the classic implementation fails. An opponent's settlement truncates a path, and so does an opponent's city, but a player's *own* building does not and another player's *road* does not: a building of another colour ends the road, a road of another colour is simply not part of it. A loop counts its whole length, which is why the enumeration starts from every vertex rather than from a leaf. And the card is held by a player, not owned by the board, so a tie has two different answers depending on who holds it.
+    - **Recomputation happens where the rules say it does** (item 6, "after every state transition"), which in practice means the transitions that can change a road or break one: building a road, and building a settlement or a city. The settlement case is the one worth naming - a settlement placed in the middle of somebody's road is exactly how a Longest Road is broken, so the recomputation runs there too and the test drives it through `apply` on another player's turn (items 7 and 8: automatic, and not only on the holder's turn).
+    - **The fixtures walk the board rather than naming edge numbers**, so a test that says "a line of six" is a line of six on whatever board the plugin ships, and the T is found by searching for a junction that genuinely has three free branches of two. That cost three fixture bugs and one hang while the card was written, all of them in the *tests* - which is where the mistakes should be when a rule is this easy to state and this easy to get subtly wrong.
+    - **What this card does not do:** the two points the card is worth are not yet counted. `victory_points` still reports settlements and cities only, and the award's value is declared here (`longest_road.VALUE`) for K-036 to add, with the accounting and the win detection that go with it.
     ```

@@ -33,6 +33,7 @@ from lgbg.games.catan.rejections import (
     TOO_CLOSE,
     VERTEX_OCCUPIED,
 )
+from lgbg.games.catan.rules import longest_road
 from lgbg.games.catan.state import NO_OWNER, RESOURCE_ORDER, CatanState, Phase, Placed, Supply
 
 ROAD: Final[str] = "road"
@@ -287,12 +288,17 @@ def build_settlement(state: CatanState, action: Action, rng: RandomSource) -> Ap
     sites = list(built.placed.settlements)
     sites[vertex] = action.player
     supply = spend_piece(built.supply, action.player, SETTLEMENTS)
+    built = replace(
+        built,
+        placed=Placed(tuple(sites), built.placed.cities, built.placed.roads),
+        supply=supply,
+    )
+    # A settlement of somebody else's can cut an opponent's road in half, so the award is
+    # recomputed here too - the card follows the roads, and this is a way of changing them
+    # (RULES.md 4.10 items 7 and 8).
+    awarded, award_events = longest_road.recompute(built)
     return Applied(
-        state=replace(
-            built,
-            placed=Placed(tuple(sites), built.placed.cities, built.placed.roads),
-            supply=supply,
-        ),
+        state=awarded,
         events=[
             spent,
             Event(
@@ -307,6 +313,7 @@ def build_settlement(state: CatanState, action: Action, rng: RandomSource) -> Ap
                 },
             ),
             piece_taken(action.player, SETTLEMENT, supply[action.player].settlements),
+            *award_events,
         ],
     )
 
@@ -370,12 +377,14 @@ def build_city(state: CatanState, action: Action, rng: RandomSource) -> ApplyRes
     supply = return_piece(
         spend_piece(built.supply, action.player, CITIES), action.player, SETTLEMENTS
     )
+    built = replace(
+        built,
+        placed=Placed(tuple(sites), tuple(towns), built.placed.roads),
+        supply=supply,
+    )
+    awarded, award_events = longest_road.recompute(built)
     return Applied(
-        state=replace(
-            built,
-            placed=Placed(tuple(sites), tuple(towns), built.placed.roads),
-            supply=supply,
-        ),
+        state=awarded,
         events=[
             spent,
             Event(
@@ -391,6 +400,7 @@ def build_city(state: CatanState, action: Action, rng: RandomSource) -> ApplyRes
             ),
             piece_taken(action.player, CITY, supply[action.player].cities),
             piece_returned(action.player, SETTLEMENT, supply[action.player].settlements),
+            *award_events,
         ],
     )
 
@@ -531,16 +541,19 @@ def build_road(state: CatanState, action: Action, rng: RandomSource) -> ApplyRes
     lines = list(built.placed.roads)
     lines[edge] = action.player
     supply = spend_piece(built.supply, action.player, ROADS)
+    built = replace(
+        built,
+        placed=Placed(built.placed.settlements, built.placed.cities, tuple(lines)),
+        supply=supply,
+    )
+    awarded, award_events = longest_road.recompute(built)
     return Applied(
-        state=replace(
-            built,
-            placed=Placed(built.placed.settlements, built.placed.cities, tuple(lines)),
-            supply=supply,
-        ),
+        state=awarded,
         events=[
             spent,
             Event(type="road_built", payload={"player": action.player, "edge": edge}),
             piece_taken(action.player, ROAD, supply[action.player].roads),
+            *award_events,
         ],
     )
 

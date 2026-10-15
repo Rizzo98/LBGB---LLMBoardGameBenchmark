@@ -37,20 +37,6 @@
 
 
 
-### K-047 · Implement Largest Army
-
-  - tags: [slice-5, devcards, victory, fr-13]
-  - priority: medium
-  - workload: Normal
-  - steps:
-      - [ ] First to 3 played knights holds the award
-      - [ ] Transfer and vacate-on-tie per RULES.md
-      - [ ] Behaviour is symmetric with Longest Road and tested the same way
-    ```md
-    - **Cuts through:** rules/devcards, victory accounting, award transfer, projection
-    - **Depends on:** K-042
-    - **PRD:** FR-13.9
-    ```
 
 ### K-048 · Commit golden game 4: a development-card-driven win
 
@@ -1347,4 +1333,25 @@
     - **It is the second observer-relative field**, beside the observer's own hand, and the two behave the same way: neither is in the spectator's view, because the spectator has every hand and needs no per-observer score. Both the account of the player's view and the spectator-superset assertion were updated to say so.
     - **The leak test is K-028's, applied to a number rather than a hand.** Two positions that differ only in how many hidden cards one seat holds must project identically for every observer who is not entitled to see them - one card and four produce the same view for the other three seats - with the owner and the spectator as the controls that the two positions really are different. It is repeated through the renderer in both details, because a projection that is clean and a renderer that prints the truth anyway is still a leak.
     - **The last test is the one the card is really about:** the field is in the view that has an observer and not in the spectator's, and the spectator keeps `dev_cards`. That is the asymmetry the PRD's Why names - "who is leading" is indeterminate from any player's view - and it is now a property with a test rather than a consequence nobody checked.
+    ```
+
+### K-047 · Implement Largest Army
+
+  - tags: [slice-5, devcards, victory, fr-13]
+  - priority: medium
+  - workload: Normal
+  - steps:
+      - [x] First to 3 played knights holds the award
+      - [x] Transfer and vacate-on-tie per RULES.md
+      - [x] Behaviour is symmetric with Longest Road and tested the same way
+    ```md
+    - **Cuts through:** rules/devcards, victory accounting, award transfer, projection
+    - **Depends on:** K-042
+    - **PRD:** FR-13.9
+    - **Evidence:** lgbg/games/catan/rules/victory.py (`largest_army_holder`, `recompute_awards`, `ARMY`), lgbg/games/catan/rules/devcards.py (the knight recomputes it), tests/games/test_catan_largest_army.py (8 tests).
+    - **It is Longest Road's algorithm pointed at a different number**, and the tests are deliberately the same tests: a threshold checked on both sides, a single leader taking the card, a tie leaving it with the incumbent, and the transfer happening inside somebody else's action. The two awards are the only places the engine hands out points without a build, so they are the two places a difference between them would be a bug in one of them.
+    - **The one thing that differs is worth stating:** the count only ever goes up, because a played knight never leaves play - that is why the rules say the "unheld after a tie" branch is unreachable here. It is implemented and tested anyway, because it is the shared algorithm and a rule that is skipped is a rule nobody can check. The test that asserts it is written as what it is: an incumbent who is not among the tied players.
+    - **Only played knights count** (item 2), so a hand holding five of them is worth nothing, and a knight bought this turn cannot have been played. The test asserts both halves: an empty count beside five cards in hand.
+    - **The recomputation is wired where the count changes** - the knight's own effect, which is the only thing in the game that increments it. The third knight therefore awards the card *in the same action*, and the test checks that the robber flow still runs afterwards, because the effect does two things and neither may swallow the other.
+    - **No action takes an award** (item 4): the engine puts the card where the counts say, and the schema is asserted not to contain anything like a claim.
     ```

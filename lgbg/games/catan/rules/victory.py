@@ -15,6 +15,7 @@ rolling a die.
 
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import Final
 
 from lgbg.core.types import Event
@@ -22,6 +23,9 @@ from lgbg.games.catan import phases
 from lgbg.games.catan.state import CARD_ORDER, NO_OWNER, CatanState, DevCard, Phase
 
 TARGET: Final[int] = 10
+
+ARMY: Final[int] = 3
+"""How many played knights the Largest Army card requires (RULES.md 4.11 item 3)."""
 """The number of victory points that ends the game (RULES.md 4.13 item 4)."""
 
 POINTS: Final[dict[str, int]] = {
@@ -46,6 +50,51 @@ def victory_points(state: CatanState, player: int) -> int:
         + state.dev_cards[player][CARD] * POINTS[DevCard.VICTORY_POINT.value]
         + (POINTS["longest_road"] if state.longest_road == player else 0)
         + (POINTS["largest_army"] if state.largest_army == player else 0)
+    )
+
+
+def largest_army_holder(state: CatanState) -> int:
+    """Who holds the Largest Army card, by the algorithm Longest Road also uses (RULES.md 4.11).
+
+    The count is the number of knights a player has *played*, which never goes down: played
+    knights stay face up for the rest of the game. That is why the rules can say the "unheld
+    after a tie" branch is unreachable here - whoever holds the card has at least three knights
+    and can never lose them - and the branch is implemented anyway, because it is the shared
+    algorithm and a rule that is skipped is a rule nobody can test.
+    """
+    counts = {player: state.knights_played[player] for player in range(state.players)}
+    best = max(counts.values(), default=0)
+    if best < ARMY:
+        return NO_OWNER
+    tied = sorted(player for player, count in counts.items() if count == best)
+    if len(tied) == 1:
+        return tied[0]
+    return state.largest_army if state.largest_army in tied else NO_OWNER
+
+
+def recompute_awards(state: CatanState) -> tuple[CatanState, list[Event]]:
+    """Award, keep or revoke Largest Army, saying so when it moves (RULES.md 4.11 item 4).
+
+    Longest Road recomputes itself from the road builder, because every road changes it. Largest
+    Army is recomputed from the knight, for the same reason, and both are recomputed rather than
+    claimed: no action exists for taking an award.
+    """
+    awarded = largest_army_holder(state)
+    if awarded == state.largest_army:
+        return state, []
+    if awarded == NO_OWNER:
+        return (
+            replace(state, largest_army=NO_OWNER),
+            [Event(type="largest_army_vacated", payload={"player": state.largest_army})],
+        )
+    return (
+        replace(state, largest_army=awarded),
+        [
+            Event(
+                type="largest_army_awarded",
+                payload={"player": awarded, "knights": state.knights_played[awarded]},
+            )
+        ],
     )
 
 

@@ -32,7 +32,7 @@ from lgbg.games.catan.rejections import (
     NO_DEV_CARDS_REMAINING,
     ONE_CARD_PER_TURN,
 )
-from lgbg.games.catan.rules import building
+from lgbg.games.catan.rules import building, victory
 from lgbg.games.catan.state import CARD_ORDER, RESOURCE_ORDER, CatanState, DevCard, Phase
 
 Effect = Callable[[CatanState, Action, RandomSource], tuple[CatanState, list[Event]]]
@@ -74,9 +74,12 @@ def knight_effect(
     played = list(state.knights_played)
     played[player] += 1
     with_knight = replace(state, knights_played=tuple(played))
-    entered, announced = phases.begin(with_knight, Phase.ROBBER)
+    # The count is what Largest Army is computed from, so the award is recomputed here, in the
+    # same action that changed it (RULES.md 4.11 item 4).
+    awarded, award_events = victory.recompute_awards(with_knight)
+    entered, announced = phases.begin(awarded, Phase.ROBBER)
     _ = rng  # the robber flow draws when it steals, not here
-    return entered, announced
+    return entered, [*award_events, *announced]
 
 
 FREE_ROADS: Final[int] = 2

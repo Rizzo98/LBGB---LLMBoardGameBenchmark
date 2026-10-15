@@ -54,6 +54,7 @@ from lgbg.games.catan.board.generation import (
     board_from_selector,
 )
 from lgbg.games.catan.notation import Detail
+from lgbg.games.catan.observation_schema import observation_schema as declared_observation_schema
 from lgbg.games.catan.projection import observe as project
 from lgbg.games.catan.projection import observe_spectator as project_spectator
 from lgbg.games.catan.rejections import DECLARED_CODES
@@ -322,33 +323,8 @@ class CatanGame:
         }
 
     def observation_schema(self) -> JsonSchema:
-        return {
-            "type": "object",
-            "required": [
-                "awards",
-                "bank",
-                "board",
-                "hand_counts",
-                "phase",
-                "pieces",
-                "robber",
-                "supply",
-                "turn",
-            ],
-            "additionalProperties": True,
-            "properties": {
-                "hand": {
-                    "type": ["object", "null"],
-                    "description": "the observer's own hand, exact; absent for the spectator, "
-                    "which sees every hand as 'hands'",
-                },
-                "hand_counts": {
-                    "type": "array",
-                    "items": {"type": "integer", "minimum": 0},
-                    "description": "how many resource cards each seat holds, in seat order",
-                },
-            },
-        }
+        """Both projections, described in full (FR-18.3): see observation_schema.py."""
+        return declared_observation_schema()
 
     def rejection_codes(self) -> list[RejectionCode]:
         return list(DECLARED_CODES)

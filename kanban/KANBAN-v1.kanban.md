@@ -7,20 +7,6 @@
 
 ## Backlog
 
-### K-057 · Declare observation_schema
-
-  - tags: [slice-7, schemas, projection, fr-18]
-  - priority: medium
-  - workload: Normal
-  - steps:
-      - [ ] Describes the projection shape
-      - [ ] Every observation produced during a game validates against it
-    ```md
-    - **Cuts through:** observation_schema.py, projection, serialisation
-    - **Depends on:** K-056
-    - **PRD:** FR-18.3, FR-16.8
-    ```
-
 ### K-058 · Generate tool definitions from the declared schemas
 
   - tags: [slice-7, schemas, test, fr-18]
@@ -1380,4 +1366,24 @@
     - **Before rule logic is asserted with a spy, not with a comment.** The build_road rule is replaced by a wrapper that records its calls; a malformed action is refused with BAD_PARAMS and the wrapper is never called, and the position is untouched. That is FR-18.2 as a fact about the code path rather than a description of the design.
     - **The surface is checked from three directions.** The five committed records are read back through the schema - 1876 actions, none outside it; three fuzzed games validate *every action the game offers* before it is taken, which is FR-18.5 in its strongest form (the actions a game produces, not the ones somebody wrote down); and the card shapes are asserted by hand, including the ones that must be refused.
     - **The subset grew for a reason and not by accident.** oneOf came in with the cards, because a flat schema cannot say that only two of the five cards are told anything. $ref did not: the engine does not resolve references, so the fixture game that used one was simplified instead of the validator being stretched to cover a keyword nothing needed.
+    ```
+
+### K-057 · Declare observation_schema
+
+  - tags: [slice-7, schemas, projection, fr-18]
+  - priority: medium
+  - workload: Normal
+  - steps:
+      - [x] Describes the projection shape
+      - [x] Every observation produced during a game validates against it
+    ```md
+    - **Cuts through:** observation_schema.py, projection, serialisation
+    - **Depends on:** K-056
+    - **PRD:** FR-18.3, FR-16.8
+    - **Evidence:** lgbg/games/catan/observation_schema.py (FIELDS, observation_schema), lgbg/games/catan/game.py (observation_schema delegates), tests/games/test_catan_observation_schema.py (3 tests).
+    - **Two projections, two shapes, and exactly one of them fits.** A player sees their own hand and nobody else's; the spectator sees every hand and has none of their own. So the declaration is a oneOf rather than one object with everything optional, and an observation carrying both hand and hands is refused - no observer is both. The test asserts the two views validate, and that the mixture does not.
+    - **The field names are the projection's, so the names cannot drift.** FIELDS gives one shape per projected name, and the branches are built from PLAYER_OBSERVATION_FIELDS and SPECTATOR_OBSERVATION_FIELDS, so a field projected without a declared shape fails the test that the two sets are equal - and a shape for a field nobody projects fails it too. This is the allow-list discipline of the projection carried into the declaration, rather than a second list to keep in step by hand.
+    - **Writing the schema found two things the projection does that a guess would have got wrong.** A spectator's hands are the state's own lists in resource order, while an observer's own hand is written by resource name - two shapes, deliberately not one reused for both; and a seat's development cards are five counts in the deck's canonical order, not a list of card names. Both were caught by validating the corpus, which is the argument for doing it that way rather than by reading the projection and trusting the reading.
+    - **9185 observations of the five recorded games validate, and the test keeps a stride.** Every state of the short records and every twentieth state of the long ones - 500-odd observations, about two seconds - because the shape is what is being checked and a game of 743 states exercises no shape a game of 40 does not. The full sweep was measured first (39 seconds) and the sampling is a deliberate cost, not an accident.
+    - **The validator reported what was wrong, and that was fixed too.** "Neither shape fits" is a refusal nobody can act on, so a failed oneOf now quotes the branch that came closest: the message that found the two projection surprises above was value.hands[0]: expected object, got array.
     ```

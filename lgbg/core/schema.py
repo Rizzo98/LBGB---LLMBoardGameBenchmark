@@ -163,13 +163,19 @@ def _one_of(value: JsonValue, schema: JsonSchema, where: str) -> list[str]:
     if branches is None:
         return []
     candidates = _as_sequence(branches, where, "oneOf")
-    fitting = [
-        branch
+    failures = [
+        violations(value, branch, where=where)
         for branch in candidates
-        if isinstance(branch, Mapping) and not violations(value, branch, where=where)
+        if isinstance(branch, Mapping)
     ]
+    fitting = [found for found in failures if not found]
     if len(fitting) == 1:
         return []
+    if not fitting:
+        # Say what the nearest shape objected to: "neither fits" on its own is a refusal nobody
+        # can act on, and the branch with the fewest complaints is the one worth quoting.
+        nearest = min(failures, key=len)
+        return [f"{where}: no declared shape fits; nearest says {nearest[0]}"]
     return [f"{where}: {len(fitting)} of the {len(candidates)} declared shapes fit"]
 
 

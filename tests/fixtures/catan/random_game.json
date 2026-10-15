@@ -1,0 +1,5197 @@
+{
+  "game": "catan",
+  "config": {
+    "seed": 20260420,
+    "players": 4,
+    "interaction_protocol": "decline_only",
+    "board": "random"
+  },
+  "actions": [
+    {
+      "player": 0,
+      "type": "place_settlement",
+      "params": {
+        "vertex": 11
+      }
+    },
+    {
+      "player": 0,
+      "type": "place_road",
+      "params": {
+        "edge": 8
+      }
+    },
+    {
+      "player": 1,
+      "type": "place_settlement",
+      "params": {
+        "vertex": 23
+      }
+    },
+    {
+      "player": 1,
+      "type": "place_road",
+      "params": {
+        "edge": 30
+      }
+    },
+    {
+      "player": 2,
+      "type": "place_settlement",
+      "params": {
+        "vertex": 42
+      }
+    },
+    {
+      "player": 2,
+      "type": "place_road",
+      "params": {
+        "edge": 56
+      }
+    },
+    {
+      "player": 3,
+      "type": "place_settlement",
+      "params": {
+        "vertex": 19
+      }
+    },
+    {
+      "player": 3,
+      "type": "place_road",
+      "params": {
+        "edge": 24
+      }
+    },
+    {
+      "player": 3,
+      "type": "place_settlement",
+      "params": {
+        "vertex": 34
+      }
+    },
+    {
+      "player": 3,
+      "type": "place_road",
+      "params": {
+        "edge": 37
+      }
+    },
+    {
+      "player": 2,
+      "type": "place_settlement",
+      "params": {
+        "vertex": 43
+      }
+    },
+    {
+      "player": 2,
+      "type": "place_road",
+      "params": {
+        "edge": 51
+      }
+    },
+    {
+      "player": 1,
+      "type": "place_settlement",
+      "params": {
+        "vertex": 30
+      }
+    },
+    {
+      "player": 1,
+      "type": "place_road",
+      "params": {
+        "edge": 31
+      }
+    },
+    {
+      "player": 0,
+      "type": "place_settlement",
+      "params": {
+        "vertex": 3
+      }
+    },
+    {
+      "player": 0,
+      "type": "place_road",
+      "params": {
+        "edge": 1
+      }
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "move_robber",
+      "params": {
+        "hex": 0
+      }
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "build_road",
+      "params": {
+        "edge": 45
+      }
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "offer_trade",
+      "params": {
+        "give": {
+          "wool": 1
+        },
+        "want": {
+          "brick": 1
+        }
+      }
+    },
+    {
+      "player": 0,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 1,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 2,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "buy_dev_card",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "offer_trade",
+      "params": {
+        "give": {
+          "ore": 1
+        },
+        "want": {
+          "wood": 1
+        }
+      }
+    },
+    {
+      "player": 1,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 2,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 3,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 0,
+      "type": "choose_partner",
+      "params": {
+        "partner": 1
+      }
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "buy_dev_card",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "build_road",
+      "params": {
+        "edge": 41
+      }
+    },
+    {
+      "player": 2,
+      "type": "offer_trade",
+      "params": {
+        "give": {
+          "wood": 1
+        },
+        "want": {
+          "wheat": 1
+        }
+      }
+    },
+    {
+      "player": 0,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 1,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 3,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 2,
+      "type": "buy_dev_card",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "discard_resources",
+      "params": {
+        "wool": 4,
+        "wheat": 1
+      }
+    },
+    {
+      "player": 3,
+      "type": "move_robber",
+      "params": {
+        "hex": 2
+      }
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "play_dev_card",
+      "params": {
+        "card": "monopoly",
+        "resources": [
+          "wheat"
+        ]
+      }
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "offer_trade",
+      "params": {
+        "give": {
+          "brick": 1
+        },
+        "want": {
+          "wool": 1
+        }
+      }
+    },
+    {
+      "player": 1,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 2,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 3,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 0,
+      "type": "buy_dev_card",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "play_dev_card",
+      "params": {
+        "card": "knight"
+      }
+    },
+    {
+      "player": 2,
+      "type": "move_robber",
+      "params": {
+        "hex": 0
+      }
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "build_road",
+      "params": {
+        "edge": 28
+      }
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "build_road",
+      "params": {
+        "edge": 12
+      }
+    },
+    {
+      "player": 3,
+      "type": "offer_trade",
+      "params": {
+        "give": {
+          "wood": 1
+        },
+        "want": {
+          "wheat": 1
+        }
+      }
+    },
+    {
+      "player": 0,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 1,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 2,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 3,
+      "type": "build_settlement",
+      "params": {
+        "vertex": 8
+      }
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "play_dev_card",
+      "params": {
+        "card": "year_of_plenty",
+        "resources": [
+          "wheat",
+          "wheat"
+        ]
+      }
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "build_road",
+      "params": {
+        "edge": 18
+      }
+    },
+    {
+      "player": 1,
+      "type": "build_road",
+      "params": {
+        "edge": 14
+      }
+    },
+    {
+      "player": 1,
+      "type": "offer_trade",
+      "params": {
+        "give": {
+          "wool": 1
+        },
+        "want": {
+          "ore": 1
+        }
+      }
+    },
+    {
+      "player": 0,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 2,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 3,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 1,
+      "type": "buy_dev_card",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "offer_trade",
+      "params": {
+        "give": {
+          "wool": 1
+        },
+        "want": {
+          "brick": 1
+        }
+      }
+    },
+    {
+      "player": 0,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 1,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 2,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 3,
+      "type": "choose_partner",
+      "params": {
+        "partner": 0
+      }
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "discard_resources",
+      "params": {
+        "wool": 1,
+        "wheat": 2,
+        "ore": 1
+      }
+    },
+    {
+      "player": 0,
+      "type": "move_robber",
+      "params": {
+        "hex": 2
+      }
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "play_dev_card",
+      "params": {
+        "card": "knight"
+      }
+    },
+    {
+      "player": 1,
+      "type": "move_robber",
+      "params": {
+        "hex": 0
+      }
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "move_robber",
+      "params": {
+        "hex": 2
+      }
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "offer_trade",
+      "params": {
+        "give": {
+          "brick": 1
+        },
+        "want": {
+          "wheat": 1
+        }
+      }
+    },
+    {
+      "player": 0,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 1,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 3,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 2,
+      "type": "choose_partner",
+      "params": {
+        "partner": 1
+      }
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "build_road",
+      "params": {
+        "edge": 0
+      }
+    },
+    {
+      "player": 0,
+      "type": "build_settlement",
+      "params": {
+        "vertex": 1
+      }
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "build_road",
+      "params": {
+        "edge": 5
+      }
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "offer_trade",
+      "params": {
+        "give": {
+          "ore": 1
+        },
+        "want": {
+          "wood": 1
+        }
+      }
+    },
+    {
+      "player": 1,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 2,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 3,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 0,
+      "type": "choose_partner",
+      "params": {
+        "partner": 1
+      }
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "buy_dev_card",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "build_road",
+      "params": {
+        "edge": 13
+      }
+    },
+    {
+      "player": 1,
+      "type": "build_settlement",
+      "params": {
+        "vertex": 10
+      }
+    },
+    {
+      "player": 1,
+      "type": "offer_trade",
+      "params": {
+        "give": {
+          "wheat": 1
+        },
+        "want": {
+          "brick": 1
+        }
+      }
+    },
+    {
+      "player": 0,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 2,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 3,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 1,
+      "type": "choose_partner",
+      "params": {
+        "partner": 0
+      }
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "buy_dev_card",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "offer_trade",
+      "params": {
+        "give": {
+          "brick": 1
+        },
+        "want": {
+          "wheat": 1
+        }
+      }
+    },
+    {
+      "player": 0,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 1,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 3,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 2,
+      "type": "choose_partner",
+      "params": {
+        "partner": 1
+      }
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "offer_trade",
+      "params": {
+        "give": {
+          "wool": 1
+        },
+        "want": {
+          "ore": 1
+        }
+      }
+    },
+    {
+      "player": 0,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 1,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 2,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 3,
+      "type": "buy_dev_card",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "buy_dev_card",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "play_dev_card",
+      "params": {
+        "card": "knight"
+      }
+    },
+    {
+      "player": 1,
+      "type": "move_robber",
+      "params": {
+        "hex": 0
+      }
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "build_road",
+      "params": {
+        "edge": 11
+      }
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "play_dev_card",
+      "params": {
+        "card": "knight"
+      }
+    },
+    {
+      "player": 2,
+      "type": "move_robber",
+      "params": {
+        "hex": 3
+      }
+    },
+    {
+      "player": 2,
+      "type": "choose_robber_victim",
+      "params": {
+        "victim": 3
+      }
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "build_road",
+      "params": {
+        "edge": 40
+      }
+    },
+    {
+      "player": 2,
+      "type": "build_settlement",
+      "params": {
+        "vertex": 29
+      }
+    },
+    {
+      "player": 2,
+      "type": "offer_trade",
+      "params": {
+        "give": {
+          "brick": 1
+        },
+        "want": {
+          "wood": 1
+        }
+      }
+    },
+    {
+      "player": 0,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 1,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 3,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "play_dev_card",
+      "params": {
+        "card": "year_of_plenty",
+        "resources": [
+          "ore",
+          "ore"
+        ]
+      }
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "buy_dev_card",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "buy_dev_card",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "build_road",
+      "params": {
+        "edge": 10
+      }
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "play_dev_card",
+      "params": {
+        "card": "knight"
+      }
+    },
+    {
+      "player": 0,
+      "type": "move_robber",
+      "params": {
+        "hex": 0
+      }
+    },
+    {
+      "player": 0,
+      "type": "choose_robber_victim",
+      "params": {
+        "victim": 2
+      }
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "offer_trade",
+      "params": {
+        "give": {
+          "brick": 1
+        },
+        "want": {
+          "wheat": 1
+        }
+      }
+    },
+    {
+      "player": 1,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 2,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 3,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 0,
+      "type": "choose_partner",
+      "params": {
+        "partner": 1
+      }
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "offer_trade",
+      "params": {
+        "give": {
+          "brick": 1
+        },
+        "want": {
+          "ore": 1
+        }
+      }
+    },
+    {
+      "player": 0,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 2,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 3,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 1,
+      "type": "buy_dev_card",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "offer_trade",
+      "params": {
+        "give": {
+          "brick": 1
+        },
+        "want": {
+          "wheat": 1
+        }
+      }
+    },
+    {
+      "player": 0,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 1,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 3,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 2,
+      "type": "choose_partner",
+      "params": {
+        "partner": 1
+      }
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "play_dev_card",
+      "params": {
+        "card": "knight"
+      }
+    },
+    {
+      "player": 3,
+      "type": "move_robber",
+      "params": {
+        "hex": 1
+      }
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "discard_resources",
+      "params": {
+        "brick": 1,
+        "wood": 1,
+        "wheat": 1,
+        "ore": 2
+      }
+    },
+    {
+      "player": 1,
+      "type": "discard_resources",
+      "params": {
+        "brick": 1,
+        "wood": 2,
+        "wheat": 2
+      }
+    },
+    {
+      "player": 3,
+      "type": "move_robber",
+      "params": {
+        "hex": 0
+      }
+    },
+    {
+      "player": 3,
+      "type": "build_road",
+      "params": {
+        "edge": 2
+      }
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "offer_trade",
+      "params": {
+        "give": {
+          "brick": 1
+        },
+        "want": {
+          "wheat": 1
+        }
+      }
+    },
+    {
+      "player": 1,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 2,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 3,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "play_dev_card",
+      "params": {
+        "card": "knight"
+      }
+    },
+    {
+      "player": 1,
+      "type": "move_robber",
+      "params": {
+        "hex": 1
+      }
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "offer_trade",
+      "params": {
+        "give": {
+          "brick": 1
+        },
+        "want": {
+          "wheat": 1
+        }
+      }
+    },
+    {
+      "player": 0,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 2,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 3,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "offer_trade",
+      "params": {
+        "give": {
+          "brick": 1
+        },
+        "want": {
+          "ore": 1
+        }
+      }
+    },
+    {
+      "player": 0,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 1,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 2,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 3,
+      "type": "choose_partner",
+      "params": {
+        "partner": 0
+      }
+    },
+    {
+      "player": 3,
+      "type": "buy_dev_card",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "build_road",
+      "params": {
+        "edge": 15
+      }
+    },
+    {
+      "player": 1,
+      "type": "offer_trade",
+      "params": {
+        "give": {
+          "brick": 1
+        },
+        "want": {
+          "ore": 1
+        }
+      }
+    },
+    {
+      "player": 0,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 2,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 3,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 1,
+      "type": "choose_partner",
+      "params": {
+        "partner": 0
+      }
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "discard_resources",
+      "params": {
+        "wood": 1,
+        "wheat": 1,
+        "ore": 4
+      }
+    },
+    {
+      "player": 1,
+      "type": "discard_resources",
+      "params": {
+        "wheat": 3,
+        "ore": 1
+      }
+    },
+    {
+      "player": 2,
+      "type": "move_robber",
+      "params": {
+        "hex": 0
+      }
+    },
+    {
+      "player": 2,
+      "type": "buy_dev_card",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "play_dev_card",
+      "params": {
+        "card": "knight"
+      }
+    },
+    {
+      "player": 3,
+      "type": "move_robber",
+      "params": {
+        "hex": 1
+      }
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "buy_dev_card",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "offer_trade",
+      "params": {
+        "give": {
+          "brick": 1
+        },
+        "want": {
+          "wood": 1
+        }
+      }
+    },
+    {
+      "player": 1,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 2,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 3,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "offer_trade",
+      "params": {
+        "give": {
+          "brick": 1
+        },
+        "want": {
+          "ore": 1
+        }
+      }
+    },
+    {
+      "player": 0,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 2,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 3,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 1,
+      "type": "choose_partner",
+      "params": {
+        "partner": 0
+      }
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "play_dev_card",
+      "params": {
+        "card": "knight"
+      }
+    },
+    {
+      "player": 2,
+      "type": "move_robber",
+      "params": {
+        "hex": 0
+      }
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "build_road",
+      "params": {
+        "edge": 39
+      }
+    },
+    {
+      "player": 2,
+      "type": "build_road",
+      "params": {
+        "edge": 25
+      }
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "play_dev_card",
+      "params": {
+        "card": "road_building"
+      }
+    },
+    {
+      "player": 3,
+      "type": "place_free_road",
+      "params": {
+        "edge": 23
+      }
+    },
+    {
+      "player": 3,
+      "type": "place_free_road",
+      "params": {
+        "edge": 26
+      }
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "offer_trade",
+      "params": {
+        "give": {
+          "wool": 1
+        },
+        "want": {
+          "ore": 1
+        }
+      }
+    },
+    {
+      "player": 0,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 1,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 2,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 3,
+      "type": "choose_partner",
+      "params": {
+        "partner": 0
+      }
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "build_road",
+      "params": {
+        "edge": 3
+      }
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "discard_resources",
+      "params": {
+        "ore": 7
+      }
+    },
+    {
+      "player": 1,
+      "type": "discard_resources",
+      "params": {
+        "wood": 1,
+        "wool": 2,
+        "ore": 1
+      }
+    },
+    {
+      "player": 2,
+      "type": "discard_resources",
+      "params": {
+        "ore": 5
+      }
+    },
+    {
+      "player": 1,
+      "type": "move_robber",
+      "params": {
+        "hex": 1
+      }
+    },
+    {
+      "player": 1,
+      "type": "offer_trade",
+      "params": {
+        "give": {
+          "brick": 1
+        },
+        "want": {
+          "wool": 1
+        }
+      }
+    },
+    {
+      "player": 0,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 2,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 3,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "move_robber",
+      "params": {
+        "hex": 0
+      }
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "build_settlement",
+      "params": {
+        "vertex": 17
+      }
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "discard_resources",
+      "params": {
+        "wool": 1,
+        "wheat": 3
+      }
+    },
+    {
+      "player": 0,
+      "type": "move_robber",
+      "params": {
+        "hex": 1
+      }
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "discard_resources",
+      "params": {
+        "brick": 1,
+        "wood": 1,
+        "wool": 2
+      }
+    },
+    {
+      "player": 1,
+      "type": "move_robber",
+      "params": {
+        "hex": 0
+      }
+    },
+    {
+      "player": 1,
+      "type": "choose_robber_victim",
+      "params": {
+        "victim": 2
+      }
+    },
+    {
+      "player": 1,
+      "type": "build_road",
+      "params": {
+        "edge": 16
+      }
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "offer_trade",
+      "params": {
+        "give": {
+          "brick": 1
+        },
+        "want": {
+          "wool": 1
+        }
+      }
+    },
+    {
+      "player": 0,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 1,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 3,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "move_robber",
+      "params": {
+        "hex": 1
+      }
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "move_robber",
+      "params": {
+        "hex": 0
+      }
+    },
+    {
+      "player": 1,
+      "type": "choose_robber_victim",
+      "params": {
+        "victim": 2
+      }
+    },
+    {
+      "player": 1,
+      "type": "build_road",
+      "params": {
+        "edge": 27
+      }
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "build_road",
+      "params": {
+        "edge": 29
+      }
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "buy_dev_card",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "build_road",
+      "params": {
+        "edge": 32
+      }
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "play_dev_card",
+      "params": {
+        "card": "road_building"
+      }
+    },
+    {
+      "player": 2,
+      "type": "place_free_road",
+      "params": {
+        "edge": 42
+      }
+    },
+    {
+      "player": 2,
+      "type": "place_free_road",
+      "params": {
+        "edge": 43
+      }
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "offer_trade",
+      "params": {
+        "give": {
+          "brick": 1
+        },
+        "want": {
+          "wood": 1
+        }
+      }
+    },
+    {
+      "player": 0,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 1,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 3,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 2,
+      "type": "choose_partner",
+      "params": {
+        "partner": 0
+      }
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "build_road",
+      "params": {
+        "edge": 33
+      }
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "build_road",
+      "params": {
+        "edge": 4
+      }
+    },
+    {
+      "player": 0,
+      "type": "offer_trade",
+      "params": {
+        "give": {
+          "brick": 1
+        },
+        "want": {
+          "wheat": 1
+        }
+      }
+    },
+    {
+      "player": 1,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 2,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 3,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 0,
+      "type": "buy_dev_card",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "build_road",
+      "params": {
+        "edge": 21
+      }
+    },
+    {
+      "player": 1,
+      "type": "build_road",
+      "params": {
+        "edge": 17
+      }
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "discard_resources",
+      "params": {
+        "brick": 3,
+        "wood": 2
+      }
+    },
+    {
+      "player": 1,
+      "type": "discard_resources",
+      "params": {
+        "wool": 4
+      }
+    },
+    {
+      "player": 2,
+      "type": "discard_resources",
+      "params": {
+        "wood": 1,
+        "wool": 2,
+        "wheat": 2
+      }
+    },
+    {
+      "player": 3,
+      "type": "discard_resources",
+      "params": {
+        "wool": 5
+      }
+    },
+    {
+      "player": 3,
+      "type": "move_robber",
+      "params": {
+        "hex": 1
+      }
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "play_dev_card",
+      "params": {
+        "card": "knight"
+      }
+    },
+    {
+      "player": 0,
+      "type": "move_robber",
+      "params": {
+        "hex": 0
+      }
+    },
+    {
+      "player": 0,
+      "type": "choose_robber_victim",
+      "params": {
+        "victim": 3
+      }
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "move_robber",
+      "params": {
+        "hex": 1
+      }
+    },
+    {
+      "player": 0,
+      "type": "offer_trade",
+      "params": {
+        "give": {
+          "brick": 1
+        },
+        "want": {
+          "wood": 1
+        }
+      }
+    },
+    {
+      "player": 1,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 2,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 3,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "build_road",
+      "params": {
+        "edge": 19
+      }
+    },
+    {
+      "player": 1,
+      "type": "offer_trade",
+      "params": {
+        "give": {
+          "wood": 1
+        },
+        "want": {
+          "wool": 1
+        }
+      }
+    },
+    {
+      "player": 0,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 2,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 3,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "offer_trade",
+      "params": {
+        "give": {
+          "brick": 1
+        },
+        "want": {
+          "wood": 1
+        }
+      }
+    },
+    {
+      "player": 0,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 1,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 3,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 2,
+      "type": "choose_partner",
+      "params": {
+        "partner": 1
+      }
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "offer_trade",
+      "params": {
+        "give": {
+          "brick": 1
+        },
+        "want": {
+          "wool": 1
+        }
+      }
+    },
+    {
+      "player": 1,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 2,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 3,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 0,
+      "type": "choose_partner",
+      "params": {
+        "partner": 2
+      }
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "build_settlement",
+      "params": {
+        "vertex": 13
+      }
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "offer_trade",
+      "params": {
+        "give": {
+          "wool": 1
+        },
+        "want": {
+          "ore": 1
+        }
+      }
+    },
+    {
+      "player": 0,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 1,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 2,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 3,
+      "type": "buy_dev_card",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "offer_trade",
+      "params": {
+        "give": {
+          "brick": 1
+        },
+        "want": {
+          "wheat": 1
+        }
+      }
+    },
+    {
+      "player": 1,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 2,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 3,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 0,
+      "type": "buy_dev_card",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "offer_trade",
+      "params": {
+        "give": {
+          "brick": 1
+        },
+        "want": {
+          "wool": 1
+        }
+      }
+    },
+    {
+      "player": 0,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 2,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 3,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 1,
+      "type": "choose_partner",
+      "params": {
+        "partner": 2
+      }
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "discard_resources",
+      "params": {
+        "brick": 2,
+        "wood": 1,
+        "wool": 1
+      }
+    },
+    {
+      "player": 2,
+      "type": "discard_resources",
+      "params": {
+        "wood": 1,
+        "wool": 2,
+        "ore": 1
+      }
+    },
+    {
+      "player": 3,
+      "type": "discard_resources",
+      "params": {
+        "wool": 7,
+        "wheat": 1
+      }
+    },
+    {
+      "player": 2,
+      "type": "move_robber",
+      "params": {
+        "hex": 0
+      }
+    },
+    {
+      "player": 2,
+      "type": "offer_trade",
+      "params": {
+        "give": {
+          "brick": 1
+        },
+        "want": {
+          "wheat": 1
+        }
+      }
+    },
+    {
+      "player": 0,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 1,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 3,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "offer_trade",
+      "params": {
+        "give": {
+          "wood": 1
+        },
+        "want": {
+          "ore": 1
+        }
+      }
+    },
+    {
+      "player": 0,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 1,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 2,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "play_dev_card",
+      "params": {
+        "card": "knight"
+      }
+    },
+    {
+      "player": 0,
+      "type": "move_robber",
+      "params": {
+        "hex": 1
+      }
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "discard_resources",
+      "params": {
+        "wood": 1,
+        "wheat": 1,
+        "ore": 2
+      }
+    },
+    {
+      "player": 1,
+      "type": "discard_resources",
+      "params": {
+        "wood": 1,
+        "wool": 1,
+        "wheat": 1,
+        "ore": 1
+      }
+    },
+    {
+      "player": 1,
+      "type": "move_robber",
+      "params": {
+        "hex": 0
+      }
+    },
+    {
+      "player": 1,
+      "type": "choose_robber_victim",
+      "params": {
+        "victim": 2
+      }
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "move_robber",
+      "params": {
+        "hex": 3
+      }
+    },
+    {
+      "player": 2,
+      "type": "choose_robber_victim",
+      "params": {
+        "victim": 3
+      }
+    },
+    {
+      "player": 2,
+      "type": "build_road",
+      "params": {
+        "edge": 47
+      }
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "offer_trade",
+      "params": {
+        "give": {
+          "brick": 1
+        },
+        "want": {
+          "wood": 1
+        }
+      }
+    },
+    {
+      "player": 1,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 2,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 3,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 0,
+      "type": "choose_partner",
+      "params": {
+        "partner": 1
+      }
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "offer_trade",
+      "params": {
+        "give": {
+          "brick": 1
+        },
+        "want": {
+          "wool": 1
+        }
+      }
+    },
+    {
+      "player": 0,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 2,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 3,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "build_road",
+      "params": {
+        "edge": 34
+      }
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "build_road",
+      "params": {
+        "edge": 35
+      }
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "discard_resources",
+      "params": {
+        "brick": 1,
+        "wood": 2,
+        "wool": 2
+      }
+    },
+    {
+      "player": 2,
+      "type": "discard_resources",
+      "params": {
+        "wool": 3,
+        "ore": 1
+      }
+    },
+    {
+      "player": 3,
+      "type": "discard_resources",
+      "params": {
+        "wool": 5,
+        "ore": 1
+      }
+    },
+    {
+      "player": 0,
+      "type": "move_robber",
+      "params": {
+        "hex": 0
+      }
+    },
+    {
+      "player": 0,
+      "type": "choose_robber_victim",
+      "params": {
+        "victim": 3
+      }
+    },
+    {
+      "player": 0,
+      "type": "build_road",
+      "params": {
+        "edge": 6
+      }
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "build_settlement",
+      "params": {
+        "vertex": 24
+      }
+    },
+    {
+      "player": 3,
+      "type": "offer_trade",
+      "params": {
+        "give": {
+          "wood": 1
+        },
+        "want": {
+          "brick": 1
+        }
+      }
+    },
+    {
+      "player": 0,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 1,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 2,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 3,
+      "type": "choose_partner",
+      "params": {
+        "partner": 0
+      }
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "build_road",
+      "params": {
+        "edge": 7
+      }
+    },
+    {
+      "player": 0,
+      "type": "build_road",
+      "params": {
+        "edge": 9
+      }
+    },
+    {
+      "player": 0,
+      "type": "offer_trade",
+      "params": {
+        "give": {
+          "brick": 1
+        },
+        "want": {
+          "wheat": 1
+        }
+      }
+    },
+    {
+      "player": 1,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 2,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 3,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "offer_trade",
+      "params": {
+        "give": {
+          "brick": 1
+        },
+        "want": {
+          "ore": 1
+        }
+      }
+    },
+    {
+      "player": 0,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 2,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 3,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "build_road",
+      "params": {
+        "edge": 46
+      }
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "discard_resources",
+      "params": {
+        "wood": 1,
+        "wheat": 1,
+        "ore": 4
+      }
+    },
+    {
+      "player": 1,
+      "type": "discard_resources",
+      "params": {
+        "wood": 3,
+        "wheat": 1,
+        "ore": 2
+      }
+    },
+    {
+      "player": 2,
+      "type": "discard_resources",
+      "params": {
+        "wood": 1,
+        "wheat": 1,
+        "ore": 2
+      }
+    },
+    {
+      "player": 3,
+      "type": "move_robber",
+      "params": {
+        "hex": 1
+      }
+    },
+    {
+      "player": 3,
+      "type": "build_road",
+      "params": {
+        "edge": 22
+      }
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "offer_trade",
+      "params": {
+        "give": {
+          "brick": 1
+        },
+        "want": {
+          "wood": 1
+        }
+      }
+    },
+    {
+      "player": 1,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 2,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 3,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "offer_trade",
+      "params": {
+        "give": {
+          "brick": 1
+        },
+        "want": {
+          "wool": 1
+        }
+      }
+    },
+    {
+      "player": 1,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 2,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 3,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "buy_dev_card",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "offer_trade",
+      "params": {
+        "give": {
+          "brick": 1
+        },
+        "want": {
+          "wool": 1
+        }
+      }
+    },
+    {
+      "player": 0,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 2,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 3,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 1,
+      "type": "choose_partner",
+      "params": {
+        "partner": 2
+      }
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "offer_trade",
+      "params": {
+        "give": {
+          "brick": 1
+        },
+        "want": {
+          "wood": 1
+        }
+      }
+    },
+    {
+      "player": 0,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 1,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 3,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "offer_trade",
+      "params": {
+        "give": {
+          "brick": 1
+        },
+        "want": {
+          "wheat": 1
+        }
+      }
+    },
+    {
+      "player": 1,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 2,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 3,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 0,
+      "type": "choose_partner",
+      "params": {
+        "partner": 1
+      }
+    },
+    {
+      "player": 0,
+      "type": "build_settlement",
+      "params": {
+        "vertex": 4
+      }
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "play_dev_card",
+      "params": {
+        "card": "knight"
+      }
+    },
+    {
+      "player": 1,
+      "type": "move_robber",
+      "params": {
+        "hex": 0
+      }
+    },
+    {
+      "player": 1,
+      "type": "choose_robber_victim",
+      "params": {
+        "victim": 3
+      }
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "build_road",
+      "params": {
+        "edge": 20
+      }
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "offer_trade",
+      "params": {
+        "give": {
+          "brick": 1
+        },
+        "want": {
+          "wool": 1
+        }
+      }
+    },
+    {
+      "player": 1,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 2,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 3,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "offer_trade",
+      "params": {
+        "give": {
+          "brick": 1
+        },
+        "want": {
+          "ore": 1
+        }
+      }
+    },
+    {
+      "player": 0,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 2,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 3,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 1,
+      "type": "buy_dev_card",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "discard_resources",
+      "params": {
+        "brick": 1,
+        "wood": 3,
+        "wheat": 2
+      }
+    },
+    {
+      "player": 2,
+      "type": "discard_resources",
+      "params": {
+        "wood": 1,
+        "wool": 1,
+        "wheat": 1,
+        "ore": 1
+      }
+    },
+    {
+      "player": 3,
+      "type": "discard_resources",
+      "params": {
+        "wheat": 5
+      }
+    },
+    {
+      "player": 2,
+      "type": "move_robber",
+      "params": {
+        "hex": 3
+      }
+    },
+    {
+      "player": 2,
+      "type": "choose_robber_victim",
+      "params": {
+        "victim": 1
+      }
+    },
+    {
+      "player": 2,
+      "type": "offer_trade",
+      "params": {
+        "give": {
+          "brick": 1
+        },
+        "want": {
+          "wool": 1
+        }
+      }
+    },
+    {
+      "player": 0,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 1,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 3,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "offer_trade",
+      "params": {
+        "give": {
+          "brick": 1
+        },
+        "want": {
+          "ore": 1
+        }
+      }
+    },
+    {
+      "player": 0,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 1,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 2,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "play_dev_card",
+      "params": {
+        "card": "knight"
+      }
+    },
+    {
+      "player": 1,
+      "type": "move_robber",
+      "params": {
+        "hex": 0
+      }
+    },
+    {
+      "player": 1,
+      "type": "choose_robber_victim",
+      "params": {
+        "victim": 2
+      }
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "discard_resources",
+      "params": {
+        "ore": 6
+      }
+    },
+    {
+      "player": 1,
+      "type": "discard_resources",
+      "params": {
+        "brick": 3,
+        "ore": 2
+      }
+    },
+    {
+      "player": 3,
+      "type": "move_robber",
+      "params": {
+        "hex": 1
+      }
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "buy_dev_card",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "offer_trade",
+      "params": {
+        "give": {
+          "brick": 1
+        },
+        "want": {
+          "wood": 1
+        }
+      }
+    },
+    {
+      "player": 0,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 1,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 3,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "discard_resources",
+      "params": {
+        "wool": 3,
+        "ore": 1
+      }
+    },
+    {
+      "player": 3,
+      "type": "move_robber",
+      "params": {
+        "hex": 0
+      }
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "move_robber",
+      "params": {
+        "hex": 1
+      }
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "offer_trade",
+      "params": {
+        "give": {
+          "brick": 1
+        },
+        "want": {
+          "ore": 1
+        }
+      }
+    },
+    {
+      "player": 0,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 2,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 3,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "play_dev_card",
+      "params": {
+        "card": "monopoly",
+        "resources": [
+          "wheat"
+        ]
+      }
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "offer_trade",
+      "params": {
+        "give": {
+          "brick": 1
+        },
+        "want": {
+          "ore": 1
+        }
+      }
+    },
+    {
+      "player": 0,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 1,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 2,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "discard_resources",
+      "params": {
+        "brick": 3,
+        "wood": 1,
+        "wool": 1,
+        "ore": 1
+      }
+    },
+    {
+      "player": 1,
+      "type": "discard_resources",
+      "params": {
+        "wood": 1,
+        "wool": 3,
+        "ore": 1
+      }
+    },
+    {
+      "player": 3,
+      "type": "discard_resources",
+      "params": {
+        "wool": 4,
+        "ore": 1
+      }
+    },
+    {
+      "player": 2,
+      "type": "move_robber",
+      "params": {
+        "hex": 0
+      }
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "offer_trade",
+      "params": {
+        "give": {
+          "brick": 1
+        },
+        "want": {
+          "wool": 1
+        }
+      }
+    },
+    {
+      "player": 0,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 1,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 2,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "discard_resources",
+      "params": {
+        "brick": 2,
+        "ore": 2
+      }
+    },
+    {
+      "player": 2,
+      "type": "discard_resources",
+      "params": {
+        "wool": 2,
+        "ore": 2
+      }
+    },
+    {
+      "player": 0,
+      "type": "move_robber",
+      "params": {
+        "hex": 1
+      }
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "move_robber",
+      "params": {
+        "hex": 0
+      }
+    },
+    {
+      "player": 2,
+      "type": "offer_trade",
+      "params": {
+        "give": {
+          "brick": 1
+        },
+        "want": {
+          "wheat": 1
+        }
+      }
+    },
+    {
+      "player": 0,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 1,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 3,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 2,
+      "type": "choose_partner",
+      "params": {
+        "partner": 1
+      }
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "offer_trade",
+      "params": {
+        "give": {
+          "brick": 1
+        },
+        "want": {
+          "wheat": 1
+        }
+      }
+    },
+    {
+      "player": 1,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 2,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 3,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "build_road",
+      "params": {
+        "edge": 36
+      }
+    },
+    {
+      "player": 3,
+      "type": "build_road",
+      "params": {
+        "edge": 38
+      }
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "offer_trade",
+      "params": {
+        "give": {
+          "brick": 1
+        },
+        "want": {
+          "wool": 1
+        }
+      }
+    },
+    {
+      "player": 1,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 2,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 3,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "discard_resources",
+      "params": {
+        "wood": 3,
+        "wool": 1,
+        "wheat": 3
+      }
+    },
+    {
+      "player": 3,
+      "type": "discard_resources",
+      "params": {
+        "wool": 1,
+        "wheat": 3
+      }
+    },
+    {
+      "player": 2,
+      "type": "move_robber",
+      "params": {
+        "hex": 3
+      }
+    },
+    {
+      "player": 2,
+      "type": "choose_robber_victim",
+      "params": {
+        "victim": 1
+      }
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "build_road",
+      "params": {
+        "edge": 49
+      }
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "buy_dev_card",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 2,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 3,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 0,
+      "type": "offer_trade",
+      "params": {
+        "give": {
+          "brick": 1
+        },
+        "want": {
+          "wheat": 1
+        }
+      }
+    },
+    {
+      "player": 1,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 2,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 3,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 0,
+      "type": "choose_partner",
+      "params": {
+        "partner": 1
+      }
+    },
+    {
+      "player": 0,
+      "type": "end_turn",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "roll_dice",
+      "params": {}
+    },
+    {
+      "player": 1,
+      "type": "offer_trade",
+      "params": {
+        "give": {
+          "brick": 1
+        },
+        "want": {
+          "wool": 1
+        }
+      }
+    },
+    {
+      "player": 0,
+      "type": "respond_trade",
+      "params": {
+        "response": "decline"
+      }
+    },
+    {
+      "player": 2,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 3,
+      "type": "respond_trade",
+      "params": {
+        "response": "accept"
+      }
+    },
+    {
+      "player": 1,
+      "type": "choose_partner",
+      "params": {
+        "partner": 2
+      }
+    },
+    {
+      "player": 1,
+      "type": "buy_dev_card",
+      "params": {}
+    }
+  ]
+}

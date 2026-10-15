@@ -50,19 +50,29 @@ SCRIPT_PATH: Final[Path] = Path("tests/fixtures/catan/trade_game.json")
 GOLDEN_PATH: Final[Path] = Path("tests/golden/catan/trade_game.god.jsonl")
 
 
-def config_for(seed: int) -> RunConfig:
+def config_for(seed: int, *, board: str = BOARD, players: int = PLAYERS) -> RunConfig:
     return RunConfig(
         seed=seed,
-        players=PLAYERS,
+        players=players,
         interaction_protocol=PROTOCOL,
-        game_config=GameConfig({"board": BOARD}),
+        game_config=GameConfig({"board": board}),
     )
 
 
-def play(seed: int, *, directory: Path | None = None, limit: int = MAX_ACTIONS) -> Any:
+def play(
+    seed: int,
+    *,
+    board: str = BOARD,
+    players: int = PLAYERS,
+    game_id: str = GAME_ID,
+    directory: Path | None = None,
+    limit: int = MAX_ACTIONS,
+) -> Any:
     """Play one game; returns the run (finished only when a directory is given) and counts."""
     game = get_game("catan")
-    run = GameRun(game, config_for(seed), game_id=GAME_ID, directory=directory)
+    run = GameRun(
+        game, config_for(seed, board=board, players=players), game_id=game_id, directory=directory
+    )
     seen: Counter[str] = Counter()
     recorded: list[dict[str, JsonValue]] = []
     offered: set[tuple[int, int]] = set()

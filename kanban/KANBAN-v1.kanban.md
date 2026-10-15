@@ -41,6 +41,7 @@
     - **Cuts through:** all of PRD section 8, the test suite, the traceability table
     - **Depends on:** K-064, K-065
     - **PRD:** SC-9, SC-11
+- **Measured before the sweep, so the sweep starts from facts rather than from hope.** The two halves of this card were measured on the tree as it stands, with K-065 landed and K-064 still to come. Coverage: longest_road.py and projection.py are already at 100 percent, and the measured set (core, rules, projection, longest_road) totals 96 percent against the card's 90 percent floor, with every rules module between 94 and 100. Traceability: 115 of 142 functional requirements are cited by at least one test by identifier, and the 27 that are not are three different kinds of thing that the sweep should sort rather than treat alike - tests that exist but do not name the requirement they satisfy (most of FR-1.x, FR-2.x, FR-3.x, FR-4.x, FR-5.2, FR-6.3/6.4, FR-7.5/7.7 and FR-21.x, slice 1 and 2 work whose evidence lives in test_game_registry, test_log, test_config, test_cli and the layering audit); requirements whose card has not landed, which is the whole FR-22 family and belongs to K-064; and one that is a real gap - FR-20.6 asks for an `lgbg fuzz` command, and the CLI has no such command, because the harness is a library today. Either the command arrives with K-064 or the requirement is recorded as deferred with a reason, and that is a decision for the card that builds the harness.
     - **Open question:** Q5, confirm the coverage thresholds (90 percent overall, 100 percent on the two named modules).
     ```
 

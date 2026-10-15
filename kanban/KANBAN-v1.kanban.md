@@ -24,21 +24,6 @@
 
 
 
-### K-034 · Implement legal_actions and action_domains
-
-  - tags: [slice-4, core, rules, fr-17]
-  - priority: high
-  - workload: Hard
-  - steps:
-      - [ ] Complete enumeration of currently legal actions
-      - [ ] Cross-product-free domain description per ARCHITECTURE section 7.2
-      - [ ] Both are pure and RNG-free, proven with NullRandomSource
-      - [ ] A test asserts every enumerated action is accepted and a sample of non-enumerated actions is rejected
-    ```md
-    - **Cuts through:** the plugin interface, every rule module, the L1 and L2 renderers, the fuzzer
-    - **Depends on:** K-033, K-030
-    - **PRD:** FR-17.4, FR-17.5, FR-17.6
-    ```
 
 ### K-035 · Implement Longest Road and award transfer rules
 
@@ -1243,4 +1228,28 @@
     - **What a city is for, asserted rather than assumed** (FR-11.6): the point value is checked against the old one (two, not three - a settlement's point is replaced, not added), and a roll of an adjacent number pays two cards where a settlement paid one, through the same production path the settlement card tests.
     - **The four-city limit is the supply again**, not a counter: the fixture lays out three cities standing and two settlements to upgrade, so the fourth city is built against a supply that genuinely holds one, and the fifth attempt is refused with `NO_PIECES_REMAINING` while `can_build_city` stays false - the action is not offered either (FR-11.5).
     - **The upgrade composes with the piece helpers** rather than reaching into the supply itself: `spend_piece` and `return_piece` now take and return the supply tuple, so an action that moves two pieces writes one expression and the two halves cannot disagree about which player they are charging.
+    ```
+
+### K-034 · Implement legal_actions and action_domains
+
+  - tags: [slice-4, core, rules, fr-17]
+  - priority: high
+  - workload: Hard
+  - steps:
+      - [x] Complete enumeration of currently legal actions
+      - [x] Cross-product-free domain description per ARCHITECTURE section 7.2
+      - [x] Both are pure and RNG-free, proven with NullRandomSource
+      - [x] A test asserts every enumerated action is accepted and a sample of non-enumerated actions is rejected
+    ```md
+    - **Cuts through:** the plugin interface, every rule module, the L1 and L2 renderers, the fuzzer
+    - **Depends on:** K-033, K-030
+    - **PRD:** FR-17.4, FR-17.5, FR-17.6
+    - **Evidence:** lgbg/games/catan/game.py (`PARAMETER`, `COST_OF`, `_targets`, `_actions_of_type`, `_domain_of`), tests/games/test_catan_action_surface.py (15 tests).
+    - **The two halves are one fact stated twice, and now they are read from one table.** `PARAMETER` says which parameter carries the target an action names; from it the enumeration produces one action per permitted value and the domain description produces one entry with those values in it. A phase therefore needs no new code in the interface layer: `_legal_actions_for` is a fold over the table rather than a branch per phase, and the branch-per-phase version it replaced could not have been kept in step with the domains by hand.
+    - **The description is not an enumeration** (ARCHITECTURE 7.2): a build is one entry carrying an `id_set` of edges, not one entry per edge, and the test asserts the shape rather than the count - one domain per action type, fewer domains than actions, one parameter named.
+    - **Costs come from the price table, and the mapping is explicit.** The first draft looked a price up by the *action* name and silently produced a free build: an action is named for what it does (`build_road`) and a price for what it buys (`road`). `COST_OF` states the mapping, and the test asserts the three build costs against the rulebook's own table - which is exactly the kind of difference that would otherwise never be noticed until a game was too cheap.
+    - **The discard is the one domain that cannot be exact, and it says so.** A discard is five counts whose sum is the forced amount: the domain shape can express the range of each count and not the constraint between them, so it is described permissively and the sum is left to the rule. A description may be permissive; it may not promise a value the rule refuses, which is why every other set is built from the rule's own target list.
+    - **Purity is asserted in the strongest form available**: neither function takes a source of randomness at all - the test reads their signatures - and calling either twice gives the same answer with the encoded state unchanged (FR-17.6).
+    - **Completeness is asserted over a whole recorded game**, not one convenient position: the test replays golden game 2 and applies *every* action the surface offers at *every* step, asserting each is accepted - more than a hundred checks. FR-17.5 is a promise about the enumeration, and a promise is only worth as much as the range it was tested over; the failures that matter are at the steps nobody wrote a fixture for. The same test file checks the converse on a rich position: a road on an occupied edge, a settlement one vertex too close, an upgrade of a vertex nobody built on, an action type the game does not have and an action by a seat that is not to move are all refused.
+    - **The schema cannot drift from the implementation** (FR-18.1, FR-18.5): `set(action_schema()) == set(ACTIONS)`, and every action type the enumeration or the domains produce is a key of the schema.
     ```

@@ -17,7 +17,8 @@ for what the game can currently do, and each grows with the card that needs it.
 
 from __future__ import annotations
 
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
+from types import MappingProxyType
 from typing import Any, Final
 
 from lgbg.core.config import GameConfig
@@ -42,6 +43,7 @@ from lgbg.core.types import (
     JsonValue,
     Observation,
     Outcome,
+    ParamDomain,
     PlayerId,
 )
 from lgbg.games.catan import notation, phases
@@ -137,11 +139,17 @@ class CatanGame:
         ]
 
     def action_domains(self, state: CatanState, player: PlayerId) -> list[ActionDomain]:
-        """What the player may do, cross-product free (ARCHITECTURE.md section 7.2)."""
+        """What the player may do, cross-product free (ARCHITECTURE.md section 7.2).
+
+        One entry per action type the open requests offer, carrying the price the rule table
+        declares and the permitted values of each parameter - read from the same table the
+        enumeration reads, so the description and the enumeration are one fact stated twice.
+        """
         return [
-            ActionDomain(type=request.schema_ref, cost=None, params={})
+            _domain_of(state, player, name)
             for request in phases.pending_decisions(state)
             if request.player == player
+            for name in _offered(request)
         ]
 
     # --- transitions ---
@@ -399,40 +407,16 @@ def _resource_counts() -> JsonSchema:
 
 
 def _legal_actions_for(state: CatanState, request: DecisionRequest) -> list[Action]:
-    """The actions one request admits, filtered by the rules that will judge them."""
+    """The actions one request admits, enumerated from the rules that will judge them.
+
+    Every request answers the same two questions - which action types it offers, and which
+    targets each of those may name right now - so this is a fold over one table rather than a
+    branch per phase, and a phase that offers nothing new needs no new code here.
+    """
     player = request.player
-    if request.kind == phases.PLACE_SETTLEMENT:
-        return [
-            Action(player=player, type=phases.PLACE_SETTLEMENT, params={"vertex": vertex})
-            for vertex in _legal_settlement_vertices(state)
-        ]
-    if request.kind == phases.PLACE_ROAD:
-        return [
-            Action(player=player, type=phases.PLACE_ROAD, params={"edge": edge})
-            for edge in _legal_setup_road_edges(state)
-        ]
-    if request.kind == phases.TAKE_TURN:
-        # The request lists the actions it offers; each is enumerated from the rule that will
-        # judge it. The builds arrive one card at a time, and K-034 completes the surface.
-        return [
-            action for name in _offered(request) for action in _actions_of_type(state, player, name)
-        ]
-    if request.kind == phases.DISCARD_RESOURCES:
-        return [
-            Action(player=player, type=phases.DISCARD_RESOURCES, params=composition)
-            for composition in _legal_discards(state, player)
-        ]
-    if request.kind == phases.MOVE_ROBBER:
-        return [
-            Action(player=player, type=phases.MOVE_ROBBER, params={"hex": hex_id})
-            for hex_id in robber.destinations(state)
-        ]
-    if request.kind == phases.CHOOSE_ROBBER_VICTIM:
-        return [
-            Action(player=player, type=phases.CHOOSE_ROBBER_VICTIM, params={"victim": victim})
-            for victim in robber.robber_victims(state)
-        ]
-    return []
+    return [
+        action for name in _offered(request) for action in _actions_of_type(state, player, name)
+    ]
 
 
 def _offered(request: DecisionRequest) -> list[str]:
@@ -443,24 +427,106 @@ def _offered(request: DecisionRequest) -> list[str]:
     return [str(name) for name in names]
 
 
+PARAMETER: Final[Mapping[str, str]] = MappingProxyType(
+    {
+        phases.PLACE_SETTLEMENT: "vertex",
+        phases.PLACE_ROAD: "edge",
+        phases.BUILD_ROAD: "edge",
+        phases.BUILD_SETTLEMENT: "vertex",
+        phases.BUILD_CITY: "vertex",
+        phases.MOVE_ROBBER: "hex",
+        phases.CHOOSE_ROBBER_VICTIM: "victim",
+    }
+)
+"""Which parameter carries the board identifier an action names, for the actions that name one.
+
+One table, read by the enumeration *and* by the domain description, because those two are the
+same fact stated twice: an action that names a target has exactly one such parameter, and the
+values it may take are the targets the rule will accept. Two lists that had to be kept in step
+by hand would eventually disagree, and the disagreement would be a promise the engine breaks.
+"""
+
+
+COST_OF: Final[Mapping[str, str]] = MappingProxyType(
+    {
+        phases.BUILD_ROAD: building.ROAD,
+        phases.BUILD_SETTLEMENT: building.SETTLEMENT,
+        phases.BUILD_CITY: building.CITY,
+    }
+)
+"""Which price an action pays.
+
+An action is named for what it does and a price for what it buys, and the two are not always the
+same word - which is exactly the kind of difference that turns into a silently free build.
+Purchasing a development card joins this table with the card that implements it.
+"""
+
+
+def _targets(state: CatanState, player: int, name: str) -> list[int]:
+    """The identifiers this action may name right now, in a stable order."""
+    if name == phases.PLACE_SETTLEMENT:
+        return _legal_settlement_vertices(state)
+    if name == phases.PLACE_ROAD:
+        return _legal_setup_road_edges(state)
+    if name == phases.BUILD_ROAD:
+        return list(building.road_targets(state, player))
+    if name == phases.BUILD_SETTLEMENT:
+        return list(building.settlement_targets(state, player))
+    if name == phases.BUILD_CITY:
+        return list(building.city_targets(state, player))
+    if name == phases.MOVE_ROBBER:
+        return list(robber.destinations(state))
+    if name == phases.CHOOSE_ROBBER_VICTIM:
+        return list(robber.robber_victims(state))
+    return []
+
+
 def _actions_of_type(state: CatanState, player: int, name: str) -> list[Action]:
     """Every action of one offered type, enumerated from the rule that will judge it."""
-    if name == phases.BUILD_ROAD:
+    if name == phases.DISCARD_RESOURCES:
         return [
-            Action(player=player, type=phases.BUILD_ROAD, params={"edge": edge})
-            for edge in building.road_targets(state, player)
+            Action(player=player, type=phases.DISCARD_RESOURCES, params=composition)
+            for composition in _legal_discards(state, player)
         ]
-    if name == phases.BUILD_SETTLEMENT:
-        return [
-            Action(player=player, type=phases.BUILD_SETTLEMENT, params={"vertex": vertex})
-            for vertex in building.settlement_targets(state, player)
-        ]
-    if name == phases.BUILD_CITY:
-        return [
-            Action(player=player, type=phases.BUILD_CITY, params={"vertex": vertex})
-            for vertex in building.city_targets(state, player)
-        ]
-    return [Action(player=player, type=name, params={})]
+    parameter = PARAMETER.get(name)
+    if parameter is None:
+        return [Action(player=player, type=name, params={})]
+    return [
+        Action(player=player, type=name, params={parameter: target})
+        for target in _targets(state, player, name)
+    ]
+
+
+def _domain_of(state: CatanState, player: int, name: str) -> ActionDomain:
+    """One action type as L1 describes it: what it costs, and what each parameter may be.
+
+    The description is deliberately *not* an enumeration (ARCHITECTURE.md 7.2): a build is one
+    entry with a set of edges, not one entry per edge. Two things are worth saying out loud.
+    The discard is five counts with a sum the domain shape cannot express, so it is described as
+    the range each count may take and the sum is left to the rule - a description may be
+    permissive, but it may not promise a value the rule refuses, which is why every other set is
+    built from the rule's own target list.
+    """
+    bought = COST_OF.get(name)
+    cost = dict(building.COSTS[bought]) if bought is not None else None
+    if name == phases.DISCARD_RESOURCES:
+        hand = state.hands[player]
+        return ActionDomain(
+            type=name,
+            cost=cost,
+            params={
+                resource.value: ParamDomain(kind="int_range", lo=0, hi=hand[index])
+                for index, resource in enumerate(RESOURCE_ORDER)
+            },
+        )
+    parameter = PARAMETER.get(name)
+    if parameter is None:
+        return ActionDomain(type=name, cost=cost, params={})
+    return ActionDomain(
+        type=name,
+        cost=cost,
+        params={parameter: ParamDomain(kind="id_set", values=list(_targets(state, player, name)))},
+    )
 
 
 def _legal_discards(state: CatanState, player: int) -> list[dict[str, JsonValue]]:

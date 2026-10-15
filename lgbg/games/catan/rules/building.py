@@ -13,7 +13,7 @@ half-applied position somebody has to unwind.
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import replace
 from types import MappingProxyType
 from typing import Final
@@ -29,6 +29,7 @@ from lgbg.games.catan.rejections import (
     NO_PIECES_REMAINING,
     NOT_CONNECTED,
     NOT_ENOUGH_RESOURCES,
+    NOT_YOUR_SETTLEMENT,
     TOO_CLOSE,
     VERTEX_OCCUPIED,
 )
@@ -39,6 +40,17 @@ SETTLEMENT: Final[str] = "settlement"
 CITY: Final[str] = "city"
 DEVELOPMENT_CARD: Final[str] = "development_card"
 """The four things a hand can pay for, named the way the actions and the rules name them."""
+
+ROADS: Final[str] = "roads"
+SETTLEMENTS: Final[str] = "settlements"
+CITIES: Final[str] = "cities"
+PIECES: Final[tuple[str, ...]] = (ROADS, SETTLEMENTS, CITIES)
+"""The three piece supplies, named as the state names them: plural, and not the build names.
+
+A build and a piece are different words on purpose - you build a *settlement*, and five
+*settlements* is what you own - and keeping both spelled out is what stops one being passed
+where the other belongs.
+"""
 
 COSTS: Final[Mapping[str, Mapping[str, int]]] = MappingProxyType(
     {
@@ -133,23 +145,45 @@ def pay(state: CatanState, player: int, build: str) -> tuple[CatanState, Event] 
     )
 
 
-def spend_piece(state: CatanState, player: int, piece: str) -> tuple[Supply, ...]:
+def spend_piece(supplies: Sequence[Supply], player: int, piece: str) -> tuple[Supply, ...]:
     """Take one piece out of a player's supply, which is a state change its event describes.
 
     The pieces are the player's own and finite (RULES.md 4.7), so the supply is the only place
     that knows whether a build is available at all - and it is charged here rather than in each
-    build, so the ledger can only be wrong in one place.
+    build, so the ledger can only be wrong in one place. It takes and returns the supply tuple
+    rather than the state, so a build that moves two pieces composes the two calls.
     """
-    if piece not in ("roads", "settlements", "cities"):
-        raise KeyError(f"{piece!r} is not a piece; it is roads, settlements or cities")
-    stock = list(state.supply)
+    if piece not in PIECES:
+        raise KeyError(f"{piece!r} is not a piece; a piece is one of {list(PIECES)}")
+    stock = list(supplies)
     held = stock[player]
     stock[player] = Supply(
-        roads=held.roads - (piece == "roads"),
-        settlements=held.settlements - (piece == "settlements"),
-        cities=held.cities - (piece == "cities"),
+        roads=held.roads - (piece == ROADS),
+        settlements=held.settlements - (piece == SETTLEMENTS),
+        cities=held.cities - (piece == CITIES),
     )
     return tuple(stock)
+
+
+def return_piece(supplies: Sequence[Supply], player: int, piece: str) -> tuple[Supply, ...]:
+    """Put a piece back into a player's supply: the other half of an upgrade (RULES.md 4.7)."""
+    if piece not in PIECES:
+        raise KeyError(f"{piece!r} is not a piece; a piece is one of {list(PIECES)}")
+    stock = list(supplies)
+    held = stock[player]
+    stock[player] = Supply(
+        roads=held.roads + (piece == ROADS),
+        settlements=held.settlements + (piece == SETTLEMENTS),
+        cities=held.cities + (piece == CITIES),
+    )
+    return tuple(stock)
+
+
+def piece_returned(player: int, piece: str, remaining: int) -> Event:
+    """A piece going *back* to a supply, which only an upgrade ever does."""
+    return Event(
+        type="piece_returned", payload={"player": player, "piece": piece, "remaining": remaining}
+    )
 
 
 def piece_taken(player: int, piece: str, remaining: int) -> Event:
@@ -252,7 +286,7 @@ def build_settlement(state: CatanState, action: Action, rng: RandomSource) -> Ap
     built, spent = paid
     sites = list(built.placed.settlements)
     sites[vertex] = action.player
-    supply = spend_piece(built, action.player, "settlements")
+    supply = spend_piece(built.supply, action.player, SETTLEMENTS)
     return Applied(
         state=replace(
             built,
@@ -273,6 +307,90 @@ def build_settlement(state: CatanState, action: Action, rng: RandomSource) -> Ap
                 },
             ),
             piece_taken(action.player, SETTLEMENT, supply[action.player].settlements),
+        ],
+    )
+
+
+def city_targets(state: CatanState, player: int) -> tuple[int, ...]:
+    """Every vertex where this player may upgrade a settlement (RULES.md 4.7, "Cities").
+
+    An upgrade changes no vertex, so the target set is exactly the player's own settlements -
+    which is also why a city can never appear on an empty vertex "for any price".
+    """
+    return tuple(vertex for vertex, owner in enumerate(state.placed.settlements) if owner == player)
+
+
+def can_build_city(state: CatanState, player: int) -> bool:
+    """Whether an upgrade is on offer: a city piece, the price, and a settlement to upgrade."""
+    return (
+        state.supply[player].cities > 0
+        and affordable(state, player, CITY)
+        and bool(city_targets(state, player))
+    )
+
+
+def build_city(state: CatanState, action: Action, rng: RandomSource) -> ApplyResult:
+    """Upgrade one of the player's own settlements into a city (FR-11.6; RULES.md 4.7).
+
+    Two pieces move in opposite directions: the city comes out of the supply and the settlement
+    goes back into it, so the ledger stays true and the player can settle somewhere else again.
+    """
+    del rng  # upgrading decides nothing and draws nothing
+    refusal = phases.refuse_unless_acting(state, action, Phase.ACTION)
+    if refusal is not None:
+        return refusal
+    vertex = _vertex(action, len(state.placed.settlements))
+    if isinstance(vertex, Rejected):
+        return vertex
+    if state.supply[action.player].cities < 1:
+        return Rejected(
+            Rejection(
+                code=NO_PIECES_REMAINING,
+                message="every city this player has is already on the board",
+                details={"player": action.player, "piece": CITY},
+            )
+        )
+    if state.placed.settlements[vertex] != action.player:
+        return Rejected(
+            Rejection(
+                code=NOT_YOUR_SETTLEMENT,
+                message="a city is an upgrade: that vertex does not carry this player's settlement",
+                details={"vertex": vertex, "owner": _owner(state, vertex)},
+            )
+        )
+    paid = pay(state, action.player, CITY)
+    if isinstance(paid, Rejected):
+        return paid
+
+    built, spent = paid
+    sites = list(built.placed.settlements)
+    towns = list(built.placed.cities)
+    sites[vertex] = NO_OWNER
+    towns[vertex] = action.player
+    supply = return_piece(
+        spend_piece(built.supply, action.player, CITIES), action.player, SETTLEMENTS
+    )
+    return Applied(
+        state=replace(
+            built,
+            placed=Placed(tuple(sites), tuple(towns), built.placed.roads),
+            supply=supply,
+        ),
+        events=[
+            spent,
+            Event(
+                type="city_built",
+                payload={
+                    "player": action.player,
+                    "vertex": vertex,
+                    "terrain": [
+                        built.board.terrain[hex_id].value
+                        for hex_id in built.board.topology.hexes_at(vertex)
+                    ],
+                },
+            ),
+            piece_taken(action.player, CITY, supply[action.player].cities),
+            piece_returned(action.player, SETTLEMENT, supply[action.player].settlements),
         ],
     )
 
@@ -412,7 +530,7 @@ def build_road(state: CatanState, action: Action, rng: RandomSource) -> ApplyRes
     built, spent = paid
     lines = list(built.placed.roads)
     lines[edge] = action.player
-    supply = spend_piece(built, action.player, "roads")
+    supply = spend_piece(built.supply, action.player, ROADS)
     return Applied(
         state=replace(
             built,

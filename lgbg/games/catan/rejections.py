@@ -44,6 +44,10 @@ NOT_ENOUGH_RESOURCES: Final[RejectionCode] = RejectionCode(
     description="the player does not hold the resource cards the action spends or returns",
 )
 
+NOT_YOUR_SETTLEMENT: Final[RejectionCode] = RejectionCode(
+    code="NOT_YOUR_SETTLEMENT",
+    description="the vertex does not carry one of the player's own settlements to upgrade",
+)
 ROBBER_SAME_HEX: Final[RejectionCode] = RejectionCode(
     code="ROBBER_SAME_HEX", description="the robber was sent to the hex it already occupies"
 )
@@ -63,6 +67,7 @@ GAME_CODES: Final[tuple[RejectionCode, ...]] = (
     NO_PIECES_REMAINING,
     WRONG_DISCARD_TOTAL,
     NOT_ENOUGH_RESOURCES,
+    NOT_YOUR_SETTLEMENT,
     ROBBER_SAME_HEX,
     ROBBER_ALREADY_MOVED,
     ROBBER_VICTIM_NOT_ADJACENT,

@@ -93,6 +93,7 @@ ACTIONS: Final[dict[str, RuleFunction]] = {
     phases.DISCARD_RESOURCES: robber.discard_resources,
     phases.BUILD_ROAD: building.build_road,
     phases.BUILD_SETTLEMENT: building.build_settlement,
+    phases.BUILD_CITY: building.build_city,
     phases.MOVE_ROBBER: robber.move_robber,
     phases.CHOOSE_ROBBER_VICTIM: robber.choose_robber_victim,
 }
@@ -238,6 +239,12 @@ class CatanGame:
                 "additionalProperties": False,
             },
             phases.BUILD_SETTLEMENT: {
+                "type": "object",
+                "properties": {"vertex": {"type": "integer", "minimum": 0, "maximum": 53}},
+                "required": ["vertex"],
+                "additionalProperties": False,
+            },
+            phases.BUILD_CITY: {
                 "type": "object",
                 "properties": {"vertex": {"type": "integer", "minimum": 0, "maximum": 53}},
                 "required": ["vertex"],
@@ -447,6 +454,11 @@ def _actions_of_type(state: CatanState, player: int, name: str) -> list[Action]:
         return [
             Action(player=player, type=phases.BUILD_SETTLEMENT, params={"vertex": vertex})
             for vertex in building.settlement_targets(state, player)
+        ]
+    if name == phases.BUILD_CITY:
+        return [
+            Action(player=player, type=phases.BUILD_CITY, params={"vertex": vertex})
+            for vertex in building.city_targets(state, player)
         ]
     return [Action(player=player, type=name, params={})]
 

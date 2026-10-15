@@ -26,7 +26,13 @@ from lgbg.games.catan.rejections import (
     TOO_CLOSE,
     VERTEX_OCCUPIED,
 )
-from lgbg.games.catan.rules.building import neighbouring_vertices, piece_taken, spend_piece
+from lgbg.games.catan.rules.building import (
+    ROADS,
+    SETTLEMENTS,
+    neighbouring_vertices,
+    piece_taken,
+    spend_piece,
+)
 from lgbg.games.catan.state import NO_OWNER, RESOURCE_ORDER, CatanState, Placed
 
 
@@ -100,7 +106,7 @@ def place_settlement(state: CatanState, action: Action, rng: RandomSource) -> Ap
         cities=state.placed.cities,
         roads=state.placed.roads,
     )
-    supply = spend_piece(state, action.player, "settlements")
+    supply = spend_piece(state.supply, action.player, SETTLEMENTS)
     updated = replace(state, placed=placed, supply=supply, setup_vertex=site)
     events = [
         Event(
@@ -222,7 +228,7 @@ def place_road(state: CatanState, action: Action, rng: RandomSource) -> ApplyRes
         cities=state.placed.cities,
         roads=_with_seat(state.placed.roads, site, action.player),
     )
-    supply = spend_piece(state, action.player, "roads")
+    supply = spend_piece(state.supply, action.player, ROADS)
     following = _next_player(state)
     return Applied(
         state=replace(state, placed=placed, supply=supply, setup_vertex=NO_OWNER, turn=following),

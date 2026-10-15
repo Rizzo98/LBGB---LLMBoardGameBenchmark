@@ -23,20 +23,6 @@
 
 
 
-### K-033 · Implement city upgrade
-
-  - tags: [slice-4, rules, building, fr-11]
-  - priority: medium
-  - workload: Easy
-  - steps:
-      - [ ] Upgrading an own settlement returns the settlement to supply
-      - [ ] Production rises to 2 and VP to 2
-      - [ ] 4-city limit enforced
-    ```md
-    - **Cuts through:** rules/building, piece supply, production value, victory accounting
-    - **Depends on:** K-032
-    - **PRD:** FR-11.6
-    ```
 
 ### K-034 · Implement legal_actions and action_domains
 
@@ -1235,4 +1221,26 @@
     - **A settlement does what a settlement is for** (FR-11.4): the test asserts the point it is worth, and then rolls the number of an adjacent hex and asserts the card arrives - the production link is the whole point of building one, and it is cheap to check it end to end rather than trusting two modules to agree.
     - **The refusals are ordered, and the price is paid last**, so a settlement refused for any other reason costs nothing: the test that cannot afford one asserts the position is untouched as well as the code.
     - **The fixtures moved into a declared helper** (tests/games/catan_boards.py), because a settlement needs a network, a price and a clear neighbourhood at once, and a third hand-written position builder would have drifted from the first two. Everything it places is charged to a supply and to the bank, so a conservation check on a result means something.
+    ```
+
+### K-033 · Implement city upgrade
+
+  - tags: [slice-4, rules, building, fr-11]
+  - priority: medium
+  - workload: Easy
+  - steps:
+      - [x] Upgrading an own settlement returns the settlement to supply
+      - [x] Production rises to 2 and VP to 2
+      - [x] 4-city limit enforced
+    ```md
+    - **Cuts through:** rules/building, piece supply, production value, victory accounting
+    - **Depends on:** K-032
+    - **PRD:** FR-11.6
+    - **Evidence:** lgbg/games/catan/rules/building.py (`city_targets`, `can_build_city`, `build_city`, `return_piece`), lgbg/games/catan/rejections.py (`NOT_YOUR_SETTLEMENT`), tests/games/test_catan_cities.py (13 tests).
+    - **A city is an upgrade, and the test asks from three directions** because that is what the rule is: an empty vertex is refused, an opponent's settlement is refused, and the player's own settlement is upgraded where it stands. RULES.md is explicit that a city may never be placed on an empty vertex "for any price" (S5), and the only way to be sure an implementation honours that is to ask it for an empty vertex and read the refusal - which names the vertex and, when somebody else owns it, the owner.
+    - **Two pieces move in opposite directions and the ledger stays true.** The city comes out of the supply and the settlement goes back into it, in the same action, and the test asserts the whole supply row plus `check_invariants` on the result: a player who upgrades has not lost a settlement, they have moved one from the board back into supply, and the piece conservation law says so.
+    - **The build names and the piece names are different words, and now different constants.** This card's first draft passed the build name `"settlement"` where the supply wants the piece `"settlements"`, and got a `KeyError` from a helper whose whole job was to make that impossible. `ROADS`/`SETTLEMENTS`/`CITIES` are now declared beside `ROAD`/`SETTLEMENT`/`CITY`, with the reason: you build a settlement, and five settlements is what you own.
+    - **What a city is for, asserted rather than assumed** (FR-11.6): the point value is checked against the old one (two, not three - a settlement's point is replaced, not added), and a roll of an adjacent number pays two cards where a settlement paid one, through the same production path the settlement card tests.
+    - **The four-city limit is the supply again**, not a counter: the fixture lays out three cities standing and two settlements to upgrade, so the fourth city is built against a supply that genuinely holds one, and the fifth attempt is refused with `NO_PIECES_REMAINING` while `can_build_city` stays false - the action is not offered either (FR-11.5).
+    - **The upgrade composes with the piece helpers** rather than reaching into the supply itself: `spend_piece` and `return_piece` now take and return the supply tuple, so an action that moves two pieces writes one expression and the two halves cannot disagree about which player they are charging.
     ```

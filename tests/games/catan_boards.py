@@ -31,12 +31,8 @@ SLOT: Final[Mapping[str, int]] = {
 }
 """Where a resource sits in a hand, by name, so a fixture cannot be wrong about the order."""
 
-ROADS: Final[int] = 0
-SETTLEMENTS: Final[int] = 1
-CITIES: Final[int] = 2
+PIECE_SLOT: Final[Mapping[str, int]] = {"roads": 0, "settlements": 1, "cities": 2}
 """Which entry of PIECES_PER_PLAYER belongs to which piece, named rather than indexed."""
-
-PIECES: Final[tuple[str, ...]] = ("roads", "settlements", "cities")
 
 
 def hand(**counts: int) -> tuple[int, ...]:
@@ -92,7 +88,7 @@ def layout(
             if lines[edge] == NO_OWNER and not ends & set(vertices_of(state, edge))
         ]
         mine = sum(1 for seat in lines if seat == 0)
-        for edge in spare[: PIECES_PER_PLAYER[ROADS] - roads_in_supply - mine]:
+        for edge in spare[: PIECES_PER_PLAYER[PIECE_SLOT["roads"]] - roads_in_supply - mine]:
             lines[edge] = 0
     return replace(
         state,
@@ -112,9 +108,10 @@ def supplies(
     """What each player has left, counted from the pieces on the board."""
     return tuple(
         Supply(
-            PIECES_PER_PLAYER[ROADS] - sum(1 for seat in lines if seat == player),
-            PIECES_PER_PLAYER[SETTLEMENTS] - sum(1 for seat in sites if seat == player),
-            PIECES_PER_PLAYER[CITIES] - sum(1 for seat in towns if seat == player),
+            PIECES_PER_PLAYER[PIECE_SLOT["roads"]] - sum(1 for seat in lines if seat == player),
+            PIECES_PER_PLAYER[PIECE_SLOT["settlements"]]
+            - sum(1 for seat in sites if seat == player),
+            PIECES_PER_PLAYER[PIECE_SLOT["cities"]] - sum(1 for seat in towns if seat == player),
         )
         for player in range(players)
     )

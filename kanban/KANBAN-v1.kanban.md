@@ -7,27 +7,6 @@
 
 ## Backlog
 
-### K-064 · Build the generic fuzz harness
-
-  - tags: [slice-8, fuzz, test, fr-22, sc-2]
-  - priority: high
-  - workload: Extreme
-  - defaultExpanded: true
-  - steps:
-      - [ ] After every action asserts: no exception, declared invariants, event sufficiency, rejection invariance, projection purity, schema conformance
-      - [ ] Asserts termination within a bounded action count, reporting livelock distinctly from a rule failure
-      - [ ] Contains no Catan-specific logic of its own
-      - [ ] Multiple driver policies: uniform, resource-seeking, build-seeking
-      - [ ] Runs against any registered plugin, including the slice-1 fixture game
-    ```md
-    - **Cuts through:** the harness, declared invariants, schemas, projection, replay
-    - **Depends on:** K-061, K-056, K-034
-    - **PRD:** FR-22.1 to FR-22.6
-    - **Why:** Because invariants are declared rather than hardcoded, this one harness validates every game, present and future. It is a test harness, never scored, never presented as a bot.
-- **How this card should start, recorded by the session that stopped before it.** FR-22.3 asks the harness to assert *event sufficiency*: applying events to the pre-state reproduces the post-state. Nothing in the plugin interface can do that today - a rule returns a state and a list of events, and no member reduces one into the other - so the card has a decision to make before it has code: either add an optional protocol member (say `explain(state, events) -> State`, implemented by the fixture game and by Catan, with ARCHITECTURE.md 7.1 updated and the registry test's member list with it), or interpret sufficiency as the weaker claim the interface can support (an accepted action emits at least one event, a rejected one emits none). Everything else the card asks for is already available and asserted: declared invariants (K-061), schema conformance (K-056), projection purity (K-057), rejection invariance, and the livelock measurement from K-062 - a uniform-random driver played the 4000-action cap without ending, which is why a livelock must be reported distinctly from a rule failure rather than treated as one.
-- **A first attempt, and what it learned, recorded here rather than left in a deleted file.** Writing this harness is not hard; writing it inside the project's own rules is where the time goes, and three things are worth knowing before the next attempt. First, the driver may not use the `random` module: `TID251` bans ambient randomness everywhere in `lgbg/` (PRD-v1 FR-2.1, FR-2.7), so the driver's source has to be the injected one - a `SeededRandomSource` seeded apart from the game's, with a named `Purpose` label for its draws, exactly as FR-22.1 asks. Second, the post-action checks need the hash of the *previous* position, which `GameRun` does not keep: capture it before `submit` and pass it in, or the rejection-invariance check has nothing to compare against. Third, the shape that survived drafting and is worth keeping: a frozen `FuzzReport` (actions, accepted, rejected, finished, livelock, codes, offenders) with `clean` as `not offenders`, a `Selector` type of `Callable[[Sequence[Action], RandomSource], Action]`, three policy functions named for what they do to a decision rather than for what they buy in Catan (`uniform`, `maximal` - the action that says the most, `minimal` - the one that says the least), and a per-action check that asserts the plugin's declared invariants, schema conformance of everything offered, rejection invariance, projection purity, and that an accepted action emitted an event. The draft reached the point of failing its own lint and was removed rather than committed half-built; the tree is byte-identical to a commit whose gate was green.
-    ```
-
 ### K-066 · Sweep requirement coverage and build the traceability matrix
 
   - tags: [slice-8, test, acceptance, sc-9, sc-11]
@@ -1413,4 +1392,28 @@
     - **The fixture is where this got interesting.** My first mutations were crude - nine cards added to a hand, a development card dropped on a seat - and the suite failed all of them, correctly: hand *counts* are public (FR-16.2), so a bigger hand is visible to everybody, and a card that is a point moves the owner's own score. The mutations now have to be *observationally neutral*: a hand of the same size with different contents, a knight (which is not a victory point). That the first version failed is the evidence that the assertion is strong enough to be worth having.
     - **One observer is entitled to see one of them, and the suite says so rather than dodging it.** Seat 0 may see seat 0's hand, so that single pair is skipped in the matrix with the reason written beside it - and the next test asserts both halves of the observer-relative rule: seat 1 is told nothing of seat 0's hand, seat 0 is told its own, and the delta rendering of seat 0's own view reports the change.
     - **Every rendering means every rendering**, which is why this card depended on the delta: full, compact and board are compared as text, and the newest member of the family is exercised by the observer-relative test.
+    ```
+
+### K-064 · Build the generic fuzz harness
+
+  - tags: [slice-8, fuzz, test, fr-22, sc-2]
+  - priority: high
+  - workload: Extreme
+  - defaultExpanded: true
+  - steps:
+      - [x] After every action asserts: no exception, declared invariants, event sufficiency, rejection invariance, projection purity, schema conformance
+      - [x] Asserts termination within a bounded action count, reporting livelock distinctly from a rule failure
+      - [x] Contains no Catan-specific logic of its own
+      - [x] Multiple driver policies: uniform, resource-seeking, build-seeking
+      - [x] Runs against any registered plugin, including the slice-1 fixture game
+    ```md
+    - **Cuts through:** the harness, declared invariants, schemas, projection, replay
+    - **Depends on:** K-061, K-056, K-034
+    - **PRD:** FR-22.1 to FR-22.6
+    - **Evidence:** lgbg/core/fuzzing.py (FuzzReport, run_fuzz, the three policies), tests/core/test_fuzzing.py (4 tests).
+    - **One harness, every game.** It drives a plugin it knows nothing about with the actions that plugin offers, and after every action it asserts what the plugin declared about itself: its invariants hold, everything it offers fits its own schema, a refusal left the position alone, an accepted action emitted an event, and observing changed nothing and answered the same twice. The driver draws from an injected source seeded apart from the game's - `TID251` bans the `random` module anywhere in lgbg/, which is FR-22.1 enforced by tooling rather than by intention - and it draws by *index*, because a recorded draw stores what it chose and an `Action` is not JSON. That second discovery cost an hour and is the kind of thing this card existed to find.
+    - **The livelock is a verdict, not a crash** (FR-22.4). A game that reaches the bound unfinished comes back as `FuzzReport(livelock=True, finished=False)` with `clean` still true - wandering is not breaking a declaration - and the test uses the seed K-062 measured as not finishing inside four thousand actions, so the livelock is by construction rather than by luck. K-062's measurement is what made this cheap: the failure mode was already known to exist.
+    - **Three policies, named for what they do to a decision** rather than for what they buy in Catan: `uniform` (the wanderer), `maximal` (the action that says the most) and `minimal` (the one that says the least). Kept game-agnostic, they are three shapes of driver that any plugin can be held against; the card's Catan words for them are what they amount to for this game.
+    - **The control, because a harness that objects to nothing proves nothing.** A test breaks the game on purpose - `check_invariants` monkeypatched to return one violation - and asserts the report is not clean and names the invariant. The fixture game is the other half of FR-22.5: the harness drives the slice-1 canary too, which is how the test found that a plugin declares its own number of seats and ignores the run's, so the harness takes the config at its word and the test has to give it one the game can answer for.
+    - **One clause of FR-22.3 is asserted in the weaker form the interface can support, and that is recorded rather than hidden.** The PRD asks that applying events to the pre-state reproduce the post-state. A rule in this engine returns a state and a list of events, and no member of the plugin interface reduces one into the other, so the harness asserts what the interface can carry - an accepted action emits at least one event - and the module docstring says so in as many words. Making the stronger claim true means a new protocol member and every game implementing it; that is a maintainer's decision, not a line in a harness, and the note below records it as the open question it is.
     ```

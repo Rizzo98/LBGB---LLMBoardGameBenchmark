@@ -18,6 +18,7 @@ for what the game can currently do, and each grows with the card that needs it.
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping, Sequence
+from pathlib import Path
 from types import MappingProxyType
 from typing import Any, Final
 
@@ -35,6 +36,7 @@ from lgbg.core.game import (
     VarianceClass,
     register_game,
 )
+from lgbg.core.prompts import hashes_of
 from lgbg.core.rng import RandomSource
 from lgbg.core.types import (
     Action,
@@ -79,6 +81,22 @@ from lgbg.games.catan.state import (
     encode_state,
     initial_state,
 )
+
+PROMPTS: Final[Mapping[str, Path]] = MappingProxyType(
+    {"game": Path(__file__).parent / "prompts" / "game.md"}
+)
+"""The prompt files this game ships, under the names a record refers to them by (FR-19.1).
+
+The shared prompt is one file today: what the game is, how a position is written down, and what
+each action means, with no advice in it. A driver that hands it to a model records its hash in the
+run config, so the header of that record says which prompt was used (FR-19.3).
+"""
+
+
+def prompt_hashes() -> dict[str, str]:
+    """The hashes of this game's prompt files, as a run config carries them (FR-19.3)."""
+    return hashes_of(PROMPTS)
+
 
 RULES_VERSION: Final[str] = "catan-rules-6"
 """Bumped whenever a pinned rule changes (RULES.md section 1.2), which invalidates the corpus.

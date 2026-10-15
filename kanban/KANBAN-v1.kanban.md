@@ -7,23 +7,6 @@
 
 ## Backlog
 
-### K-059 · Write the shared game prompt
-
-  - tags: [slice-7, prompts, notation, fr-19]
-  - priority: medium
-  - workload: Normal
-  - steps:
-      - [ ] Rules, notation and action semantics documented with worked examples
-      - [ ] No strategy advice, opening recommendations or move evaluation guidance
-      - [ ] SHA-256 recorded in prompt_hashes in the header record
-      - [ ] A test asserts the file exists, hashes, and contains no advice section
-    ```md
-    - **Cuts through:** prompts/game.md, notation, the log header's prompt hashes
-    - **Depends on:** K-019
-    - **PRD:** FR-19.1, FR-19.2, FR-19.3
-    - **Why:** Strategy advice in this file would mean the benchmark measures prompt engineering rather than the model. A result without a prompt hash is unreproducible.
-    ```
-
 ### K-060 · Add notation detail levels
 
   - tags: [slice-7, notation, prompts, fr-19]
@@ -1389,4 +1372,25 @@
     - **The generator is small because the claim is that it can be.** One tool per declared action type, with a name, a description and the input schema exactly as the plugin declared it - every word of a definition comes from the plugin, and the module names no game concept at all. The test reads that off the syntax: no import from lgbg.games, and no identifier that mentions a board, a vertex, an edge or a resource. (The module's *docstring* does mention Catan, which is why the check is on the code and not on the prose: a scan that failed on documentation would be a scan nobody could keep.)
     - **The parameter lists are checked against the rules, not against the schema.** A hand-written table of all nineteen actions and what each is told - from RULES.md, which is a different account from the schema - must agree with what the generator derives; a card that takes two resources and one that takes none are in it, since that is where the two accounts could most easily drift. One action has several shapes (oneOf over the development cards), so the parameter reader unions the branches: the shapes differ in what is required, not in what exists.
     - **No server, and that is the point of the card.** A list of JSON tool definitions is what an MCP adapter would serve; generating one is the part that proves plug-and-play, and serving it is v2 scope. The test asserts the definitions serialise, so nothing about them depends on being in memory.
+    ```
+
+### K-059 · Write the shared game prompt
+
+  - tags: [slice-7, prompts, notation, fr-19]
+  - priority: medium
+  - workload: Normal
+  - steps:
+      - [x] Rules, notation and action semantics documented with worked examples
+      - [x] No strategy advice, opening recommendations or move evaluation guidance
+      - [x] SHA-256 recorded in prompt_hashes in the header record
+      - [x] A test asserts the file exists, hashes, and contains no advice section
+    ```md
+    - **Cuts through:** prompts/game.md, notation, the log header's prompt hashes
+    - **Depends on:** K-019
+    - **PRD:** FR-19.1, FR-19.2, FR-19.3, FR-19.4
+    - **Evidence:** lgbg/games/catan/prompts/game.md, lgbg/core/prompts.py (digest, hashes_of), lgbg/games/catan/game.py (PROMPTS, prompt_hashes), tests/games/test_catan_prompt.py (4 tests).
+    - **Seven sections, and every one of them is about what is legal.** The board and its identifiers, the observation field by field with what is public and what is private, the phases and what ends each, the eighteen actions with their parameters and prices, the development cards, six worked examples as JSON, and how to answer. All eighteen action names appear in it, asserted against action_schema(), so the prompt cannot quietly stop documenting an action.
+    - **No advice is asserted as a scan, not as a promise.** A declared list of phrases only advice uses - you should, we recommend, it is best to, the best move, try to, strategy, tip - must not appear anywhere in the file, and the closing line says what the file is for: what is legal is documented here, what is good is the thing being measured. The scan is deliberately narrow, because a list wide enough to catch the word best would fail on the line that explains the best *rate* a harbour gives.
+    - **The hash is pinned, so an edit cannot pass unnoticed.** The test states the SHA-256 the file had when it landed; a change to the prompt - even a word - fails it, and the failing line is the one to update. That is the same discipline the golden records live under, applied to the artefact a model actually reads.
+    - **The header records it, and v1's scripted runs honestly record nothing.** hashes_of hashes whatever files a game declares; the catan plugin declares one, and a run configured with its hashes writes them into the header - asserted by reading the header back. A scripted run is given no prompt and records none, which is what the empty prompt_hashes in every existing fixture means: nothing there was shown to a model. Handing the prompt to a model is the driver's job, and v1 has no model driver.
     ```

@@ -57,6 +57,7 @@
     - **Depends on:** K-050, K-025
     - **PRD:** FR-14.2, FR-14.3, FR-14.4, FR-14.6, FR-14.7
     - **Why:** Second and harder exercise of the decision queue: out-of-turn decisions from several players at once. Blocked on open question Q7, whether counter-offers are needed.
+    - **Q7, and how this card proceeds (resolved as far as the code needs):** the PRD's open question asks whether counter-offers are needed or `accept_decline` is enough. `RULES.md` 4.12.2 item 1 already pins the protocol as *structured and closed* - `offer_trade`, then one `respond_trade{accept|decline}` per eligible responder, then partner selection or cancellation, with no free-text negotiation - and PRD-v1 FR-14.4 describes the same, so the benchmark implements that. **The question stays open for the maintainer**, and it is cheap to answer later: a counter-offer would re-open the response round, and the offer the state already carries is the same field either way, so the choice is *not* written into the encoded state and no `rules_version` bump would be needed to add it. K-067's measurement of how much trade actually happens is the input that decision wants, which is why this card takes the pinned protocol and leaves the question where it is.
     ```
 
 ### K-052 · Implement partner selection and atomic transfer

@@ -36,7 +36,8 @@ from lgbg.games.catan.rejections import (
     TOO_CLOSE,
     VERTEX_OCCUPIED,
 )
-from lgbg.games.catan.rules.setup import neighbouring_vertices, setup_order
+from lgbg.games.catan.rules.building import neighbouring_vertices
+from lgbg.games.catan.rules.setup import setup_order
 from lgbg.games.catan.state import NO_OWNER, Phase, Placed, Supply, decode_state
 
 SEED: Final[int] = 20250401

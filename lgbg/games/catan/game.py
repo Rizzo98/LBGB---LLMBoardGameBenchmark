@@ -92,6 +92,7 @@ ACTIONS: Final[dict[str, RuleFunction]] = {
     phases.END_TURN: phases.end_turn,
     phases.DISCARD_RESOURCES: robber.discard_resources,
     phases.BUILD_ROAD: building.build_road,
+    phases.BUILD_SETTLEMENT: building.build_settlement,
     phases.MOVE_ROBBER: robber.move_robber,
     phases.CHOOSE_ROBBER_VICTIM: robber.choose_robber_victim,
 }
@@ -234,6 +235,12 @@ class CatanGame:
                 "type": "object",
                 "properties": {"edge": {"type": "integer", "minimum": 0, "maximum": 71}},
                 "required": ["edge"],
+                "additionalProperties": False,
+            },
+            phases.BUILD_SETTLEMENT: {
+                "type": "object",
+                "properties": {"vertex": {"type": "integer", "minimum": 0, "maximum": 53}},
+                "required": ["vertex"],
                 "additionalProperties": False,
             },
             phases.MOVE_ROBBER: {
@@ -436,6 +443,11 @@ def _actions_of_type(state: CatanState, player: int, name: str) -> list[Action]:
             Action(player=player, type=phases.BUILD_ROAD, params={"edge": edge})
             for edge in building.road_targets(state, player)
         ]
+    if name == phases.BUILD_SETTLEMENT:
+        return [
+            Action(player=player, type=phases.BUILD_SETTLEMENT, params={"vertex": vertex})
+            for vertex in building.settlement_targets(state, player)
+        ]
     return [Action(player=player, type=name, params={})]
 
 
@@ -480,7 +492,7 @@ def _legal_settlement_vertices(state: CatanState) -> list[int]:
         and state.placed.cities[vertex] == NO_OWNER
         and all(
             state.placed.settlements[site] == NO_OWNER and state.placed.cities[site] == NO_OWNER
-            for site in setup.neighbouring_vertices(state, vertex)
+            for site in building.neighbouring_vertices(state, vertex)
         )
     ]
 

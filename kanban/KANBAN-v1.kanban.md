@@ -22,21 +22,6 @@
 
 
 
-### K-032 · Implement settlement building
-
-  - tags: [slice-4, rules, building, fr-11]
-  - priority: high
-  - workload: Normal
-  - steps:
-      - [ ] Distance rule enforced at exactly distance 2
-      - [ ] Boundary tests at distance 1 and distance 3
-      - [ ] Connectivity enforced
-      - [ ] 5-settlement limit tracked
-    ```md
-    - **Cuts through:** rules/building, topology, distance rule, piece supply
-    - **Depends on:** K-031
-    - **PRD:** FR-11.4
-    ```
 
 ### K-033 · Implement city upgrade
 
@@ -1227,4 +1212,27 @@
     - **Every fixture is charged for what it places.** The test positions lay pieces on the board and take them out of their owners' supplies, and take cards out of the bank - so `check_invariants` on the result means something. The exhaustion fixture lays out the rest of the player's fifteen roads rather than simply declaring the supply empty.
     - **The action is enumerated from the rule that judges it.** The action phase lists the actions it offers, and each offered action is enumerated by the rule that will accept or refuse it, so what is offered is exactly what is accepted - asserted by building every offered road and refusing an edge that is not offered. This is the shape K-034 completes for the rest of the action surface.
     - **One vocabulary for pieces.** The piece-supply helpers moved into building.py (the module the layout gives 'piece placement, costs, piece and adjacency constraints' to) and the draft now uses them, so `piece_taken` has a single definition rather than one per builder.
+    ```
+
+### K-032 · Implement settlement building
+
+  - tags: [slice-4, rules, building, fr-11]
+  - priority: high
+  - workload: Normal
+  - steps:
+      - [x] Distance rule enforced at exactly distance 2
+      - [x] Boundary tests at distance 1 and distance 3
+      - [x] Connectivity enforced
+      - [x] 5-settlement limit tracked
+    ```md
+    - **Cuts through:** rules/building, topology, distance rule, piece supply
+    - **Depends on:** K-031
+    - **PRD:** FR-11.4
+    - **Evidence:** lgbg/games/catan/rules/building.py (`neighbouring_vertices`, `settlement_targets`, `can_build_settlement`, `build_settlement`), tests/games/test_catan_settlements.py (18 tests), tests/games/catan_boards.py (the fixtures the building tests share).
+    - **The distance rule is measured in the unit the rulebook measures it in.** RULES.md 4.7 states it over the vertices reachable by a single edge, so `neighbouring_vertices` is that set and the rule is a predicate over it - there is no second, hand-rolled notion of "near" anywhere in the engine. The boundary is asserted from both sides: one edge away is refused, two and three are not, because the mistake implementations make is measuring the wrong distance, not forgetting the rule.
+    - **Both halves of the rule are pinned by tests.** The neighbourhood blocks a building **of any colour**, so a test places the player's *own* settlement on the neighbouring vertex, and another places a city rather than a settlement: RULES.md says "the placing player's own included" and "any settlement or city", and both are the sort of clause that gets read as prose and implemented as neither.
+    - **The limit is a supply, not a counter.** Five settlements is what the player owns, so the fixture puts four on the board and builds the fifth - which is exactly the case where the supply runs out - rather than declaring a supply of one. The fifth build succeeds, the sixth is refused with `NO_PIECES_REMAINING`, and `can_build_settlement` is false afterwards, so the action is not on the table either (FR-11.5).
+    - **A settlement does what a settlement is for** (FR-11.4): the test asserts the point it is worth, and then rolls the number of an adjacent hex and asserts the card arrives - the production link is the whole point of building one, and it is cheap to check it end to end rather than trusting two modules to agree.
+    - **The refusals are ordered, and the price is paid last**, so a settlement refused for any other reason costs nothing: the test that cannot afford one asserts the position is untouched as well as the code.
+    - **The fixtures moved into a declared helper** (tests/games/catan_boards.py), because a settlement needs a network, a price and a clear neighbourhood at once, and a third hand-written position builder would have drifted from the first two. Everything it places is charged to a supply and to the bank, so a conservation check on a result means something.
     ```

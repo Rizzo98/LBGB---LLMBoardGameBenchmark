@@ -22,7 +22,7 @@ from lgbg.core.rng import NullRandomSource, SeededRandomSource
 from lgbg.core.types import Action
 from lgbg.games.catan.board.generation import load_board
 from lgbg.games.catan.board.layout import Board, Resource, Terrain
-from lgbg.games.catan.rules.setup import neighbouring_vertices
+from lgbg.games.catan.rules.building import neighbouring_vertices
 from lgbg.games.catan.state import (
     BANK_PER_RESOURCE,
     NO_OWNER,

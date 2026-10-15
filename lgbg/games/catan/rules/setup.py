@@ -26,7 +26,7 @@ from lgbg.games.catan.rejections import (
     TOO_CLOSE,
     VERTEX_OCCUPIED,
 )
-from lgbg.games.catan.rules.building import piece_taken, spend_piece
+from lgbg.games.catan.rules.building import neighbouring_vertices, piece_taken, spend_piece
 from lgbg.games.catan.state import NO_OWNER, RESOURCE_ORDER, CatanState, Placed
 
 
@@ -234,17 +234,6 @@ def place_road(state: CatanState, action: Action, rng: RandomSource) -> ApplyRes
             piece_taken(action.player, "road", supply[action.player].roads),
         ],
     )
-
-
-def neighbouring_vertices(state: CatanState, vertex: int) -> tuple[int, ...]:
-    """The vertices one edge away: the distance rule's neighbourhood (RULES.md 4.7)."""
-    topology = state.board.topology
-    neighbours: set[int] = set()
-    for edge in topology.edges_at(vertex):
-        for other in topology.vertices_of_edge(edge):
-            if other != vertex:
-                neighbours.add(other)
-    return tuple(sorted(neighbours))
 
 
 def _next_player(state: CatanState) -> int:

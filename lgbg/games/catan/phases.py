@@ -46,6 +46,7 @@ END_TURN: Final[str] = "end_turn"
 DISCARD_RESOURCES: Final[str] = "discard_resources"
 """The request a forced discard is answered with, one per eligible player (RULES.md 4.4)."""
 BUILD_ROAD: Final[str] = "build_road"
+BUILD_SETTLEMENT: Final[str] = "build_settlement"
 MOVE_ROBBER: Final[str] = "move_robber"
 CHOOSE_ROBBER_VICTIM: Final[str] = "choose_robber_victim"
 """The robber phase's two steps: it moves, and then somebody is robbed (RULES.md 4.9)."""
@@ -266,7 +267,7 @@ def _action_requests(state: CatanState) -> list[DecisionRequest]:
     of *targets*, and the parameter domains, belong to the action surface (K-034); what this
     request says is which actions are on the table.
     """
-    offered = [name for name in (BUILD_ROAD, END_TURN) if _can_take(state, name)]
+    offered = [name for name in (BUILD_ROAD, BUILD_SETTLEMENT, END_TURN) if _can_take(state, name)]
     return [
         _request(
             state,
@@ -282,6 +283,8 @@ def _can_take(state: CatanState, action: str) -> bool:
     """Whether one action of the action phase can be taken right now."""
     if action == BUILD_ROAD:
         return building.can_build_road(state, state.turn)
+    if action == BUILD_SETTLEMENT:
+        return building.can_build_settlement(state, state.turn)
     return True
 
 

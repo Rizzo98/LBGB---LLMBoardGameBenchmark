@@ -29,6 +29,8 @@ from lgbg.games.catan.rejections import (
     NO_PIECES_REMAINING,
     NOT_CONNECTED,
     NOT_ENOUGH_RESOURCES,
+    TOO_CLOSE,
+    VERTEX_OCCUPIED,
 )
 from lgbg.games.catan.state import NO_OWNER, RESOURCE_ORDER, CatanState, Phase, Placed, Supply
 
@@ -155,6 +157,161 @@ def piece_taken(player: int, piece: str, remaining: int) -> Event:
     return Event(
         type="piece_taken", payload={"player": player, "piece": piece, "remaining": remaining}
     )
+
+
+def neighbouring_vertices(state: CatanState, vertex: int) -> tuple[int, ...]:
+    """The vertices one edge away: the neighbourhood every placement rule is written against.
+
+    RULES.md 4.7 states the distance rule over exactly these three vertices - the ones reachable
+    by a single edge - so the rule and the geometry that answers it are defined in one place.
+    """
+    topology = state.board.topology
+    neighbours = {
+        other
+        for edge in topology.edges_at(vertex)
+        for other in topology.vertices_of_edge(edge)
+        if other != vertex
+    }
+    return tuple(sorted(neighbours))
+
+
+def settlement_targets(state: CatanState, player: int) -> tuple[int, ...]:
+    """Every vertex this player may build a settlement on (RULES.md 4.7, "Settlements").
+
+    Three questions, in the order the rules ask them: is the vertex empty, is every vertex one
+    edge away free of buildings of any colour, and does this player's own network reach it.
+    """
+    points = connection_points(state, player)
+    return tuple(
+        vertex
+        for vertex in range(len(state.placed.settlements))
+        if vertex in points and _empty(state, vertex) and not _crowded(state, vertex)
+    )
+
+
+def can_build_settlement(state: CatanState, player: int) -> bool:
+    """Whether a settlement is on offer: a piece, the price, and somewhere legal to put it."""
+    return (
+        state.supply[player].settlements > 0
+        and affordable(state, player, SETTLEMENT)
+        and bool(settlement_targets(state, player))
+    )
+
+
+def build_settlement(state: CatanState, action: Action, rng: RandomSource) -> ApplyResult:
+    """Place a settlement on an empty vertex of the player's own network (FR-11.4).
+
+    The refusals come in the order the rules treat the questions, and the price is paid last, so
+    a settlement refused for any other reason costs nothing.
+    """
+    del rng  # placing a settlement decides nothing and draws nothing
+    refusal = phases.refuse_unless_acting(state, action, Phase.ACTION)
+    if refusal is not None:
+        return refusal
+    vertex = _vertex(action, len(state.placed.settlements))
+    if isinstance(vertex, Rejected):
+        return vertex
+    if state.supply[action.player].settlements < 1:
+        return Rejected(
+            Rejection(
+                code=NO_PIECES_REMAINING,
+                message="every settlement this player has is already on the board",
+                details={"player": action.player, "piece": SETTLEMENT},
+            )
+        )
+    if not _empty(state, vertex):
+        return Rejected(
+            Rejection(
+                code=VERTEX_OCCUPIED,
+                message="that vertex already carries a building",
+                details={"vertex": vertex, "owner": _owner(state, vertex)},
+            )
+        )
+    crowded = _crowded(state, vertex)
+    if crowded:
+        return Rejected(
+            Rejection(
+                code=TOO_CLOSE,
+                message="a vertex one edge away carries a building, and settlements keep two apart",
+                details={"vertex": vertex, "blocked_by": crowded},
+            )
+        )
+    points = connection_points(state, action.player)
+    if vertex not in points:
+        return Rejected(
+            Rejection(
+                code=NOT_CONNECTED,
+                message="a settlement must touch the player's own network",
+                details={"vertex": vertex, "network": sorted(points)},
+            )
+        )
+    paid = pay(state, action.player, SETTLEMENT)
+    if isinstance(paid, Rejected):
+        return paid
+
+    built, spent = paid
+    sites = list(built.placed.settlements)
+    sites[vertex] = action.player
+    supply = spend_piece(built, action.player, "settlements")
+    return Applied(
+        state=replace(
+            built,
+            placed=Placed(tuple(sites), built.placed.cities, built.placed.roads),
+            supply=supply,
+        ),
+        events=[
+            spent,
+            Event(
+                type="settlement_placed",
+                payload={
+                    "player": action.player,
+                    "vertex": vertex,
+                    "terrain": [
+                        built.board.terrain[hex_id].value
+                        for hex_id in built.board.topology.hexes_at(vertex)
+                    ],
+                },
+            ),
+            piece_taken(action.player, SETTLEMENT, supply[action.player].settlements),
+        ],
+    )
+
+
+def _owner(state: CatanState, vertex: int) -> int:
+    """Whoever built on this vertex, whether a settlement or a city."""
+    settlement = state.placed.settlements[vertex]
+    return settlement if settlement != NO_OWNER else state.placed.cities[vertex]
+
+
+def _empty(state: CatanState, vertex: int) -> bool:
+    return state.placed.settlements[vertex] == NO_OWNER and state.placed.cities[vertex] == NO_OWNER
+
+
+def _crowded(state: CatanState, vertex: int) -> list[int]:
+    """The vertices one edge away that carry a building, whoever owns it (RULES.md 4.7)."""
+    return sorted(site for site in neighbouring_vertices(state, vertex) if not _empty(state, site))
+
+
+def _vertex(action: Action, vertices: int) -> int | Rejected:
+    """Read a vertex identifier, refusing anything the board does not have (FR-18.2)."""
+    value: JsonValue = action.params.get("vertex")
+    if not isinstance(value, int) or isinstance(value, bool):
+        return Rejected(
+            Rejection(
+                code=BAD_PARAMS,
+                message=f"vertex must be an integer between 0 and {vertices - 1}",
+                details={"vertex": value},
+            )
+        )
+    if not 0 <= value < vertices:
+        return Rejected(
+            Rejection(
+                code=BAD_PARAMS,
+                message=f"vertex {value} is not on this board, which has {vertices}",
+                details={"vertex": value, "vertices": vertices},
+            )
+        )
+    return value
 
 
 def connection_points(state: CatanState, player: int) -> frozenset[int]:

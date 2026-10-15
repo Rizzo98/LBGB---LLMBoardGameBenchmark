@@ -109,10 +109,16 @@ the numbers.
    at least one event - and says so in its own docstring; the stronger claim needs a new protocol
    member and every game implementing it.
 
-The board stands at 66 of 68 cards. The two open ones are K-067, held open on the scale and the
-timing above, and K-068, which is this record: its remaining step is the demonstration list being
-signed off rather than written. A release that said "all criteria met" while these four lines stand
-would be the one thing this project has spent its whole build avoiding.
+**These four deviations were accepted for v1 by the maintainer, at round 59 of the board**, on the
+evidence above and on the profile that accompanies it: 43 percent of the fuzz harness's cost is state
+hashing, 31 percent projection purity and 29 percent schema conformance, so the campaign's scale is a
+consequence of what it asserts rather than fat in it - and NFR-2's budget was already missed by
+roughly nineteen times for bare play, before the harness added anything. They are known limitations
+of this release, not open work, and they are written here so that a reader of the acceptance can see
+exactly what was accepted and by whom.
+
+With that decision the board is complete: all 68 cards are in Done, the gate is green at 917 tests
+with one skipped, and the four lines above are part of the release rather than footnotes to it.
 
 
 

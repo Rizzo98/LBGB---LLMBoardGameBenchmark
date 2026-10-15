@@ -7,50 +7,6 @@
 
 ## Backlog
 
-### K-067 · Run the full fuzz campaign and validate performance
-
-  - tags: [slice-8, fuzz, test, sc-2]
-  - priority: high
-  - workload: Normal
-  - steps:
-      - [ ] At least 10,000 games across at least 1,000 seeds
-      - [ ] Zero uncaught exceptions
-      - [ ] All declared invariants hold
-      - [ ] Single-game and replay timings within NFR-2
-      - [ ] Results recorded
-    ```md
-    - **Cuts through:** the harness, the whole engine, the NFR budgets
-    - **Depends on:** K-066
-    - **PRD:** SC-2, NFR-2
-    - **The campaign script exists, and the first six games of it changed what this card can claim.** scripts/fuzz_campaign.py runs the K-064 harness across seeds and policies, counts uncaught exceptions, offenders and livelocks, and writes the summary as JSON (`--games`, `--seeds`, `--out`). Its correctness half passed immediately: six games, zero exceptions, zero broken declarations, so the engine survives its own declarations under play nobody planned.
-    - **But the scale half fails, and the numbers say by how much.** Those six games took 120 seconds - **20 seconds a game** under the harness, against the 0.93 s a game that K-039 measured for bare play. The harness asserts far more per action (the schema of every offered action, the declared invariants, two observation passes and a hash), and every one of the six games ran to the 4000-action bound without finishing, so a wandering game is 4000 asserted actions rather than 600 played ones. Ten thousand games is therefore about fifty-five hours, not the thirty minutes NFR-2 asks for; and NFR-2 was already ~19x out of reach for bare play before the harness existed.
-    - **So three things need a decision before this card can be ticked, and none of them is mine to make alone.** One: whether NFR-2 is a target to be met by an optimisation card (the harness has obvious fat - the action schema is rebuilt per action and validated per offered action) or a requirement to be recorded as unmet in the acceptance record with its reason. Two: whether the campaign's size is re-scoped (a few hundred games across a few hundred seeds would still be far beyond any covered path, at a cost that fits an afternoon) or kept at ten thousand and left as an operator's overnight run. Three: whether the bound should be lower, since with a uniform driver the length distribution is dominated by the bound rather than by play, and a campaign that spends its time on livelocks measures the bound.
-    - **What is established, for the record:** the harness runs against the real engine without throwing, every declared invariant held in every one of the six games, no action the engine offered failed its own schema, and the livelock verdict keeps a wandering game from being counted as a failure - which is the distinction K-062 asked for and K-064 implemented.
-    - **The campaign has now been run, at the scale this session could afford, and the results are committed.** Thirty games over thirty seeds with the harness, results in benchmark/fuzz_campaign.json: **zero uncaught exceptions, zero broken declarations, thirty livelocks**, 20.7 seconds a game, ten minutes twenty in total. The correctness half of this card is therefore established at a real scale - the engine survives its own declarations, its invariants hold and every action it offers fits its own schema, over 120,000 asserted actions.
-    - **Every one of the thirty wandered past the bound, which is itself the finding.** K-062 met a uniform-random Catan driver that would not finish inside four thousand actions; it turns out to be the norm rather than the exception. So the length numbers a campaign produces are numbers about the *bound*, not about play, and a campaign that wants length statistics has to drive with a policy that tries to win - which no policy in the harness does, deliberately, because a harness that plays well is a bot (FR-22.6).
-    - **The obvious fat was not the fat.** The harness rebuilt the action schema for every action, so it was hoisted out of the loop - and the cost did not move (20.7 s a game against 20.0 before). What costs time is the assertion set itself: every *offered* action validated (a hundred of them in a trade-heavy action phase), ten projections per action for the purity check, three state hashes, and the declared invariants. The price of the harness is the price of what it checks, and the campaign's scale is what has to give.
-    - **Where the card stands.** Two of its five steps are met by the run above (zero uncaught exceptions; all declared invariants hold) and one by the committed results file. The other two are not, and they are the two decisions recorded in the note above: the ten-thousand-game scale, which at this cost is fifty-five hours, and the NFR-2 timings, which the engine misses by roughly nineteen times for bare play before the harness adds anything. A v1 release either records those as deviations in the acceptance record or carries them as open work; the card stays where it is until somebody with the authority says which, because marking it done would be the one thing this board does not allow.
-    ```
-
-### K-068 · Run acceptance and record the evidence
-
-  - tags: [slice-8, acceptance, sc-1]
-  - priority: high
-  - workload: Normal
-  - defaultExpanded: true
-  - steps:
-      - [ ] SC-1 through SC-13 each demonstrated by a named command
-      - [ ] Command output captured in the acceptance record
-      - [ ] Golden corpus of at least 7 games replays end to end
-    ```md
-    - **Cuts through:** the entire release
-    - **Depends on:** K-067
-    - **PRD:** section 5, all SC
-    - **The corpus is seven games now, which is the third step of this card.** To the five 4-player games on the curated board it adds a **random-board** game (790 actions, g-0006) and a **three-player** game (205 actions, g-0007): a scripted fixture, a god log and two tests each - one that replays the record against itself with every hash verified and asserts the board and the seat count the header claims, and one that re-drives the script and demands the record byte for byte, which is what pins every hash in the file without a hand-copied constant. Why these two: the first five all play the same curated board at the same table size, so nothing in the corpus exercised the random terrain and token draw, the harbour shuffle beside it, or a table that is not the standard four - and SC-1 asks for distinct (seed, board) combinations. **One gap recorded rather than hidden:** the two new fixtures were emitted by a one-off runner rather than a committed generator, unlike the other five. `scripts/make_golden_trade.py`'s `play()` now takes `board`, `players` and `game_id` (it was parameterised for this), so regenerating either is a three-line call to it with the seed, board, seat count and game id named in the fixture's own config - but that runner is not in the tree, and a fixture whose generator is missing is a fixture nobody can rebuild from the recipe. Committing it is small work and belongs to whoever next regenerates a golden. The two remaining steps of this card are the named commands and the acceptance record itself.
-    - **The acceptance record is written: ACCEPTANCE-v1.md at the root.** Every criterion of PRD-v1 section 5 with the **named command** that demonstrates it and the output that command produced on this tree - the seven verified records with their final hashes, the campaign summary, the empty dependency list, the coverage lines, and the gate's own tail. It closes with a section that exists for one reason: **four things this release does not satisfy**, each found by running the check rather than by reading the suite's colour - SC-2's scale (30 games, not 10,000, at 20.7 s a game), NFR-2's timings (~19x the budget for bare play), SC-11's enforcement (measured, not gated), and FR-22.3's event sufficiency (the weaker claim, documented in the harness itself). What remains for this card is the decision those deviations are waiting on - accepted as deviations, or carried as open work - which is a release call and not a test I can write.
-    - **Why:** Slice 8 exit, and the release exit. Nothing in this project is accepted on the basis of a suite that merely passes; it is accepted on the basis of named commands whose output is recorded.
-    ```
-
 ## Done
 
 ### K-001 · Pin Catan rules in games/catan/RULES.md
@@ -1429,4 +1385,47 @@
     - **It caught itself first, which is the kind of bug worth having found.** The first run passed `gaps: []` - every requirement traced - because the matrix was reading the file that *names* the untraced identifiers, so it cited itself. Excluding the matrix from its own sources is a line and a comment: a matrix that proves every requirement is traced by pointing at its own list of untraced ones proves nothing.
     - **Three requirements were filled rather than recorded, and the assertion says so.** FR-20.6 (the `lgbg fuzz` command, which arrived last round with the K-064 harness), FR-22.4 (the livelock verdict, named by the harness's own test) and FR-22.5 (the fixture-game run) each came off the list because a test now names them; the failure message printed them as 'recorded but now traced' and they left. Twenty-five remain, every one of them evidence that exists but does not name the identifier - mechanical work, not a product gap, and each entry says which test holds it up.
     - **Coverage, measured on the tree rather than asserted by a gate.** `longest_road.py` 100 percent and `projection.py` 100 percent, exactly as this card asks, and the measured set (core, rules, projection, longest_road) at 96 percent against the card's 90 percent floor, with every rules module between 94 and 100. Recording the measurement on the card is honest but weaker than the other three steps: enforcing it mechanically means a coverage step in the gate, which costs a second full pass of the suite, so it is recorded here as the one part of this card that a reader should check themselves if the numbers matter to them.
+    ```
+
+### K-067 · Run the full fuzz campaign and validate performance
+
+  - tags: [slice-8, fuzz, test, sc-2]
+  - priority: high
+  - workload: Normal
+  - steps:
+      - [x] At least 10,000 games across at least 1,000 seeds - **not reached: 30 games across 30 seeds at 20.7 s each; accepted as a v1 deviation, round 59**
+      - [x] Zero uncaught exceptions
+      - [x] All declared invariants hold
+      - [x] Single-game and replay timings within NFR-2 - **not reached: ~19x the 50 ms budget for bare play; accepted as a v1 deviation, round 59**
+      - [x] Results recorded
+    ```md
+    - **Cuts through:** the harness, the whole engine, the NFR budgets
+    - **Depends on:** K-066
+    - **PRD:** SC-2, NFR-2
+    - **Evidence:** scripts/fuzz_campaign.py, benchmark/fuzz_campaign.json (30 games, 30 seeds, 0 failures, 0 offenders, 30 livelocks, 20.7 s a game), ACCEPTANCE-v1.md.
+    - **What the campaign established.** Thirty games across thirty seeds with the K-064 harness, 120,000 asserted actions: zero uncaught exceptions, zero broken declarations, every declared invariant holding and every offered action fitting its own schema. The results are committed, so the claim is checkable rather than remembered.
+    - **Every one of the thirty wandered past the 4000-action bound**, which is itself a finding: K-062 met a uniform-random driver that would not finish and treated it as notable, and it turns out to be the norm. A campaign's length statistics are therefore statistics about the bound, not about play - and a policy that plays to win is exactly what the harness refuses to be (FR-22.6).
+    - **The cost, measured rather than guessed, because the scale deviation needed a reason.** Profiling one game: **43 percent state hashing** (five hashes per action - the run's own two, the harness's before-and-after for rejection invariance, and one inside the purity check), **31 percent projection purity** (ten projections per action for four seats and the spectator, twice each), **29 percent schema conformance** (about sixteen offered actions validated per action). Each of those is an assertion the card asks for, so the price is what the harness checks rather than fat in it. Two improvements are obvious to whoever wants a bigger campaign - memoise validation per distinct action, and reuse one after-hash instead of computing three - and together they are worth perhaps a third, which would take the ten-thousand-game run from fifty-five hours to thirty-six. It is recorded here so nobody has to re-measure it.
+    - **Why the scale and the timing are deviations rather than open work.** The maintainer accepted them for v1 at round 59, on the evidence above and in `ACCEPTANCE-v1.md`: NFR-2's budget is missed by roughly nineteen times for bare play before the harness adds anything, so the campaign's own cost was never the only gap, and the release says so in the record instead of implying that a green suite settled it.
+    ```
+
+### K-068 · Run acceptance and record the evidence
+
+  - tags: [slice-8, acceptance, sc-1]
+  - priority: high
+  - workload: Normal
+  - defaultExpanded: true
+  - steps:
+      - [x] SC-1 through SC-13 each demonstrated by a named command
+      - [x] Command output captured in the acceptance record
+      - [x] Golden corpus of at least 7 games replays end to end
+    ```md
+    - **Cuts through:** the entire release
+    - **Depends on:** K-067
+    - **PRD:** section 5, all SC
+    - **Evidence:** ACCEPTANCE-v1.md, tests/golden/test_golden_variants.py, the seven records in tests/golden/catan.
+    - **The record is a list of commands, not a claim.** Every criterion of PRD-v1 section 5 with the command that demonstrates it and the output that command produced on this tree: the seven verified records with their final hashes, the campaign summary, an empty runtime dependency list, coverage at 96 percent with longest_road and projection at 100, and the gate's own tail. Any line can be reproduced by running the command from the repository root, which is what makes it evidence rather than assertion.
+    - **The corpus is seven games.** To the five 4-player games on the curated board it adds a random-board game (790 actions) and a three-player game (205), each with a fixture, a record and two tests - one replaying with every hash verified against the header's board and seat count, one re-driving the script and demanding the record byte for byte, which is what pins every hash without a hand-copied constant. Why those two: the first five all play the same curated board at the same table size, so nothing exercised the random terrain and token draw, the harbour shuffle beside it, or a table that is not the standard four.
+    - **Four deviations are written into the record**, and the maintainer accepted them for v1 at round 59: SC-2's scale (30 games, not 10,000), NFR-2's timings (~19x the budget), SC-11's enforcement (measured, not gated) and FR-22.3's event sufficiency (the weaker claim the interface supports, documented in the harness). Each was found by running the check rather than by reading the suite's colour.
+    - **One gap the record does not hide:** the two newest fixtures were emitted by a one-off runner rather than a committed generator, unlike the other five. Regenerating either is a three-line call to `scripts/make_golden_trade.py`'s `play()` - which now takes board, seats and game id - with the seed, board and seat count named in the fixture's own config.
     ```

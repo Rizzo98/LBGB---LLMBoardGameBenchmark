@@ -6,8 +6,9 @@ turn. The dice are two independent draws, never one draw of a total, because the
 differ and because a recorded draw has to be replayable semantically (ARCHITECTURE.md 5.4).
 
 The roll pays production through rules/production.py before the phase closes, so a recorded roll
-is a complete account of what happened: the draws, the total, and every player's cards. The bank
-shortage rule of RULES.md 4.6 arrives with K-024.
+is a complete account of what happened: the draws, the total, and every player's cards. When the
+bank cannot cover the whole demand, that too is part of the same account: the shortage is decided
+per resource by the rule of RULES.md 4.6, so nobody's payment depends on the order of the roll.
 """
 
 from __future__ import annotations

@@ -6,8 +6,12 @@ and then applied** (RULES.md 4.5 item 4), which is what makes the bank-shortage 
 well defined - a rule about "the players affected" only means something if the demand is known
 before anything is handed out.
 
-K-024 replaces the simple cap used here with that rule: until then production never takes the
-bank below zero, so conservation holds and no player is paid cards that do not exist.
+When the bank cannot cover a resource, the shortage is decided per resource and independently
+(RULES.md 4.6, A-5): everyone is paid in full if the bank can cover the whole demand; if only
+one player earns that resource, that player takes everything that is left and loses the rest;
+and if two or more players earn it, none of them is paid - a reduced amount would silently rank
+one settlement above another, and the rulebook gives the shortage no priority order to rank them
+by. A shortage of one resource never touches another (FR-10.4; RULES.md correction D-2).
 """
 
 from __future__ import annotations
@@ -44,19 +48,23 @@ def produce(state: CatanState, total: int) -> tuple[CatanState, list[Event]]:
     hands = [list(hand) for hand in state.hands]
     granted: dict[str, dict[str, int]] = {}
     shortfall: dict[str, dict[str, int]] = {}
-    for seat in sorted(demand):
-        for resource in RESOURCE_ORDER:
-            wanted = demand[seat].get(resource, 0)
-            if wanted == 0:
-                continue
-            index = RESOURCE_ORDER.index(resource)
-            taken = min(wanted, bank[index])
-            if taken:
-                bank[index] -= taken
-                hands[seat][index] += taken
-                granted.setdefault(str(seat), {})[resource.value] = taken
-            if taken < wanted:
-                shortfall.setdefault(str(seat), {})[resource.value] = wanted - taken
+    for index, resource in enumerate(RESOURCE_ORDER):
+        owed = {
+            seat: owed for seat, counts in sorted(demand.items()) if (owed := counts[resource]) > 0
+        }
+        if not owed:
+            continue
+        paid = _distribution(owed, bank[index])
+        for seat in sorted(paid):
+            amount = paid[seat]
+            if amount:
+                bank[index] -= amount
+                hands[seat][index] += amount
+                granted.setdefault(str(seat), {})[resource.value] = amount
+        for seat in sorted(owed):
+            missing = owed[seat] - paid.get(seat, 0)
+            if missing:
+                shortfall.setdefault(str(seat), {})[resource.value] = missing
 
     event = Event(
         type="production",
@@ -71,6 +79,20 @@ def produce(state: CatanState, total: int) -> tuple[CatanState, list[Event]]:
         replace(state, bank=tuple(bank), hands=tuple(tuple(hand) for hand in hands)),
         [event],
     )
+
+
+def _distribution(owed: dict[int, int], available: int) -> dict[int, int]:
+    """What each affected player receives of one resource (RULES.md 4.6 item 2).
+
+    Only the players who earn this resource are affected by its shortage, and the decision is
+    taken for all of them at once: full payment, the whole remainder to a lone claimant, or
+    nothing at all. There is no third answer that hands out part of a demand.
+    """
+    if available >= sum(owed.values()):
+        return dict(owed)
+    if len(owed) == 1:
+        return {next(iter(owed)): available}
+    return {}
 
 
 def _demand(state: CatanState, paying: list[int]) -> dict[int, Counter[Resource]]:

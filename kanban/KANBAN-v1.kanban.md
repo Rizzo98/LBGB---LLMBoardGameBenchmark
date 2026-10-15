@@ -14,20 +14,6 @@
 
 
 
-### K-024 · Handle bank-limited production
-
-  - tags: [slice-3, rules, production, fr-10]
-  - priority: medium
-  - workload: Easy
-  - steps:
-      - [ ] When the bank cannot cover a distribution, the shortfall follows the behaviour pinned in RULES.md
-      - [ ] The outcome is deterministic
-      - [ ] A test drives the bank to exhaustion and asserts the result
-    ```md
-    - **Cuts through:** rules/production, bank state, the pinned rule, tests
-    - **Depends on:** K-023
-    - **PRD:** FR-10.4
-    ```
 
 ### K-025 · Implement the concurrent discard phase on a 7
 
@@ -1166,4 +1152,25 @@
     - **Until K-024, production never overdraws the bank.** The cap used here keeps resource conservation and non-negativity true at every step; K-024 replaces the cap with the pinned rule - all-or-nothing per resource, with a partial grant only when exactly one player is affected (RULES.md correction D-2).
     - **A seven pays nothing at all** (FR-10.5): the roll emits the dice event and no production event, and the phase machine takes the turn to the discard phase. Both branches are asserted from the same roll.
     - **Production is a fold, not engine instrumentation** (ARCHITECTURE.md section 14): the rules module is a pure function of the state and the total, so any metric over production can be recomputed from a record after the fact.
+    ```
+
+### K-024 · Handle bank-limited production
+
+  - tags: [slice-3, rules, production, fr-10]
+  - priority: medium
+  - workload: Easy
+  - steps:
+      - [x] When the bank cannot cover a distribution, the shortfall follows the behaviour pinned in RULES.md
+      - [x] The outcome is deterministic
+      - [x] A test drives the bank to exhaustion and asserts the result
+    ```md
+    - **Cuts through:** rules/production, bank state, the pinned rule, tests
+    - **Depends on:** K-023
+    - **PRD:** FR-10.4
+    - **Evidence:** lgbg/games/catan/rules/production.py (`_distribution`), tests/games/test_catan_production.py (17 tests). The rule of RULES.md 4.6 is decided once per resource, for all affected players at the same time: full payment when the bank covers the demand, the whole remainder to a lone claimant, and nothing at all when two or more players earn the resource.
+    - **Both branches are asserted, not only the partial one** (RULES.md correction D-2). A city worth two wheat and a settlement worth one, against a bank holding two, pays nobody: the same demand that would have covered the smaller claim is withheld from both, which is the difference between the pinned rule and the cap K-023 shipped.
+    - **Independence is asserted too** (4.6 item 3). The test uses the two hexes of this board that share the number 5 and disagree about terrain - a wheat hex and a wood hex - and starves only the wheat: the wheat is withheld from two players while the wood is paid in full to the same two.
+    - **Determinism is the property, not the implementation.** The same state is produced twice, and the same position built from the vertex list in reverse, and all three results must be equal - so no part of the distribution may depend on the order demand was accumulated in or on the order seats are visited.
+    - **Conservation survives the shortage** (FR-6.9): withheld cards stay in the bank, so bank plus all hands is unchanged by production and never negative. The test compares the total before and after rather than against 19, because it starves the bank by hand.
+    - **The event is the account of the shortage.** `granted` names what each player actually received and `shortfall` what they were owed and did not get, so a record explains a short roll without the reader having to reconstruct the bank from the start of the game.
     ```

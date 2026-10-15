@@ -18,6 +18,7 @@ from lgbg.core.log import GameLogReader, god_log_path
 from lgbg.core.rng import SeededRandomSource
 from lgbg.core.run import GameRun
 from lgbg.core.types import Action
+from lgbg.games.catan.board.layout import Resource
 from lgbg.games.catan.rules.production import produce
 from lgbg.games.catan.state import (
     BANK_PER_RESOURCE,
@@ -45,6 +46,18 @@ def _token_hex(state: CatanState, total: int) -> int:
         hex_.id
         for hex_ in state.board.topology.hexes
         if state.board.tokens[hex_.id] == total and hex_.id != state.robber
+    )
+
+
+def _token_hex_of(state: CatanState, total: int, name: str) -> int:
+    """A hex showing this number, made of this terrain, and not under the robber."""
+    return next(
+        hex_.id
+        for hex_ in state.board.topology.hexes
+        if state.board.tokens[hex_.id] == total
+        and hex_.id != state.robber
+        and (resource := state.board.resource_of_hex(hex_.id)) is not None
+        and resource.value == name
     )
 
 
@@ -204,6 +217,131 @@ def test_the_demand_is_known_before_anything_is_paid() -> None:
     assert payload["granted"] == {"0": {resource.value: 1}}
     assert payload["shortfall"] == {"0": {resource.value: len(vertices) - 1}}
     assert after.bank[index] == 0
+
+
+def _starved(state: CatanState, resource: Resource, count: int) -> CatanState:
+    """A state whose bank holds exactly `count` of one resource; the rest is untouched."""
+    bank = list(state.bank)
+    bank[RESOURCE_ORDER.index(resource)] = count
+    return replace(state, bank=tuple(bank))
+
+
+def test_a_short_bank_pays_nobody_when_two_players_are_affected() -> None:
+    """RULES.md 4.6 item 2: two or more players affected means the cards stay in the bank."""
+    state = _opening()
+    hex_id = _token_hex(state, 5)
+    first, second = state.board.topology.vertices_of_hex(hex_id)[:2]
+    resource = state.board.resource_of_hex(hex_id)
+    assert resource is not None
+    before = _starved(_with(state, settlements=[(first, 0), (second, 1)]), resource, 1)
+
+    after, events = produce(before, 5)
+
+    payload = _payload(events)
+    assert _hand(after, 0)[resource.value] == 0
+    assert _hand(after, 1)[resource.value] == 0
+    assert after.bank[RESOURCE_ORDER.index(resource)] == 1, "the cards stay in the bank"
+    assert resource.value not in dict(payload["granted"]).get("0", {})
+    assert resource.value not in dict(payload["granted"]).get("1", {})
+    assert payload["shortfall"] == {"0": {resource.value: 1}, "1": {resource.value: 1}}
+
+
+def test_a_short_resource_is_not_split_and_does_not_go_to_the_largest_claim() -> None:
+    """4.6 item 4: a settlement earns nothing, not a reduced amount, whoever it belongs to."""
+    state = _opening()
+    hex_id = _token_hex(state, 5)
+    first, second = state.board.topology.vertices_of_hex(hex_id)[:2]
+    resource = state.board.resource_of_hex(hex_id)
+    assert resource is not None
+    rich = _with(state, cities=[(first, 0)], settlements=[(second, 1)])
+    before = _starved(rich, resource, 2)
+
+    after, _events = produce(before, 5)
+
+    index = RESOURCE_ORDER.index(resource)
+    assert after.hands[0][index] == 0, "a city does not outrank a settlement"
+    assert after.hands[1][index] == 0
+    assert after.bank[index] == 2
+
+
+def test_the_only_affected_player_receives_everything_left() -> None:
+    """4.6 item 2, the exception: one affected player takes what remains and loses the rest."""
+    state = _opening()
+    hex_id = _token_hex(state, 5)
+    vertices = state.board.topology.vertices_of_hex(hex_id)
+    resource = state.board.resource_of_hex(hex_id)
+    assert resource is not None
+    before = _starved(_with(state, settlements=[(vertex, 3) for vertex in vertices]), resource, 3)
+
+    after, events = produce(before, 5)
+
+    payload = _payload(events)
+    assert _hand(after, 3)[resource.value] == 3
+    assert after.bank[RESOURCE_ORDER.index(resource)] == 0, "the exception drains the bank"
+    assert payload["granted"] == {"3": {resource.value: 3}}
+    assert payload["shortfall"] == {"3": {resource.value: len(vertices) - 3}}
+
+
+def test_a_shortage_of_one_resource_never_affects_another() -> None:
+    """4.6 item 3: distribution is decided per resource, independently of the other four."""
+    state = _opening()
+    wheat_hex = _token_hex_of(state, 5, "wheat")
+    wood_hex = _token_hex_of(state, 5, "wood")
+    wheat_vertices = state.board.topology.vertices_of_hex(wheat_hex)[:2]
+    wood_vertices = state.board.topology.vertices_of_hex(wood_hex)[:2]
+    wheat = state.board.resource_of_hex(wheat_hex)
+    wood = state.board.resource_of_hex(wood_hex)
+    assert wheat is not None
+    assert wood is not None
+    paying = _with(
+        state,
+        settlements=[(wheat_vertices[0], 0), (wheat_vertices[1], 1), (wood_vertices[0], 0)],
+    )
+    before = _starved(paying, wheat, 1)
+
+    after, _events = produce(before, 5)
+
+    assert _hand(after, 0)[wheat.value] == 0, "the wheat shortage withholds the wheat"
+    assert _hand(after, 1)[wheat.value] == 0
+    assert _hand(after, 0)[wood.value] == 1, "and leaves the wood alone"
+    assert after.bank[RESOURCE_ORDER.index(wheat)] == 1
+
+
+def test_the_shortfall_rule_is_deterministic() -> None:
+    """FR-10.4: the partial distribution is a function of the state and the total, nothing else."""
+    state = _opening()
+    hex_id = _token_hex(state, 5)
+    vertices = state.board.topology.vertices_of_hex(hex_id)
+    resource = state.board.resource_of_hex(hex_id)
+    assert resource is not None
+    before = _starved(_with(state, settlements=[(vertex, 0) for vertex in vertices]), resource, 2)
+    reordered = _starved(
+        _with(state, settlements=[(vertex, 0) for vertex in reversed(vertices)]), resource, 2
+    )
+
+    first = produce(before, 5)
+
+    assert produce(before, 5) == first, "the same state distributes the same cards"
+    assert produce(reordered, 5) == first, "and placement order is not part of the answer"
+    assert first[0].bank[RESOURCE_ORDER.index(resource)] == 0
+
+
+def test_conservation_holds_when_the_bank_is_short() -> None:
+    """FR-6.9: a shortfall loses cards to nobody; bank plus all hands stays 19 per resource."""
+    state = _opening()
+    hex_id = _token_hex(state, 5)
+    first, second = state.board.topology.vertices_of_hex(hex_id)[:2]
+    resource = state.board.resource_of_hex(hex_id)
+    assert resource is not None
+    before = _starved(_with(state, settlements=[(first, 0), (second, 1)]), resource, 1)
+
+    after, _events = produce(before, 5)
+
+    for index in range(len(RESOURCE_ORDER)):
+        held = sum(hand[index] for hand in after.hands)
+        was = before.bank[index] + sum(hand[index] for hand in before.hands)
+        assert after.bank[index] + held == was, "a shortfall loses cards to nobody"
+        assert after.bank[index] >= 0
 
 
 def test_the_roll_pays_production_end_to_end() -> None:

@@ -20,7 +20,9 @@ from lgbg.core.game import Applied, ApplyResult, Rejected
 from lgbg.core.rng import RandomSource
 from lgbg.core.types import Action, Event
 from lgbg.games.catan import phases
-from lgbg.games.catan.rejections import DECK_EMPTY
+from lgbg.games.catan.rejections import (
+    NO_DEV_CARDS_REMAINING,
+)
 from lgbg.games.catan.rules import building
 from lgbg.games.catan.state import CARD_ORDER, CatanState, DevCard, Phase
 
@@ -44,7 +46,7 @@ def buy_dev_card(state: CatanState, action: Action, rng: RandomSource) -> ApplyR
     if not state.dev_deck:
         return Rejected(
             Rejection(
-                code=DECK_EMPTY,
+                code=NO_DEV_CARDS_REMAINING,
                 message="the development deck is empty, so there is nothing to buy",
                 details={"player": action.player, "remaining": 0},
             )

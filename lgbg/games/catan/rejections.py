@@ -44,8 +44,20 @@ NOT_ENOUGH_RESOURCES: Final[RejectionCode] = RejectionCode(
     description="the player does not hold the resource cards the action spends or returns",
 )
 
-DECK_EMPTY: Final[RejectionCode] = RejectionCode(
-    code="DECK_EMPTY", description="there are no development cards left to buy"
+NO_DEV_CARDS_REMAINING: Final[RejectionCode] = RejectionCode(
+    code="NO_DEV_CARDS_REMAINING",
+    description="there are no development cards left to buy",
+)
+CARD_BOUGHT_THIS_TURN: Final[RejectionCode] = RejectionCode(
+    code="CARD_BOUGHT_THIS_TURN",
+    description="a development card bought this turn may not be played this turn",
+)
+ONE_CARD_PER_TURN: Final[RejectionCode] = RejectionCode(
+    code="ONE_CARD_PER_TURN", description="a player may play at most one development card a turn"
+)
+CARD_NOT_PLAYABLE: Final[RejectionCode] = RejectionCode(
+    code="CARD_NOT_PLAYABLE",
+    description="this card is not one that is played: a victory-point card is revealed, not played",
 )
 NOT_YOUR_SETTLEMENT: Final[RejectionCode] = RejectionCode(
     code="NOT_YOUR_SETTLEMENT",
@@ -70,7 +82,10 @@ GAME_CODES: Final[tuple[RejectionCode, ...]] = (
     NO_PIECES_REMAINING,
     WRONG_DISCARD_TOTAL,
     NOT_ENOUGH_RESOURCES,
-    DECK_EMPTY,
+    NO_DEV_CARDS_REMAINING,
+    CARD_BOUGHT_THIS_TURN,
+    ONE_CARD_PER_TURN,
+    CARD_NOT_PLAYABLE,
     NOT_YOUR_SETTLEMENT,
     ROBBER_SAME_HEX,
     ROBBER_ALREADY_MOVED,

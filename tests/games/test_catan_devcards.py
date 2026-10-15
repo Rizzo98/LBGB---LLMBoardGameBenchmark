@@ -25,7 +25,7 @@ from lgbg.core.rng import NullRandomSource, SeededRandomSource
 from lgbg.core.types import Action
 from lgbg.games.catan import phases
 from lgbg.games.catan.projection import observe
-from lgbg.games.catan.rejections import DECK_EMPTY, NOT_ENOUGH_RESOURCES
+from lgbg.games.catan.rejections import NO_DEV_CARDS_REMAINING, NOT_ENOUGH_RESOURCES
 from lgbg.games.catan.rules.building import COSTS, DEVELOPMENT_CARD
 from lgbg.games.catan.rules.devcards import can_buy_dev_card
 from lgbg.games.catan.state import (
@@ -173,7 +173,7 @@ def test_an_empty_deck_makes_the_action_unavailable() -> None:
 
     refusal = _refusal(state)
 
-    assert refusal.code == DECK_EMPTY
+    assert refusal.code == NO_DEV_CARDS_REMAINING
     assert dict(refusal.details) == {"player": 0, "remaining": 0}
     assert can_buy_dev_card(state, 0) is False
     offered = dict(GAME.pending_decisions(state)[0].context)["actions"]

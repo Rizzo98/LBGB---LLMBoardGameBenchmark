@@ -38,20 +38,6 @@
 
 
 
-### K-048 · Commit golden game 4: a development-card-driven win
-
-  - tags: [slice-5, test, acceptance, sc-1]
-  - priority: medium
-  - workload: Easy
-  - steps:
-      - [ ] Committed fixture in which the winner reaches 10 via a development-card effect
-      - [ ] Replays with every hash verified
-    ```md
-    - **Cuts through:** everything in slice 5
-    - **Depends on:** K-046, K-047
-    - **PRD:** SC-1
-    - **Why:** Slice 5 exit: the full base-game rule surface except trading is exercised by a replaying golden game.
-    ```
 
 ### K-049 · Model port access
 
@@ -1354,4 +1340,25 @@
     - **Only played knights count** (item 2), so a hand holding five of them is worth nothing, and a knight bought this turn cannot have been played. The test asserts both halves: an empty count beside five cards in hand.
     - **The recomputation is wired where the count changes** - the knight's own effect, which is the only thing in the game that increments it. The third knight therefore awards the card *in the same action*, and the test checks that the robber flow still runs afterwards, because the effect does two things and neither may swallow the other.
     - **No action takes an award** (item 4): the engine puts the card where the counts say, and the schema is asserted not to contain anything like a claim.
+    ```
+
+### K-048 · Commit golden game 4: a development-card-driven win
+
+  - tags: [slice-5, test, acceptance, sc-1]
+  - priority: medium
+  - workload: Easy
+  - steps:
+      - [x] Committed fixture in which the winner reaches 10 via a development-card effect
+      - [x] Replays with every hash verified
+    ```md
+    - **Cuts through:** everything in slice 5
+    - **Depends on:** K-046, K-047
+    - **PRD:** SC-1
+    - **Why:** Slice 5 exit: the full base-game rule surface except trading is exercised by a replaying golden game.
+    - **Evidence:** tests/fixtures/catan/devcard_game.json, tests/golden/catan/devcard_game.god.jsonl, tests/golden/test_golden_devcard_game.py (9 tests), scripts/make_golden_devcards.py. 476 actions, seat 1 wins on ten points with five, four and four behind: seventeen purchases, thirteen plays, both awards changing hands, both progress cards used, thirty-three seizures.
+    - **The card's requirement is asserted as a subtraction, not as a story.** The test recomputes the winner's total, subtracts the points that came from cards - the two of Largest Army, the two of Longest Road and the hidden victory-point cards - and asserts that what is *left* is below ten. Without the card points that player's total would have been six, so the game could not have ended: the win is card-driven in the only sense that can be checked.
+    - **The fixture is required to have played the cards**, exactly as the full-game fixture is required to have played the rules: the record must contain purchases, plays, both awards and both progress-card effects, or the test that reads it is testing less than it says.
+    - **It is also the fixture where hidden points matter most.** Every intermediate state is rendered for every seat, and each view is asserted to carry `points` - the score that seat can compute - while none of them carries `dev_cards`. With fifteen cards moving through four hands and four points of the winner's ten coming from cards, that is no longer a hypothetical projection rule.
+    - **The generator needed a policy, not just a seed.** The three earlier generators never bought a card; this one buys when the points are affordable, plays a knight when it has one, and chooses the progress cards *from what the engine offers*, because the bank limits what a Year of Plenty may take and the offer already knows it - the first version built the choice by hand and was refused at the table.
+    - **No older fixture moved:** the state encoding has not changed since catan-rules-6, so games 1 to 3 keep their pinned hashes and only this one's are new.
     ```

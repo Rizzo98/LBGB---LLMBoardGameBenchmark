@@ -217,13 +217,14 @@ def main(argv: list[str]) -> int:
     if argv and argv[0] == "--probe":
         return probe(int(argv[1]) if len(argv) > 1 else 4)
     game = get_game("catan")
-    config = config_for(BASE_SEED)
     with tempfile.TemporaryDirectory() as scratch:
         run, actions, seen = play(BASE_SEED, directory=Path(scratch))
         run.finish()
         produced = Path(scratch) / "games" / f"{GAME_ID}.god.jsonl"
         SCRIPT_PATH.parent.mkdir(parents=True, exist_ok=True)
         SCRIPT_PATH.write_text(
+            # newline="
+": the fixture is compared as bytes, so it may not depend on Windows.
             json.dumps(
                 {
                     "game": "catan",
@@ -240,6 +241,7 @@ def main(argv: list[str]) -> int:
             )
             + "\n",
             encoding="utf-8",
+            newline="\n",
         )
         GOLDEN_PATH.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(produced, GOLDEN_PATH)

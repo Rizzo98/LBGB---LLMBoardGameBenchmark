@@ -154,7 +154,9 @@ def test_the_record_is_deterministic_text() -> None:
     for forbidden in ('"at":', '"host":', '"pid":'):
         assert forbidden not in text
     assert raw.endswith(b"\n")
-    assert SCRIPT.read_bytes().endswith(b"\n")
+    script = SCRIPT.read_bytes()
+    assert b"\r" not in script, "the scripted half is LF only too"
+    assert script.endswith(b"\n")
 
 
 def test_the_record_carries_the_versions_it_was_produced_under() -> None:

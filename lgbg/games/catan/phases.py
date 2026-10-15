@@ -36,7 +36,7 @@ from lgbg.core.game import Applied, ApplyResult, Rejected
 from lgbg.core.rng import RandomSource
 from lgbg.core.types import PHASE_STARTED_EVENT, Action, DecisionRequest, Event, JsonValue
 from lgbg.games.catan.rules import building, devcards, robber
-from lgbg.games.catan.state import NO_OWNER, CatanState, Phase
+from lgbg.games.catan.state import CARD_ORDER, NO_OWNER, CatanState, Phase
 
 PLACE_SETTLEMENT: Final[str] = "place_settlement"
 PLACE_ROAD: Final[str] = "place_road"
@@ -49,6 +49,7 @@ BUILD_ROAD: Final[str] = "build_road"
 BUILD_SETTLEMENT: Final[str] = "build_settlement"
 BUILD_CITY: Final[str] = "build_city"
 BUY_DEV_CARD: Final[str] = "buy_dev_card"
+PLAY_DEV_CARD: Final[str] = "play_dev_card"
 MOVE_ROBBER: Final[str] = "move_robber"
 CHOOSE_ROBBER_VICTIM: Final[str] = "choose_robber_victim"
 """The robber phase's two steps: it moves, and then somebody is robbed (RULES.md 4.9)."""
@@ -198,6 +199,9 @@ def end_turn(state: CatanState, action: Action, rng: RandomSource) -> ApplyResul
         dice=None,
         discards_pending=(0,) * state.players,
         played_this_turn=(0,) * state.players,
+        # What was bought this turn stops being "this turn" here: a card bought in one turn is
+        # playable in the next, which is the whole of the rule it is a counter for.
+        bought_this_turn=((0,) * len(CARD_ORDER),) * state.players,
     )
     entered, announced = begin(closed, Phase.TURN_PRODUCTION)
     return Applied(
@@ -249,13 +253,16 @@ def _turn_production_requests(state: CatanState) -> list[DecisionRequest]:
     """
     if state.dice is not None:
         return []
+    offered = [ROLL_DICE]
+    if devcards.playable_cards(state, state.turn):
+        offered.append(PLAY_DEV_CARD)
     return [
         _request(
             state,
             state.turn,
             TAKE_TURN,
             schema_ref=ROLL_DICE,
-            context={"actions": [ROLL_DICE]},
+            context={"actions": offered},
         )
     ]
 
@@ -277,7 +284,14 @@ def _action_requests(state: CatanState) -> list[DecisionRequest]:
     """
     offered = [
         name
-        for name in (BUILD_ROAD, BUILD_SETTLEMENT, BUILD_CITY, BUY_DEV_CARD, END_TURN)
+        for name in (
+            BUILD_ROAD,
+            BUILD_SETTLEMENT,
+            BUILD_CITY,
+            BUY_DEV_CARD,
+            PLAY_DEV_CARD,
+            END_TURN,
+        )
         if _can_take(state, name)
     ]
     return [
@@ -301,6 +315,8 @@ def _can_take(state: CatanState, action: str) -> bool:
         return building.can_build_city(state, state.turn)
     if action == BUY_DEV_CARD:
         return devcards.can_buy_dev_card(state, state.turn)
+    if action == PLAY_DEV_CARD:
+        return bool(devcards.playable_cards(state, state.turn))
     return True
 
 

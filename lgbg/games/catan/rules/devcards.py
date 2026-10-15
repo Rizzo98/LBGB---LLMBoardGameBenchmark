@@ -13,18 +13,184 @@ played until the next one (K-041). Three counters, one writer.
 
 from __future__ import annotations
 
+from collections.abc import Callable, Mapping
 from dataclasses import replace
+from types import MappingProxyType
 
-from lgbg.core.errors import Rejection
+from lgbg.core.errors import BAD_PARAMS, NOT_YOUR_DECISION, WRONG_PHASE, Rejection
 from lgbg.core.game import Applied, ApplyResult, Rejected
 from lgbg.core.rng import RandomSource
 from lgbg.core.types import Action, Event
 from lgbg.games.catan import phases
 from lgbg.games.catan.rejections import (
+    CARD_BOUGHT_THIS_TURN,
+    CARD_NOT_PLAYABLE,
     NO_DEV_CARDS_REMAINING,
+    ONE_CARD_PER_TURN,
 )
 from lgbg.games.catan.rules import building
 from lgbg.games.catan.state import CARD_ORDER, CatanState, DevCard, Phase
+
+Effect = Callable[[CatanState, int, RandomSource], tuple[CatanState, list[Event]]]
+"""What a played card does: a function of the position it is played in."""
+
+PLAYABLE: tuple[DevCard, ...] = (
+    DevCard.KNIGHT,
+    DevCard.ROAD_BUILDING,
+    DevCard.YEAR_OF_PLENTY,
+    DevCard.MONOPOLY,
+)
+"""The four kinds that may be *played*. A victory-point card is not: RULES.md 4.13 item 3 says
+revealing one is not an action, it is what winning looks like."""
+
+EFFECTS: Mapping[DevCard, Effect] = MappingProxyType({})
+"""What each playable card does, filled in by the cards that implement them (K-042 to K-046).
+
+A card whose effect is not in here is not playable, and that is deliberate: an action that took a
+card out of a player's hand and did nothing would be a rule missing *silently*, which is the one
+thing this engine does not do.
+"""
+
+
+def playable_cards(state: CatanState, player: int) -> tuple[DevCard, ...]:
+    """What this player may play right now (RULES.md 4.8, timing rules 1 to 3).
+
+    Four conditions, in the order the rules state them: it is this player's turn, they have not
+    already played a card this turn, the card was not bought this turn, and the phase is one of
+    the two windows. The window tests are written as what they are - the production phase *before
+    the roll*, or the action phase - which is why a production phase whose dice are already rolled
+    offers nothing: there is no third window for a card to be played in.
+    """
+    if player != state.turn or state.played_this_turn[player] >= 1:
+        return ()
+    if state.phase is Phase.TURN_PRODUCTION and state.dice is not None:
+        return ()
+    if state.phase not in (Phase.TURN_PRODUCTION, Phase.ACTION):
+        return ()
+    held = state.dev_cards[player]
+    bought = state.bought_this_turn[player]
+    return tuple(
+        card
+        for card in PLAYABLE
+        if card in EFFECTS and held[CARD_ORDER.index(card)] > bought[CARD_ORDER.index(card)]
+    )
+
+
+def play_dev_card(state: CatanState, action: Action, rng: RandomSource) -> ApplyResult:
+    """Play one development card, in one of the two windows it may be played in (FR-13.3, 13.4).
+
+    The refusal names the *reason* rather than saying "you may not": a card bought this turn, a
+    second card in the same turn, and a card that is never played at all are three different
+    mistakes, and a player who is told which one they made can play the game.
+    """
+    if action.player != state.turn:
+        return Rejected(
+            Rejection(
+                code=NOT_YOUR_DECISION,
+                message=f"seat {action.player} is not to act; seat {state.turn} is",
+                details={"turn": state.turn},
+            )
+        )
+    if state.phase is Phase.TURN_PRODUCTION and state.dice is not None:
+        return Rejected(
+            Rejection(
+                code=WRONG_PHASE,
+                message="the roll is already resolved; a card is played before it or later",
+                details={"phase": state.phase.value, "dice": list(state.dice or ())},
+            )
+        )
+    if state.phase not in (Phase.TURN_PRODUCTION, Phase.ACTION):
+        return Rejected(
+            Rejection(
+                code=WRONG_PHASE,
+                message="a development card is played before the roll or in the action phase",
+                details={
+                    "phase": state.phase.value,
+                    "dice": None if state.dice is None else list(state.dice),
+                },
+            )
+        )
+    card = _card(action)
+    if isinstance(card, Rejected):
+        return card
+    if card not in EFFECTS:
+        return Rejected(
+            Rejection(
+                code=CARD_NOT_PLAYABLE,
+                message=f"{card.value} is not a card that is played",
+                details={"card": card.value, "playable": [kind.value for kind in PLAYABLE]},
+            )
+        )
+    if state.played_this_turn[action.player] >= 1:
+        return Rejected(
+            Rejection(
+                code=ONE_CARD_PER_TURN,
+                message="one development card a turn",
+                details={
+                    "player": action.player,
+                    "played": state.played_this_turn[action.player],
+                },
+            )
+        )
+    index = CARD_ORDER.index(card)
+    held = list(state.dev_cards[action.player])
+    if held[index] < 1:
+        return Rejected(
+            Rejection(
+                code=CARD_NOT_PLAYABLE,
+                message=f"seat {action.player} does not hold a {card.value}",
+                details={"player": action.player, "card": card.value, "held": held[index]},
+            )
+        )
+    if held[index] - state.bought_this_turn[action.player][index] < 1:
+        return Rejected(
+            Rejection(
+                code=CARD_BOUGHT_THIS_TURN,
+                message="a card bought this turn may not be played this turn",
+                details={"player": action.player, "card": card.value, "held": held[index]},
+            )
+        )
+
+    held[index] -= 1
+    cards = list(state.dev_cards)
+    cards[action.player] = tuple(held)
+    played = list(state.played_this_turn)
+    played[action.player] += 1
+    after = replace(state, dev_cards=tuple(cards), played_this_turn=tuple(played))
+    after, effects = EFFECTS[card](after, action.player, rng)
+    return Applied(
+        state=after,
+        events=[
+            Event(
+                type="dev_card_played",
+                payload={"player": action.player, "card": card.value},
+            ),
+            *effects,
+        ],
+    )
+
+
+def _card(action: Action) -> DevCard | Rejected:
+    """Read the card an action names, refusing anything that is not a card of this game."""
+    value = action.params.get("card")
+    if not isinstance(value, str):
+        return Rejected(
+            Rejection(
+                code=BAD_PARAMS,
+                message="card must name one of the five development cards",
+                details={"card": value},
+            )
+        )
+    try:
+        return DevCard(value)
+    except ValueError:
+        return Rejected(
+            Rejection(
+                code=BAD_PARAMS,
+                message=f"{value!r} is not a development card",
+                details={"card": value, "known": [card.value for card in CARD_ORDER]},
+            )
+        )
 
 
 def can_buy_dev_card(state: CatanState, player: int) -> bool:

@@ -96,6 +96,7 @@ ACTIONS: Final[dict[str, RuleFunction]] = {
     phases.BUILD_SETTLEMENT: building.build_settlement,
     phases.BUILD_CITY: building.build_city,
     phases.BUY_DEV_CARD: devcards.buy_dev_card,
+    phases.PLAY_DEV_CARD: devcards.play_dev_card,
     phases.MOVE_ROBBER: robber.move_robber,
     phases.CHOOSE_ROBBER_VICTIM: robber.choose_robber_victim,
 }
@@ -245,6 +246,14 @@ class CatanGame:
                 "additionalProperties": False,
             },
             phases.BUY_DEV_CARD: _no_parameters(),
+            phases.PLAY_DEV_CARD: {
+                "type": "object",
+                "properties": {
+                    "card": {"type": "string", "enum": [kind.value for kind in devcards.PLAYABLE]}
+                },
+                "required": ["card"],
+                "additionalProperties": False,
+            },
             phases.BUILD_CITY: {
                 "type": "object",
                 "properties": {"vertex": {"type": "integer", "minimum": 0, "maximum": 53}},
@@ -482,6 +491,11 @@ def _actions_of_type(state: CatanState, player: int, name: str) -> list[Action]:
             Action(player=player, type=phases.DISCARD_RESOURCES, params=composition)
             for composition in _legal_discards(state, player)
         ]
+    if name == phases.PLAY_DEV_CARD:
+        return [
+            Action(player=player, type=phases.PLAY_DEV_CARD, params={"card": card.value})
+            for card in devcards.playable_cards(state, player)
+        ]
     parameter = PARAMETER.get(name)
     if parameter is None:
         return [Action(player=player, type=name, params={})]
@@ -511,6 +525,17 @@ def _domain_of(state: CatanState, player: int, name: str) -> ActionDomain:
             params={
                 resource.value: ParamDomain(kind="int_range", lo=0, hi=hand[index])
                 for index, resource in enumerate(RESOURCE_ORDER)
+            },
+        )
+    if name == phases.PLAY_DEV_CARD:
+        return ActionDomain(
+            type=name,
+            cost=cost,
+            params={
+                "card": ParamDomain(
+                    kind="enum",
+                    values=[card.value for card in devcards.playable_cards(state, player)],
+                )
             },
         )
     parameter = PARAMETER.get(name)

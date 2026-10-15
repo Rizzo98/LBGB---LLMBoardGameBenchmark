@@ -31,21 +31,6 @@
 
 
 
-### K-041 · Enforce development card timing rules
-
-  - tags: [slice-5, devcards, phases, fr-13]
-  - priority: high
-  - workload: Normal
-  - steps:
-      - [ ] Not playable on the turn purchased
-      - [ ] At most one per turn
-      - [ ] Per-card play windows follow the interpretation pinned in RULES.md
-      - [ ] The knight-before-roll branch now activates, completing FR-10.1
-    ```md
-    - **Cuts through:** rules/devcards, turn history, phase machine, rejection codes
-    - **Depends on:** K-040, K-022
-    - **PRD:** FR-13.3, FR-13.4, FR-10.1
-    ```
 
 ### K-042 · Implement the knight card
 
@@ -1301,4 +1286,28 @@
     - **`bought_this_turn` is written here because K-041 reads it**: a card bought this turn may not be played until the next one, so the purchase is the only thing that counts one. Three counters move and one event is emitted, which is the smallest change that can express the rule.
     - **The gate caught a mistake the tests could not.** Two overlapping edits left `DECK_EMPTY` declared twice in the vocabulary; the tests all passed and `mypy --strict` refused it - "Cannot redefine an existing name as final". Worth recording, because it is the argument for the tooling gate being part of done rather than a formality after it.
     - **Correction (found while working K-041):** this card named the empty-deck rejection `DECK_EMPTY`, and RULES.md 4.8 item 4 already named it: `NO_DEV_CARDS_REMAINING`. The document wins - a rejection code is part of the plugin's declared vocabulary and the rules document is where that vocabulary is pinned - so the code, its declaration and the test that asserts it were renamed. The three codes the timing rules need (`CARD_BOUGHT_THIS_TURN`, `ONE_CARD_PER_TURN`, `CARD_NOT_PLAYABLE`) were declared in the same change, because a refusal that cannot say *which* of the three mistakes was made is not a refusal a player can learn from.
+    ```
+
+### K-041 · Enforce development card timing rules
+
+  - tags: [slice-5, devcards, phases, fr-13]
+  - priority: high
+  - workload: Normal
+  - steps:
+      - [x] Not playable on the turn purchased
+      - [x] At most one per turn
+      - [x] Per-card play windows follow the interpretation pinned in RULES.md
+      - [x] The knight-before-roll branch now activates, completing FR-10.1
+    ```md
+    - **Cuts through:** rules/devcards, turn history, phase machine, rejection codes
+    - **Depends on:** K-040, K-022
+    - **PRD:** FR-13.3, FR-13.4, FR-10.1
+    - **Evidence:** lgbg/games/catan/rules/devcards.py (`playable_cards`, `play_dev_card`, `PLAYABLE`, `EFFECTS`), lgbg/games/catan/phases.py (the production phase offers the card before the roll), lgbg/games/catan/game.py, tests/games/test_catan_devcard_timing.py (14 tests).
+    - **The timing rules are one predicate over the state**, which is what makes them testable without any card's effect existing: it is this player's turn, they have not already played a card this turn, the card was not bought this turn, and the phase is one of the two windows. The "no third window" clause is the whole reason a production phase whose dice are already rolled answers nothing: between the roll and its resolution there is no state to play anything in, and the test says exactly that.
+    - **The counters the last two cards built are per card, not per turn.** Holding two knights with one of them bought this turn leaves the *older* one playable - the test asserts that, because the obvious implementation (a boolean "bought this turn") gets it wrong.
+    - **A bug found by the test that ends a turn and tries again:** `end_turn` cleared `played_this_turn` and never cleared `bought_this_turn`, so a card bought in one turn stayed unplayable for the rest of the game. The rule it is a counter for is "not on the turn it was bought", and the fix is one line in the transition that ends the turn.
+    - **A card whose effect has not landed is never offered.** `EFFECTS` is the table K-042 to K-046 fill in, and `playable_cards` requires an entry in it: an action that took a card out of a player's hand and did nothing would be a rule missing *silently*, which is the one thing this engine does not do. The interim state is asserted rather than left implicit - with the table empty, three knights in hand are still not playable, and the action does not appear in what the phase offers.
+    - **The effects are tested with a declared double.** The timing file installs one small card effect that records that it ran and says so in its docstring; it is the smallest thing that makes a card playable at all, and it disappears when K-042 implements the knight. What it lets the tests assert is the part that is real today: the card leaves the hand, the turn remembers it, the effect runs *after* the bookkeeping, and the offer appears before the roll.
+    - **The refusals name the reason** (FR-13.3, FR-13.4): a card bought this turn, a second card in the same turn, a card that is never played at all, and a card the player does not hold are four different rejections with four different codes, because a player who is told which mistake they made can play the game. A finished game is refused with `GAME_OVER` rather than a phase error, which is the distinction K-037 pinned and this test re-asserts from a new direction.
+    - **What arrives next:** the effects themselves (K-042 the knight, K-043 to K-046 the rest), and with the knight the completion of FR-10.1 - the offer before the roll already exists, and what it will do is K-042's card.
     ```

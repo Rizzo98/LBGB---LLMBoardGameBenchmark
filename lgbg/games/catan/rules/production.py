@@ -20,13 +20,65 @@ from collections import Counter
 from dataclasses import replace
 from typing import Final
 
-from lgbg.core.types import Event
+from lgbg.core.errors import WRONG_PHASE, Rejection
+from lgbg.core.game import Applied, ApplyResult, Rejected
+from lgbg.core.rng import Purpose, RandomSource
+from lgbg.core.types import Action, Event
+from lgbg.games.catan import phases
 from lgbg.games.catan.board.layout import Resource
-from lgbg.games.catan.state import NO_OWNER, RESOURCE_ORDER, CatanState
+from lgbg.games.catan.rules import robber
+from lgbg.games.catan.state import NO_OWNER, RESOURCE_ORDER, CatanState, Phase
 
 SEVEN: Final[int] = 7
 SETTLEMENT_YIELD: Final[int] = 1
 CITY_YIELD: Final[int] = 2
+
+DICE_DIE_1: Final[Purpose] = "dice_die_1"
+DICE_DIE_2: Final[Purpose] = "dice_die_2"
+"""Draws D6 and D7 of RULES.md section 3.1: two independent dice, in that order."""
+
+DIE_FACES: Final[int] = 6
+
+
+def roll_dice(state: CatanState, action: Action, rng: RandomSource) -> ApplyResult:
+    """Roll the two dice and pay what they produced (FR-10.1, FR-10.2).
+
+    The roll lives here rather than beside the turn's other action because this module is where
+    RULES.md 4.5 and draws D6 and D7 belong: the dice are not a fact about a turn, they are the
+    input production is a function of. The two draws are independent, never one draw of a total,
+    because the distributions differ and a recorded draw has to be replayable semantically.
+    """
+    refusal = phases.refuse_unless_acting(state, action, Phase.TURN_PRODUCTION)
+    if refusal is not None:
+        return refusal
+    if state.dice is not None:
+        return Rejected(
+            Rejection(
+                code=WRONG_PHASE,
+                message="the dice have already been rolled this turn",
+                details={"dice": list(state.dice)},
+            )
+        )
+
+    first = rng.randint(1, DIE_FACES, purpose=DICE_DIE_1)
+    second = rng.randint(1, DIE_FACES, purpose=DICE_DIE_2)
+    total = first + second
+    rolled = replace(state, dice=(first, second))
+    paid, production_events = produce(rolled, total)
+    # A seven forces the discards. The amounts are computed here, once, and stored: the phase
+    # then asks each player for what the seven asked them, rather than recomputing the question
+    # against hands that have already shrunk (RULES.md 4.4 item 3).
+    ready = replace(paid, discards_pending=robber.forced_discards(paid)) if total == SEVEN else paid
+    return Applied(
+        state=ready,
+        events=[
+            Event(
+                type="dice_rolled",
+                payload={"player": action.player, "dice": [first, second], "total": total},
+            ),
+            *production_events,
+        ],
+    )
 
 
 def produce(state: CatanState, total: int) -> tuple[CatanState, list[Event]]:

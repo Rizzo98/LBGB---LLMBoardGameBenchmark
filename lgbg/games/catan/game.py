@@ -54,7 +54,7 @@ from lgbg.games.catan.notation import Detail
 from lgbg.games.catan.projection import observe as project
 from lgbg.games.catan.projection import observe_spectator as project_spectator
 from lgbg.games.catan.rejections import DECLARED_CODES
-from lgbg.games.catan.rules import robber, setup, turn
+from lgbg.games.catan.rules import production, robber, setup
 from lgbg.games.catan.state import (
     BANK_PER_RESOURCE,
     NO_OWNER,
@@ -88,8 +88,8 @@ RuleFunction = Callable[[CatanState, Action, RandomSource], ApplyResult]
 ACTIONS: Final[dict[str, RuleFunction]] = {
     phases.PLACE_SETTLEMENT: setup.place_settlement,
     phases.PLACE_ROAD: setup.place_road,
-    phases.ROLL_DICE: turn.roll_dice,
-    phases.END_TURN: turn.end_turn,
+    phases.ROLL_DICE: production.roll_dice,
+    phases.END_TURN: phases.end_turn,
     phases.DISCARD_RESOURCES: robber.discard_resources,
     phases.MOVE_ROBBER: robber.move_robber,
     phases.CHOOSE_ROBBER_VICTIM: robber.choose_robber_victim,

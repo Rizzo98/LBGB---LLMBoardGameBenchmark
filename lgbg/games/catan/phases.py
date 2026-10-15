@@ -18,6 +18,10 @@ of the machine matter more than the rest.
 - **A phase that closes the moment it opens closes in the same action.** A seven nobody has to
   answer is over before it begins, and the turn moves on to the robber's decision in the record
   that made it so.
+
+The machine also holds the two things that are statements about phases rather than about any one
+rule: the refusal every action of a turn shares (right seat, right phase), and the action that is
+nothing but a transition, which is ending the turn.
 """
 
 from __future__ import annotations
@@ -27,7 +31,10 @@ from dataclasses import dataclass, replace
 from types import MappingProxyType
 from typing import Final
 
-from lgbg.core.types import PHASE_STARTED_EVENT, DecisionRequest, Event, JsonValue
+from lgbg.core.errors import NOT_YOUR_DECISION, WRONG_PHASE, Rejection
+from lgbg.core.game import Applied, ApplyResult, Rejected
+from lgbg.core.rng import RandomSource
+from lgbg.core.types import PHASE_STARTED_EVENT, Action, DecisionRequest, Event, JsonValue
 from lgbg.games.catan.rules import robber
 from lgbg.games.catan.state import NO_OWNER, CatanState, Phase
 
@@ -133,6 +140,65 @@ def _check_this_phase_can_move_on(state: CatanState) -> None:
     raise PhaseError(
         f"phase {state.phase.value} has no open decisions and nowhere to go: its successor "
         "belongs to a card that has not landed"
+    )
+
+
+def refuse_unless_acting(state: CatanState, action: Action, phase: Phase) -> Rejected | None:
+    """The two refusals every action of a turn shares: the right seat, and the right phase.
+
+    It lives with the machine rather than with any one rule because it is a statement about
+    phases: an action belongs to one phase, and to the seat whose turn it is (FR-9.2).
+    """
+    if action.player != state.turn:
+        return Rejected(
+            Rejection(
+                code=NOT_YOUR_DECISION,
+                message=f"seat {action.player} is not to act; seat {state.turn} is",
+                details={"turn": state.turn},
+            )
+        )
+    if state.phase is not phase:
+        return Rejected(
+            Rejection(
+                code=WRONG_PHASE,
+                message=f"{action.type!r} is not legal in the {state.phase.value} phase",
+                details={"phase": state.phase.value, "expected": phase.value},
+            )
+        )
+    return None
+
+
+def end_turn(state: CatanState, action: Action, rng: RandomSource) -> ApplyResult:
+    """Close the turn and open the next seat's production phase (RULES.md 4.4 rule 1).
+
+    The only action in the game that is nothing but a transition, which is why it is here and
+    not in a rule module: it is the phase machine being asked to move on, and it says so with a
+    turn_ended event beside the transition's own announcement.
+    """
+    del rng  # ending a turn decides nothing and draws nothing
+    refusal = refuse_unless_acting(state, action, Phase.ACTION)
+    if refusal is not None:
+        return refusal
+
+    following = (action.player + 1) % state.players
+    closed = replace(
+        state,
+        turn=following,
+        round=state.round + (1 if following == 0 else 0),
+        dice=None,
+        discards_pending=(0,) * state.players,
+        played_this_turn=(0,) * state.players,
+    )
+    entered, announced = begin(closed, Phase.TURN_PRODUCTION)
+    return Applied(
+        state=entered,
+        events=[
+            Event(
+                type="turn_ended",
+                payload={"player": action.player, "next_player": following, "round": entered.round},
+            ),
+            *announced,
+        ],
     )
 
 

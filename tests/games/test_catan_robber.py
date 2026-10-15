@@ -34,8 +34,8 @@ from lgbg.core.types import Action
 from lgbg.games.catan import phases
 from lgbg.games.catan.board.layout import Resource
 from lgbg.games.catan.rejections import ROBBER_ALREADY_MOVED, ROBBER_SAME_HEX
+from lgbg.games.catan.rules.production import DICE_DIE_1, DICE_DIE_2
 from lgbg.games.catan.rules.robber import robber_victims
-from lgbg.games.catan.rules.turn import DICE_DIE_1, DICE_DIE_2
 from lgbg.games.catan.state import NO_OWNER, RESOURCE_ORDER, CatanState, Phase, Placed
 
 GAME: Final[Any] = get_game("catan")

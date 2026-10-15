@@ -36,7 +36,7 @@ from lgbg.core.run import GameRun
 from lgbg.core.types import Action
 from lgbg.games.catan import phases
 from lgbg.games.catan.rejections import NOT_ENOUGH_RESOURCES, WRONG_DISCARD_TOTAL
-from lgbg.games.catan.rules.turn import DICE_DIE_1, DICE_DIE_2
+from lgbg.games.catan.rules.production import DICE_DIE_1, DICE_DIE_2
 from lgbg.games.catan.state import RESOURCE_ORDER, CatanState, Phase
 
 GAME: Final[Any] = get_game("catan")

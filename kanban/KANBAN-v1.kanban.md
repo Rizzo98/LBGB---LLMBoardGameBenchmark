@@ -7,24 +7,6 @@
 
 ## Backlog
 
-### K-054 · Implement assist levels and rejection-detail tiers
-
-  - tags: [slice-7, assist, cli, fr-17, sc-8]
-  - priority: high
-  - workload: Hard
-  - defaultExpanded: true
-  - steps:
-      - [ ] L0 renders observation only, with minimal rejections that do not leak enumeration through error messages
-      - [ ] L1 renders types, costs and parameter domains without enumerating the cross product
-      - [ ] L2 renders the full legal action list with alternatives
-      - [ ] apply has no notion of assist level and is byte-identical across all three
-    ```md
-    - **Cuts through:** renderers, action_domains and legal_actions, the rejection formatter, config
-    - **Depends on:** K-034, K-030
-    - **PRD:** FR-17.1, FR-17.3, FR-17.4
-    - **Why:** The single most important benchmark-validity knob. If enumeration leaks at L0 through error messages, a model can brute-force its way from L0 to L2 without anyone noticing.
-    ```
-
 ### K-055 · Add the assist-equivalence test
 
   - tags: [slice-7, test, assist, sc-8]
@@ -1364,4 +1346,28 @@
     - **Every intermediate state conserves every resource** - not the fixture's own rule, but the one a trade is most likely to break, and it is checked over all 599 states rather than at the end.
     - **What it does not contain, and why.** Nobody trades with the bank in this game (the policy only offers when a build is out of reach, and a 4:1 exchange never is), and nobody withdraws an offer: the driver answers the responders before it settles the offerer's request, so an offer always resolves on its own. Both rules are asserted by the unit tests of K-051; the corpus is not asked to carry a decision a player would not make.
     - **The policy had to be written for the trade, not tuned for it.** The offer is built from the state - one card the player can spare, for one they hold none of that another seat holds two of - and it is taken only when the answering seat can keep a card of the kind it gives away, which is what puts declines in the record beside the accepts.
+    ```
+
+### K-054 · Implement assist levels and rejection-detail tiers
+
+  - tags: [slice-7, assist, cli, fr-17, sc-8]
+  - priority: high
+  - workload: Hard
+  - defaultExpanded: true
+  - steps:
+      - [x] L0 renders observation only, with minimal rejections that do not leak enumeration through error messages
+      - [x] L1 renders types, costs and parameter domains without enumerating the cross product
+      - [x] L2 renders the full legal action list with alternatives
+      - [x] apply has no notion of assist level and is byte-identical across all three
+    ```md
+    - **Cuts through:** renderers, action_domains and legal_actions, the rejection formatter, config
+    - **Depends on:** K-034, K-030
+    - **PRD:** FR-17.1, FR-17.3, FR-17.4
+    - **Evidence:** lgbg/core/assist.py (render_decision, rejection_view, render_rejection), lgbg/adapters/cli/main.py (inspect --assist), tests/core/test_assist.py (10 tests), tests/games/test_catan_assist.py (6 tests), tests/cli/test_cli.py (2 tests).
+    - **L0 is a subtraction that can be asserted**, not a description: the text at L0 is the game's own rendering of that player's observation, byte for byte, and no action type appears in it. The leak rule of FR-17.3 is then structural rather than policed: the minimal rejection is ok-and-error and nothing beside it, so no alternative list and no parameter domain *can* appear - the test hands it a refusal carrying both and asserts the text is the bare code.
+    - **L1 describes, L2 enumerates, and the difference is the cross product.** Each offered type is one line with its cost and the domains of its parameters; a discard is the witness, where L1 writes a range per resource (0..3) and L2 lists every composition that sums to the forced amount, and a trade is the other one, where L1 has a single offer_trade line and L2 has twenty-seven actions. The L2 lines are checked against the enumeration through a formatter written out again in the test, so the module is not its own witness.
+    - **The tier rule is structural rather than a list of forbidden keys.** A refusal's details are either facts - a scalar, or a mapping of counts, which is exactly what was required against what was held - or collections, which is where enumeration lives: a target set, the action types that exist, the requests that are open. The standard tier keeps the facts and withholds collections, so a rule that starts leaking a new list tomorrow leaks it only at the full tier. A key-by-key deny list would have failed in the other direction, and quietly, which is the failure this project spends its time avoiding.
+    - **The level is unreachable from the engine.** apply takes a state, an action and a source (asserted against the protocol's own signature), and a scan of the source asserts that no module outside config.py, assist.py and the front-ends names AssistLevel or RejectionDetail at all. That is the structural half of FR-17.1: a rule that imported the enum to decide something by it would fail the build rather than the benchmark. The behavioural half - the same script at three levels producing the same log - is K-055, and this card asserts its small form below.
+    - **The record keeps the refusal in full whatever the tier is.** Three runs of the same refused attempt at L0, L1 and L2 produce byte-identical action records, and headers that differ only in the two fields the level determines (assist, and the rejection_detail derived from it). So the tier changes what a player is told and never what is recorded, which is what keeps one recorded game re-renderable at another level.
+    - **And it is reachable from the product, not only from tests:** lgbg inspect --player N --assist L0|L1|L2 prints the decision that player would be given, so an operator can read one position through all three lenses. The CLI test asserts the ladder at the command line: L0 shows the observation and no action, L1 names the type with the domain of its parameter, L2 gives the actions themselves.
     ```

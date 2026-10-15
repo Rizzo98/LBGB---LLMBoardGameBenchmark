@@ -27,8 +27,9 @@ from typing import Any
 
 import lgbg.games  # noqa: F401 - importing the package registers the in-repo plugins
 from lgbg.adapters.cli.script import ScriptError, drive, load_script
+from lgbg.core.assist import render_decision
 from lgbg.core.canonical import hash_state, to_canonical_json
-from lgbg.core.config import DEFAULT_PLAYERS, ConfigError, RunConfig
+from lgbg.core.config import DEFAULT_PLAYERS, AssistLevel, ConfigError, RunConfig
 from lgbg.core.game import Applied, GamePluginError, get_game
 from lgbg.core.log import GOD_LOG_SUFFIX, GameLogReader, LogError
 from lgbg.core.replay import ReplayError, replay, verify
@@ -116,6 +117,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--seq", type=int, default=None, help="the state after this many actions, not the last"
     )
     inspect_command.add_argument("--compact", action="store_true", help="render compactly")
+    inspect_command.add_argument(
+        "--assist",
+        choices=[level.value for level in AssistLevel],
+        default=None,
+        help="show the decision this player is given at that level of assistance",
+    )
 
     verify_command = commands.add_parser(
         "verify", help="verify a record, or every record in a directory"
@@ -297,6 +304,15 @@ def _inspect(args: argparse.Namespace) -> int:
     last = len(replayed.states) - 1
     index = last if args.seq is None else max(0, min(args.seq + 1, last))
     state = replayed.states[index]
+    if args.assist is not None:
+        # What one player is shown, at the level the run was configured for (FR-17.4). The
+        # level is a property of the interface, so an operator can look at the same position
+        # through all three lenses without the game changing underneath.
+        if args.player is None:
+            print("error: --assist shows a decision, so --player is required", file=sys.stderr)
+            return 1
+        print(render_decision(game, state, args.player, assist=AssistLevel(args.assist)))
+        return 0
     observation = (
         game.observe_spectator(state) if args.player is None else game.observe(state, args.player)
     )

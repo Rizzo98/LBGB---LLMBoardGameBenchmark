@@ -244,6 +244,51 @@ def test_inspect_shows_the_spectator_view_by_default(
     assert "hands" in out, "the spectator sees the god view"
 
 
+def test_inspect_shows_the_decision_at_a_chosen_assist_level(
+    capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
+    """K-054: an operator can read one position through each level's eyes."""
+    script = _catan_draft_script(tmp_path, actions=2)
+    out_dir = tmp_path / "run"
+    assert main(["play", "--script", str(script), "--out", str(out_dir)]) == 0
+    capsys.readouterr()
+    record = str(god_log_path(out_dir, "g-0001"))
+
+    assert main(["inspect", record, "--player", "0", "--seq", "0", "--assist", "L0"]) == 0
+    bare, _err = _capsys_text(capsys)
+    assert "catan |" in bare, "the observation is still shown"
+    assert "asking" not in bare
+    assert "place_road" not in bare, "L0 is the observation alone"
+
+    assert main(["inspect", record, "--player", "0", "--seq", "0", "--assist", "L1"]) == 0
+    described, _err = _capsys_text(capsys)
+    assert "asking" in described
+    assert "place_road cost=" in described, "L1 names the type and its cost"
+    assert "one of" in described, "and the domain of its parameter"
+    assert "place_road edge=" not in described, "but not the actions themselves"
+
+    assert main(["inspect", record, "--player", "0", "--seq", "0", "--assist", "L2"]) == 0
+    told, _err = _capsys_text(capsys)
+    assert "place_road edge=0" in told, "L2 enumerates what may be done"
+    assert told.startswith(bare), "and the observation is the same one"
+
+
+def test_inspect_needs_a_player_to_show_a_decision(
+    capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
+    """A decision belongs to somebody: asking for one without a player is an error."""
+    script = _catan_draft_script(tmp_path, actions=2)
+    out_dir = tmp_path / "run"
+    assert main(["play", "--script", str(script), "--out", str(out_dir)]) == 0
+    capsys.readouterr()
+
+    code = main(["inspect", str(god_log_path(out_dir, "g-0001")), "--assist", "L1"])
+
+    _out, err = _capsys_text(capsys)
+    assert code == 1
+    assert "--player is required" in err
+
+
 def test_play_interactively_applies_actions_from_stdin(
     capsys: pytest.CaptureFixture[str], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

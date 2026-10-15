@@ -35,7 +35,7 @@ from lgbg.core.errors import NOT_YOUR_DECISION, WRONG_PHASE, Rejection
 from lgbg.core.game import Applied, ApplyResult, Rejected
 from lgbg.core.rng import RandomSource
 from lgbg.core.types import PHASE_STARTED_EVENT, Action, DecisionRequest, Event, JsonValue
-from lgbg.games.catan.rules import building, robber
+from lgbg.games.catan.rules import building, devcards, robber
 from lgbg.games.catan.state import NO_OWNER, CatanState, Phase
 
 PLACE_SETTLEMENT: Final[str] = "place_settlement"
@@ -48,6 +48,7 @@ DISCARD_RESOURCES: Final[str] = "discard_resources"
 BUILD_ROAD: Final[str] = "build_road"
 BUILD_SETTLEMENT: Final[str] = "build_settlement"
 BUILD_CITY: Final[str] = "build_city"
+BUY_DEV_CARD: Final[str] = "buy_dev_card"
 MOVE_ROBBER: Final[str] = "move_robber"
 CHOOSE_ROBBER_VICTIM: Final[str] = "choose_robber_victim"
 """The robber phase's two steps: it moves, and then somebody is robbed (RULES.md 4.9)."""
@@ -276,7 +277,7 @@ def _action_requests(state: CatanState) -> list[DecisionRequest]:
     """
     offered = [
         name
-        for name in (BUILD_ROAD, BUILD_SETTLEMENT, BUILD_CITY, END_TURN)
+        for name in (BUILD_ROAD, BUILD_SETTLEMENT, BUILD_CITY, BUY_DEV_CARD, END_TURN)
         if _can_take(state, name)
     ]
     return [
@@ -298,6 +299,8 @@ def _can_take(state: CatanState, action: str) -> bool:
         return building.can_build_settlement(state, state.turn)
     if action == BUILD_CITY:
         return building.can_build_city(state, state.turn)
+    if action == BUY_DEV_CARD:
+        return devcards.can_buy_dev_card(state, state.turn)
     return True
 
 

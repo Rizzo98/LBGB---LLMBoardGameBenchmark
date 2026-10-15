@@ -44,6 +44,9 @@ NOT_ENOUGH_RESOURCES: Final[RejectionCode] = RejectionCode(
     description="the player does not hold the resource cards the action spends or returns",
 )
 
+DECK_EMPTY: Final[RejectionCode] = RejectionCode(
+    code="DECK_EMPTY", description="there are no development cards left to buy"
+)
 NOT_YOUR_SETTLEMENT: Final[RejectionCode] = RejectionCode(
     code="NOT_YOUR_SETTLEMENT",
     description="the vertex does not carry one of the player's own settlements to upgrade",
@@ -67,6 +70,7 @@ GAME_CODES: Final[tuple[RejectionCode, ...]] = (
     NO_PIECES_REMAINING,
     WRONG_DISCARD_TOTAL,
     NOT_ENOUGH_RESOURCES,
+    DECK_EMPTY,
     NOT_YOUR_SETTLEMENT,
     ROBBER_SAME_HEX,
     ROBBER_ALREADY_MOVED,

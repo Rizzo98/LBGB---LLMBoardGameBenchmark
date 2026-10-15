@@ -30,21 +30,6 @@
 
 
 
-### K-040 · Implement the development deck, shuffle and purchase
-
-  - tags: [slice-5, devcards, rng, fr-13]
-  - priority: medium
-  - workload: Normal
-  - steps:
-      - [ ] 25 cards with the Appendix A composition
-      - [ ] Shuffled at game start from recorded draws
-      - [ ] Purchase costs per Appendix A
-      - [ ] An empty deck makes the action unavailable
-    ```md
-    - **Cuts through:** rules/devcards, core/rng, bank, per-player inventory
-    - **Depends on:** K-030
-    - **PRD:** FR-13.1, FR-13.2
-    ```
 
 ### K-041 · Enforce development card timing rules
 
@@ -1291,4 +1276,28 @@
     - **Replay is comfortably inside its budget** - a quarter of the play against the 2x the requirement allows - which is the one part of NFR-2 that already holds, and it holds for a reason worth stating: replay re-derives draws and re-applies actions, and it does not write anything.
     - **The tests assert what does not depend on the machine.** The measured numbers are recorded here and in the script, because an assertion about wall-clock time is an assertion about the computer it runs on. What the test file does assert is the part that would be a *bug* rather than a slow afternoon: a per-action budget with twenty-five times the headroom of the measurement (an accidental quadratic fails it), replay under four times the play, and a `hash_state` call under five milliseconds.
     - **What to do about it is deliberately not this card.** K-039 asks for a measurement and a written finding, and the finding is that nothing is pathological: the engine is linear in the number of actions, replay is cheap, and the constant factor is a triple traversal that is obvious to a reader and easy to collapse when the budget is taken literally. Writing that down now is the point - it is cheap to change today and will not be once there is a corpus of goldens to regenerate.
+    ```
+
+### K-040 · Implement the development deck, shuffle and purchase
+
+  - tags: [slice-5, devcards, rng, fr-13]
+  - priority: medium
+  - workload: Normal
+  - steps:
+      - [x] 25 cards with the Appendix A composition
+      - [x] Shuffled at game start from recorded draws
+      - [x] Purchase costs per Appendix A
+      - [x] An empty deck makes the action unavailable
+    ```md
+    - **Cuts through:** rules/devcards, core/rng, bank, per-player inventory
+    - **Depends on:** K-030
+    - **PRD:** FR-13.1, FR-13.2
+    - **Evidence:** lgbg/games/catan/rules/devcards.py (`can_buy_dev_card`, `buy_dev_card`), lgbg/games/catan/rejections.py (`DECK_EMPTY`), tests/games/test_catan_devcards.py (15 tests).
+    - **A purchase consumes no randomness, and that is the point of the card.** The deck was shuffled once at game start by draw D5, so a purchase removes the *front* card and draws nothing: the test drives a purchase with a `NullRandomSource` and asserts that it asked for nothing at all. It is a small thing that is easy to get wrong the other way round - drawing a card at purchase time would make the deck order irrelevant and the seed meaningless for the one thing a benchmark most needs to be reproducible.
+    - **The composition and the shuffle are asserted from the state, not from the constant.** Twenty-five cards with the Appendix A counts (fourteen knights, five victory points, two of each other card), the same order twice from one seed, a different order from another, and an order that is *not* the canonical one - so "shuffled" is asserted rather than assumed.
+    - **The price comes from the one table that holds prices**, and the action's declared cost in `action_domains` is read from the same table, so an offer and a charge cannot disagree (FR-17.4). The purchase is the first action whose name and whose price have different words in them - you *buy* a development card and it *costs* the development-card price - which is exactly the mapping K-034 had to introduce after a build silently became free.
+    - **An empty deck is unavailability, not an error** (FR-13.2): the action is absent from what the phase offers, `can_buy_dev_card` is false, and an attempt anyway is refused with `DECK_EMPTY` *with the price still in the player's hand* - the test asserts the hand is untouched, so a refusal costs nothing. The boundary has its own test: a deck of one card sells that card and then stops.
+    - **The card's identity is in the record and in nobody's view** (FR-16.3). The purchase event names the card, because the god log is the god's; the projection is asserted, for every seat, to hold neither `dev_cards` nor `dev_deck`, while the spectator sees them. That is the whole of the asymmetric-visibility story for development cards, and it is a projection test rather than a rule test.
+    - **`bought_this_turn` is written here because K-041 reads it**: a card bought this turn may not be played until the next one, so the purchase is the only thing that counts one. Three counters move and one event is emitted, which is the smallest change that can express the rule.
+    - **The gate caught a mistake the tests could not.** Two overlapping edits left `DECK_EMPTY` declared twice in the vocabulary; the tests all passed and `mypy --strict` refused it - "Cannot redefine an existing name as final". Worth recording, because it is the argument for the tooling gate being part of done rather than a formality after it.
     ```

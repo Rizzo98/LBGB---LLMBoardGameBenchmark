@@ -56,7 +56,7 @@ from lgbg.games.catan.notation import Detail
 from lgbg.games.catan.projection import observe as project
 from lgbg.games.catan.projection import observe_spectator as project_spectator
 from lgbg.games.catan.rejections import DECLARED_CODES
-from lgbg.games.catan.rules import building, production, robber, setup, victory
+from lgbg.games.catan.rules import building, devcards, production, robber, setup, victory
 from lgbg.games.catan.state import (
     BANK_PER_RESOURCE,
     NO_OWNER,
@@ -95,6 +95,7 @@ ACTIONS: Final[dict[str, RuleFunction]] = {
     phases.BUILD_ROAD: building.build_road,
     phases.BUILD_SETTLEMENT: building.build_settlement,
     phases.BUILD_CITY: building.build_city,
+    phases.BUY_DEV_CARD: devcards.buy_dev_card,
     phases.MOVE_ROBBER: robber.move_robber,
     phases.CHOOSE_ROBBER_VICTIM: robber.choose_robber_victim,
 }
@@ -243,6 +244,7 @@ class CatanGame:
                 "required": ["vertex"],
                 "additionalProperties": False,
             },
+            phases.BUY_DEV_CARD: _no_parameters(),
             phases.BUILD_CITY: {
                 "type": "object",
                 "properties": {"vertex": {"type": "integer", "minimum": 0, "maximum": 53}},
@@ -443,6 +445,7 @@ COST_OF: Final[Mapping[str, str]] = MappingProxyType(
         phases.BUILD_ROAD: building.ROAD,
         phases.BUILD_SETTLEMENT: building.SETTLEMENT,
         phases.BUILD_CITY: building.CITY,
+        phases.BUY_DEV_CARD: building.DEVELOPMENT_CARD,
     }
 )
 """Which price an action pays.

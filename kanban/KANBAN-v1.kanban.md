@@ -26,21 +26,6 @@
     - **Why:** Because invariants are declared rather than hardcoded, this one harness validates every game, present and future. It is a test harness, never scored, never presented as a bot.
     ```
 
-### K-065 · Build the projection leak suite
-
-  - tags: [slice-8, projection, test, fr-16, sc-6]
-  - priority: high
-  - workload: Normal
-  - steps:
-      - [ ] One test per hidden field per observer
-      - [ ] Asserts non-exposure in the raw projection
-      - [ ] Asserts non-exposure in every notation rendering of it
-    ```md
-    - **Cuts through:** projection, the allow-list, notation, every observer
-    - **Depends on:** K-057, K-060
-    - **PRD:** FR-16.6, SC-6
-    ```
-
 ### K-066 · Sweep requirement coverage and build the traceability matrix
 
   - tags: [slice-8, test, acceptance, sc-9, sc-11]
@@ -1405,4 +1390,24 @@
     - **The two halves of the same claim.** The source audit walks every module in the engine and fails on a code that is raised without being imported from a declared vocabulary - it catches the branch nobody thought about. This card adds the other half: a driver that answers every third decision with something it was not offered - a seat that is not to act, an action type the game never declared, an action missing the parameter it needs - and an assertion that every code the resulting record carries was declared before it was ever seen. One is a reading of the code and the other is a reading of a record, and they can disagree.
     - **The control matters more than the audit here.** A run that never misbehaved would see no codes at all and pass the declaration check for free, so the second test asserts that the run produced more than twenty refusals; the first asserts at least three *distinct* codes were raised. Between them, a declaration that had stopped covering real play would fail rather than quietly pass.
     - **Why the codes must be closed at all.** The metrics layer reports an illegal-move rate *by code*, game-agnostically, which it can only do if the set of codes is enumerable without knowing the game. A code raised at one call site and declared nowhere is a category with one member that nobody can compare across games, which is exactly what FR-6.8 is written against.
+    ```
+
+### K-065 · Build the projection leak suite
+
+  - tags: [slice-8, projection, test, fr-16, sc-6]
+  - priority: high
+  - workload: Normal
+  - steps:
+      - [x] One test per hidden field per observer
+      - [x] Asserts non-exposure in the raw projection
+      - [x] Asserts non-exposure in every notation rendering of it
+    ```md
+    - **Cuts through:** projection, the allow-list, notation, every observer
+    - **Depends on:** K-057, K-060
+    - **PRD:** FR-16.6, SC-6
+    - **Evidence:** tests/games/test_catan_leak_matrix.py (41 tests, 1 skipped), tests/games/test_catan_leaks.py (the suite it extends).
+    - **The test is a difference, not a word search.** For each of the eight fields only the spectator may see - bought_this_turn, dev_cards, dev_deck, discards_pending, hands, knights_played, played_this_turn, responses - and for each of the four seats, the field is changed and the assertion is that the observer's whole view is *byte for byte the same*: the projection's every field, plus the full, compact and board renderings of it. Scanning a rendering for a word would pass on a leak spelled differently; comparing the artefact cannot.
+    - **The fixture is where this got interesting.** My first mutations were crude - nine cards added to a hand, a development card dropped on a seat - and the suite failed all of them, correctly: hand *counts* are public (FR-16.2), so a bigger hand is visible to everybody, and a card that is a point moves the owner's own score. The mutations now have to be *observationally neutral*: a hand of the same size with different contents, a knight (which is not a victory point). That the first version failed is the evidence that the assertion is strong enough to be worth having.
+    - **One observer is entitled to see one of them, and the suite says so rather than dodging it.** Seat 0 may see seat 0's hand, so that single pair is skipped in the matrix with the reason written beside it - and the next test asserts both halves of the observer-relative rule: seat 1 is told nothing of seat 0's hand, seat 0 is told its own, and the delta rendering of seat 0's own view reports the change.
+    - **Every rendering means every rendering**, which is why this card depended on the delta: full, compact and board are compared as text, and the newest member of the family is exercised by the observer-relative test.
     ```

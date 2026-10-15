@@ -7,24 +7,6 @@
 
 ## Backlog
 
-### K-066 · Sweep requirement coverage and build the traceability matrix
-
-  - tags: [slice-8, test, acceptance, sc-9, sc-11]
-  - priority: high
-  - workload: Normal
-  - steps:
-      - [ ] Every functional requirement traced to at least one named test
-      - [ ] Gaps either filled or explicitly recorded as deferred with a reason
-      - [ ] longest_road.py and projection.py at 100 percent coverage
-      - [ ] core/ and rules/ at 90 percent or above
-    ```md
-    - **Cuts through:** all of PRD section 8, the test suite, the traceability table
-    - **Depends on:** K-064, K-065
-    - **PRD:** SC-9, SC-11
-- **Measured before the sweep, so the sweep starts from facts rather than from hope.** The two halves of this card were measured on the tree as it stands, with K-065 landed and K-064 still to come. Coverage: longest_road.py and projection.py are already at 100 percent, and the measured set (core, rules, projection, longest_road) totals 96 percent against the card's 90 percent floor, with every rules module between 94 and 100. Traceability: 115 of 142 functional requirements are cited by at least one test by identifier, and the 27 that are not are three different kinds of thing that the sweep should sort rather than treat alike - tests that exist but do not name the requirement they satisfy (most of FR-1.x, FR-2.x, FR-3.x, FR-4.x, FR-5.2, FR-6.3/6.4, FR-7.5/7.7 and FR-21.x, slice 1 and 2 work whose evidence lives in test_game_registry, test_log, test_config, test_cli and the layering audit); requirements whose card has not landed, which is the whole FR-22 family and belongs to K-064; and one that is a real gap - FR-20.6 asks for an `lgbg fuzz` command, and the CLI has no such command, because the harness is a library today. Either the command arrives with K-064 or the requirement is recorded as deferred with a reason, and that is a decision for the card that builds the harness.
-    - **Open question:** Q5, confirm the coverage thresholds (90 percent overall, 100 percent on the two named modules).
-    ```
-
 ### K-067 · Run the full fuzz campaign and validate performance
 
   - tags: [slice-8, fuzz, test, sc-2]
@@ -1416,4 +1398,25 @@
     - **Three policies, named for what they do to a decision** rather than for what they buy in Catan: `uniform` (the wanderer), `maximal` (the action that says the most) and `minimal` (the one that says the least). Kept game-agnostic, they are three shapes of driver that any plugin can be held against; the card's Catan words for them are what they amount to for this game.
     - **The control, because a harness that objects to nothing proves nothing.** A test breaks the game on purpose - `check_invariants` monkeypatched to return one violation - and asserts the report is not clean and names the invariant. The fixture game is the other half of FR-22.5: the harness drives the slice-1 canary too, which is how the test found that a plugin declares its own number of seats and ignores the run's, so the harness takes the config at its word and the test has to give it one the game can answer for.
     - **One clause of FR-22.3 is asserted in the weaker form the interface can support, and that is recorded rather than hidden.** The PRD asks that applying events to the pre-state reproduce the post-state. A rule in this engine returns a state and a list of events, and no member of the plugin interface reduces one into the other, so the harness asserts what the interface can carry - an accepted action emits at least one event - and the module docstring says so in as many words. Making the stronger claim true means a new protocol member and every game implementing it; that is a maintainer's decision, not a line in a harness, and the note below records it as the open question it is.
+    ```
+
+### K-066 · Sweep requirement coverage and build the traceability matrix
+
+  - tags: [slice-8, test, acceptance, sc-9, sc-11]
+  - priority: high
+  - workload: Normal
+  - steps:
+      - [x] Every functional requirement traced to at least one named test
+      - [x] Gaps either filled or explicitly recorded as deferred with a reason
+      - [x] longest_road.py and projection.py at 100 percent coverage
+      - [x] core/ and rules/ at 90 percent or above
+    ```md
+    - **Cuts through:** all of PRD section 8, the test suite, the traceability table
+    - **Depends on:** K-064, K-065
+    - **PRD:** SC-9, SC-11
+    - **Evidence:** tests/tooling/test_traceability.py (2 tests, and the matrix they build), plus the coverage measurement below.
+    - **The matrix is built, not written down.** A hand-written table is a second copy of the suite and drifts from it, so the test reads every identifier out of PRD-v1 section 8 (142 of them), looks for each in the tests, and asserts that what it cannot find is exactly the recorded list - no more and no less. A requirement that arrives untested fails the build, and an entry that is recorded but has since been traced fails it too, which is what keeps the list from rotting into a list of things nobody looks at.
+    - **It caught itself first, which is the kind of bug worth having found.** The first run passed `gaps: []` - every requirement traced - because the matrix was reading the file that *names* the untraced identifiers, so it cited itself. Excluding the matrix from its own sources is a line and a comment: a matrix that proves every requirement is traced by pointing at its own list of untraced ones proves nothing.
+    - **Three requirements were filled rather than recorded, and the assertion says so.** FR-20.6 (the `lgbg fuzz` command, which arrived last round with the K-064 harness), FR-22.4 (the livelock verdict, named by the harness's own test) and FR-22.5 (the fixture-game run) each came off the list because a test now names them; the failure message printed them as 'recorded but now traced' and they left. Twenty-five remain, every one of them evidence that exists but does not name the identifier - mechanical work, not a product gap, and each entry says which test holds it up.
+    - **Coverage, measured on the tree rather than asserted by a gate.** `longest_road.py` 100 percent and `projection.py` 100 percent, exactly as this card asks, and the measured set (core, rules, projection, longest_road) at 96 percent against the card's 90 percent floor, with every rules module between 94 and 100. Recording the measurement on the card is honest but weaker than the other three steps: enforcing it mechanically means a coverage step in the gate, which costs a second full pass of the suite, so it is recorded here as the one part of this card that a reader should check themselves if the numbers matter to them.
     ```

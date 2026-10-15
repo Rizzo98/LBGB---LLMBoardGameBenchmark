@@ -22,22 +22,6 @@
     - **Why:** How the state is rendered measurably changes model performance, so renderings must be held constant across models. That makes them a first-class artefact, not a debugging convenience.
     ```
 
-### K-061 · Declare game invariants
-
-  - tags: [slice-8, rules, test, fr-6]
-  - priority: high
-  - workload: Normal
-  - steps:
-      - [ ] Resource conservation: per resource, bank plus all hands equals 19
-      - [ ] Piece conservation: per player and piece type, supply plus on board equals initial count
-      - [ ] check_invariants is pure and RNG-free
-    ```md
-    - **Cuts through:** check_invariants, state, the generic harness
-    - **Depends on:** K-053
-    - **PRD:** FR-6.9
-    - **Why:** Declared by the plugin so one generic harness can validate any game, including games that do not exist yet.
-    ```
-
 ### K-062 · Declare the benchmark profile
 
   - tags: [slice-8, test, fr-6, sc-13]
@@ -1393,4 +1377,22 @@
     - **No advice is asserted as a scan, not as a promise.** A declared list of phrases only advice uses - you should, we recommend, it is best to, the best move, try to, strategy, tip - must not appear anywhere in the file, and the closing line says what the file is for: what is legal is documented here, what is good is the thing being measured. The scan is deliberately narrow, because a list wide enough to catch the word best would fail on the line that explains the best *rate* a harbour gives.
     - **The hash is pinned, so an edit cannot pass unnoticed.** The test states the SHA-256 the file had when it landed; a change to the prompt - even a word - fails it, and the failing line is the one to update. That is the same discipline the golden records live under, applied to the artefact a model actually reads.
     - **The header records it, and v1's scripted runs honestly record nothing.** hashes_of hashes whatever files a game declares; the catan plugin declares one, and a run configured with its hashes writes them into the header - asserted by reading the header back. A scripted run is given no prompt and records none, which is what the empty prompt_hashes in every existing fixture means: nothing there was shown to a model. Handing the prompt to a model is the driver's job, and v1 has no model driver.
+    ```
+
+### K-061 · Declare game invariants
+
+  - tags: [slice-8, rules, test, fr-6]
+  - priority: high
+  - workload: Normal
+  - steps:
+      - [x] Resource conservation: per resource, bank plus all hands equals 19
+      - [x] Piece conservation: per player and piece type, supply plus on board equals initial count
+      - [x] check_invariants is pure and RNG-free
+    ```md
+    - **Cuts through:** check_invariants, state, the generic harness
+    - **Depends on:** K-053
+    - **PRD:** FR-6.9
+    - **Evidence:** lgbg/games/catan/game.py (check_invariants), tests/games/test_catan_invariants.py (4 tests).
+    - **Two laws, and now four ways of checking them.** They hold in every position of the recorded corpus (five games, more than a thousand states); they hold after *every* action of two fuzzed games, which is the form a generic harness will use them in (K-064); the checker bites when a position is broken by hand - a card added to a hand without leaving the bank, a road added to a supply without appearing on the board - because an invariant nothing can violate is an invariant nothing checks; and it is a reading rather than a step: the protocol's signature takes a state and nothing else, the answer is the same twice, and the position is unchanged after asking.
+    - **The invariants were already declared in the plugin** (K-011's slice, filled in by the building slice); what this card adds is the evidence that they are true of play and sharp enough to catch a lie. The board's order made it the dependency of the rejection-code audit (K-063) and of the fuzz harness, so it is the card that makes those two worth writing.
     ```

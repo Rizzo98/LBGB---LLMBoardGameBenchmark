@@ -26,20 +26,6 @@
 
 
 
-### K-036 · Implement victory accounting and win detection
-
-  - tags: [slice-4, rules, victory, fr-15]
-  - priority: high
-  - workload: Normal
-  - steps:
-      - [ ] Scoring per PRD Appendix A
-      - [ ] Win condition and its timing follow the interpretation pinned in RULES.md
-      - [ ] Explicit test for the own-turn timing edge case
-    ```md
-    - **Cuts through:** rules/victory, every scoring source, projection, terminality
-    - **Depends on:** K-035, K-033
-    - **PRD:** FR-15.1, FR-15.2
-    ```
 
 ### K-037 · Implement terminality, outcome and the terminal record
 
@@ -1259,4 +1245,26 @@
     - **Recomputation happens where the rules say it does** (item 6, "after every state transition"), which in practice means the transitions that can change a road or break one: building a road, and building a settlement or a city. The settlement case is the one worth naming - a settlement placed in the middle of somebody's road is exactly how a Longest Road is broken, so the recomputation runs there too and the test drives it through `apply` on another player's turn (items 7 and 8: automatic, and not only on the holder's turn).
     - **The fixtures walk the board rather than naming edge numbers**, so a test that says "a line of six" is a line of six on whatever board the plugin ships, and the T is found by searching for a junction that genuinely has three free branches of two. That cost three fixture bugs and one hang while the card was written, all of them in the *tests* - which is where the mistakes should be when a rule is this easy to state and this easy to get subtly wrong.
     - **What this card does not do:** the two points the card is worth are not yet counted. `victory_points` still reports settlements and cities only, and the award's value is declared here (`longest_road.VALUE`) for K-036 to add, with the accounting and the win detection that go with it.
+    ```
+
+### K-036 · Implement victory accounting and win detection
+
+  - tags: [slice-4, rules, victory, fr-15]
+  - priority: high
+  - workload: Normal
+  - steps:
+      - [x] Scoring per PRD Appendix A
+      - [x] Win condition and its timing follow the interpretation pinned in RULES.md
+      - [x] Explicit test for the own-turn timing edge case
+    ```md
+    - **Cuts through:** rules/victory, every scoring source, projection, terminality
+    - **Depends on:** K-035, K-033
+    - **PRD:** FR-15.1, FR-15.2
+    - **Evidence:** lgbg/games/catan/rules/victory.py (`POINTS`, `TARGET`, `victory_points`, `check`), wired into `game.apply`, `game.victory_points` and `game.outcome`; tests/games/test_catan_victory.py (14 tests).
+    - **The five terms of Appendix A are asserted literally**, and the opening position is asserted to be worth two points to everybody (RULES.md 4.13 item 11), because that is the number every later card's arithmetic assumes. The total is the *true* total - victory-point cards count whether or not they have been shown - since it is the number the game ends on; what other players may compute is a different number and belongs to the projection (FR-16.4).
+    - **The timing is the card.** The condition is checked after every transition and applied to the player *whose turn it is*, so a total that reaches ten during somebody else's turn does not end the game: `check` is asserted to leave such a position alone, and the same player is then asserted to win at the start of their own turn - with no die rolled, which is the rulebook's own answer to the question (S5). The state enters `terminal` through the ordinary transition function, so the record carries a `phase_started(terminal)` beside a `game_won` event naming the player, the points and the target.
+    - **One declaration of the target.** `VICTORY_TARGET` in state.py and the rule module's `TARGET` were two constants with the same number in them, which is one more than the game needs; the state module's copy is gone, and the state test now asserts the rule module's. The same discipline as the resource order: a number the rules own lives with the rule that applies it.
+    - **No claim action exists** (item 7), and the existing `GAME_OVER` guard makes the rest true: an action after the win is rejected, asserted directly rather than assumed.
+    - **The fixture taught the card something.** Its first version handed seat 0 the Longest Road award without the roads to justify it, and the engine took the card straight back: the recomputation wired in K-035 fired inside the very action the test was driving, so the tenth point never arrived. The fixture now builds its points from pieces alone, and the second attempt failed honestly as well - nine points had already put all four cities on the board, so the winning upgrade was refused with `NO_PIECES_REMAINING`. Two failures, both of them the fixture being wrong rather than the rule, and both of them caught because the pieces are charged for what they place.
+    - **Purity is asserted in the same form as the action surface** (FR-15.3): `check` takes only a state - the test reads its signature - gives the same answer twice, and leaves the encoding unchanged.
     ```

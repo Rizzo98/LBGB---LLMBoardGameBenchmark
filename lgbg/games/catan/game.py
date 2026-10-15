@@ -56,13 +56,12 @@ from lgbg.games.catan.notation import Detail
 from lgbg.games.catan.projection import observe as project
 from lgbg.games.catan.projection import observe_spectator as project_spectator
 from lgbg.games.catan.rejections import DECLARED_CODES
-from lgbg.games.catan.rules import building, production, robber, setup
+from lgbg.games.catan.rules import building, production, robber, setup, victory
 from lgbg.games.catan.state import (
     BANK_PER_RESOURCE,
     NO_OWNER,
     PIECES_PER_PLAYER,
     RESOURCE_ORDER,
-    VICTORY_TARGET,
     CatanState,
     Phase,
     decode_state,
@@ -176,7 +175,11 @@ class CatanGame:
         if not isinstance(result, Applied):
             return result
         advanced, announced = phases.advance(result.state)
-        return Applied(state=advanced, events=[*result.events, *announced])
+        # The win is tested after every transition, and it is tested on the player *whose turn
+        # it is*: reaching ten during somebody else's turn wins at the start of your own, which
+        # is the state the next turn produces (RULES.md 4.13 items 5 and 6).
+        won, ended = victory.check(advanced)
+        return Applied(state=won, events=[*result.events, *announced, *ended])
 
     # --- observation ---
     def observe(self, state: CatanState, player: PlayerId) -> Observation:
@@ -194,26 +197,14 @@ class CatanGame:
         return state.phase is Phase.TERMINAL
 
     def outcome(self, state: CatanState) -> Outcome:
+        """The game's own verdict: true totals, the winner, the round (RULES.md 4.13 item 10)."""
         scores = {str(seat): self.victory_points(state, seat) for seat in range(state.players)}
-        winner = next(
-            (
-                seat
-                for seat in range(state.players)
-                if self.victory_points(state, seat) >= VICTORY_TARGET
-            ),
-            None,
-        )
+        winner = state.turn if self.is_terminal(state) else None
         return Outcome(winner=winner, scores=scores, rounds=state.round)
 
     def victory_points(self, state: CatanState, player: PlayerId) -> int:
-        """Settlements and cities, so far.
-
-        Development cards (FR-13.8), Longest Road and Largest Army (FR-13.9) arrive with K-036;
-        this is the part of the total that the board already knows.
-        """
-        settlements = sum(1 for seat in state.placed.settlements if seat == player)
-        cities = sum(1 for seat in state.placed.cities if seat == player)
-        return settlements + 2 * cities
+        """Every point this player has: pieces, cards and both special cards (RULES.md 4.13)."""
+        return victory.victory_points(state, player)
 
     # --- serialisation and declared schemas ---
     def encode_state(self, state: CatanState) -> JsonValue:

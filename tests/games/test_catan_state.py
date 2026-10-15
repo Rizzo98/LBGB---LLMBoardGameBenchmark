@@ -25,6 +25,7 @@ from lgbg.core.canonical import CanonicalJsonError, hash_state, to_canonical_jso
 from lgbg.core.rng import KIND_SHUFFLE, SeededRandomSource
 from lgbg.core.types import JsonValue
 from lgbg.games.catan.board.generation import load_board
+from lgbg.games.catan.rules import victory
 from lgbg.games.catan.state import (
     BANK_PER_RESOURCE,
     CANONICAL_DECK,
@@ -34,7 +35,6 @@ from lgbg.games.catan.state import (
     NO_OWNER,
     PIECES_PER_PLAYER,
     RESOURCE_ORDER,
-    VICTORY_TARGET,
     CatanState,
     Phase,
     Placed,
@@ -215,7 +215,7 @@ def test_the_canonical_orders_are_pinned() -> None:
     assert sum(DECK_COMPOSITION.values()) == 25
     assert len(CANONICAL_DECK) == 25
     assert {card: CANONICAL_DECK.count(card) for card in CARD_ORDER} == dict(DECK_COMPOSITION)
-    assert VICTORY_TARGET == 10
+    assert victory.TARGET == 10, "the target lives with the rule that applies it"
     assert PIECES_PER_PLAYER == (15, 5, 4)
 
 

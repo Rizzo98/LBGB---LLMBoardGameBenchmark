@@ -289,6 +289,34 @@ def test_inspect_needs_a_player_to_show_a_decision(
     assert "--player is required" in err
 
 
+def test_fuzz_runs_a_game_and_reports_what_it_found(
+    capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
+    """FR-20.6: the harness with a face on it, and a record if it was asked for one."""
+    out_dir = tmp_path / "run"
+    code = main(
+        ["fuzz", "--game", "catan", "--seed", "20261201", "--actions", "60", "--out", str(out_dir)]
+    )
+
+    out, err = _capsys_text(capsys)
+    assert code == 0, err
+    assert "catan:" in out, "the report names the game"
+    assert "accepted" in out
+    assert "refused" in out
+    assert "codes:" in out
+    assert "outcome:" in out
+    assert (out_dir / "games" / "fuzz.god.jsonl").exists(), "and it recorded the game"
+
+
+def test_fuzz_names_an_unknown_game_legibly(capsys: pytest.CaptureFixture[str]) -> None:
+    code = main(["fuzz", "--game", "not-a-game", "--actions", "5"])
+
+    _out, err = _capsys_text(capsys)
+    assert code == 1
+    assert "unknown game" in err
+    assert "Traceback" not in err, "an expected failure is a sentence, not a stack trace"
+
+
 def test_the_cli_offers_the_step_as_well_as_the_position(
     capsys: pytest.CaptureFixture[str], tmp_path: Path
 ) -> None:

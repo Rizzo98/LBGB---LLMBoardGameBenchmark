@@ -29,8 +29,9 @@ import lgbg.games  # noqa: F401 - importing the package registers the in-repo pl
 from lgbg.adapters.cli.script import ScriptError, drive, load_script
 from lgbg.core.assist import render_decision
 from lgbg.core.canonical import hash_state, to_canonical_json
-from lgbg.core.config import DEFAULT_PLAYERS, AssistLevel, ConfigError, RunConfig
+from lgbg.core.config import DEFAULT_PLAYERS, AssistLevel, ConfigError, GameConfig, RunConfig
 from lgbg.core.delta import render_delta
+from lgbg.core.fuzzing import POLICIES, run_fuzz
 from lgbg.core.game import Applied, GamePluginError, get_game
 from lgbg.core.log import GOD_LOG_SUFFIX, GameLogReader, LogError
 from lgbg.core.replay import ReplayError, replay, verify
@@ -49,6 +50,8 @@ EXPECTED_FAILURES: tuple[type[Exception], ...] = (
 """Failures an operator is expected to cause, and so deserves a sentence, not a stack trace."""
 
 DEFAULT_GAME_ID = "g-0001"
+DEFAULT_FUZZ_SEED = 20260101
+"""A seed for a fuzzed run when the operator does not care which one: any seed is a valid run."""
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -139,6 +142,19 @@ def build_parser() -> argparse.ArgumentParser:
         "--strict", action="store_true", help="treat a record with no terminal line as a failure"
     )
 
+    fuzz_command = commands.add_parser(
+        "fuzz", help="run one fuzzed game and report what the harness found"
+    )
+    _add_plugin_option(fuzz_command)
+    fuzz_command.add_argument("--game", required=True, help="a registered game name")
+    fuzz_command.add_argument("--seed", type=int, default=DEFAULT_FUZZ_SEED, help="the run seed")
+    fuzz_command.add_argument("--players", type=int, default=DEFAULT_PLAYERS)
+    fuzz_command.add_argument("--actions", type=int, default=400, help="the bound before livelock")
+    fuzz_command.add_argument(
+        "--policy", choices=sorted(POLICIES), default="uniform", help="how the driver chooses"
+    )
+    fuzz_command.add_argument("--out", default=None, help="a directory to record the game in")
+
     return parser
 
 
@@ -163,11 +179,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         for module in args.plugin:
             importlib.import_module(module)
-        if extra and args.command != "new":
+        if extra and args.command not in ("new", "fuzz"):
             parser.error(f"unrecognised arguments: {' '.join(extra)}")
         match args.command:
             case "new":
                 return _new(args, _game_options(extra))
+            case "fuzz":
+                return _fuzz(args, _game_options(extra))
             case "play":
                 return _play(args)
             case "replay":
@@ -355,6 +373,33 @@ def _play(args: argparse.Namespace) -> int:
         print(f"error: {failure}", file=sys.stderr)
         return 1
     return 0
+
+
+def _fuzz(args: argparse.Namespace, game_options: dict[str, JsonValue]) -> int:
+    """Run one fuzzed game and report what the harness found (FR-20.6; FR-22.1 to FR-22.6).
+
+    The command is the harness with a face on it: the report goes to stdout, and a game that
+    broke one of its own declarations exits non-zero with the violations on stderr, because an
+    operator reading a pipeline needs the difference between a wide run and a broken plugin.
+    """
+    game = get_game(args.game)
+    config = RunConfig(
+        seed=args.seed,
+        players=args.players,
+        interaction_protocol="decline_only",
+        game_config=GameConfig(game_options),
+    )
+    directory = None if args.out is None else Path(args.out)
+    report = run_fuzz(
+        game, config, policy=POLICIES[args.policy], max_actions=args.actions, directory=directory
+    )
+    counted = f"{report.actions} actions, {report.accepted} accepted, {report.rejected} refused"
+    print(f"{game.name}: {counted}")
+    print("codes: " + (" ".join(report.codes) if report.codes else "none"))
+    print("outcome: " + ("livelock" if report.livelock else "finished"))
+    for offender in report.offenders:
+        print(f"violated: {offender}", file=sys.stderr)
+    return 1 if report.offenders else 0
 
 
 def _replay(args: argparse.Namespace) -> int:

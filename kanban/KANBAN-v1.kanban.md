@@ -15,22 +15,6 @@
 
 
 
-### K-025 · Implement the concurrent discard phase on a 7
-
-  - tags: [slice-3, phases, rules, robber, fr-9, fr-12]
-  - priority: high
-  - workload: Normal
-  - steps:
-      - [ ] A 7 skips production and opens concurrent requests to every player holding more than 7 cards
-      - [ ] Discard is floor(hand/2), any resource composition allowed
-      - [ ] The phase closes only when all requests resolve
-      - [ ] It is NOT implemented as sequential private turns
-    ```md
-    - **Cuts through:** phase machine, decision queue, projection, events
-    - **Depends on:** K-023, K-016
-    - **PRD:** FR-9.5, FR-12.1, FR-12.2, FR-10.5
-    - **Why:** First genuine test of the decision queue. Simulating concurrent decisions as private turns changes what players can observe about each other, and therefore changes the game.
-    ```
 
 ### K-026 · Implement robber movement and production blocking
 
@@ -1173,4 +1157,27 @@
     - **Determinism is the property, not the implementation.** The same state is produced twice, and the same position built from the vertex list in reverse, and all three results must be equal - so no part of the distribution may depend on the order demand was accumulated in or on the order seats are visited.
     - **Conservation survives the shortage** (FR-6.9): withheld cards stay in the bank, so bank plus all hands is unchanged by production and never negative. The test compares the total before and after rather than against 19, because it starves the bank by hand.
     - **The event is the account of the shortage.** `granted` names what each player actually received and `shortfall` what they were owed and did not get, so a record explains a short roll without the reader having to reconstruct the bank from the start of the game.
+    ```
+
+### K-025 · Implement the concurrent discard phase on a 7
+
+  - tags: [slice-3, phases, rules, robber, fr-9, fr-12]
+  - priority: high
+  - workload: Normal
+  - steps:
+      - [x] A 7 skips production and opens concurrent requests to every player holding more than 7 cards
+      - [x] Discard is floor(hand/2), any resource composition allowed
+      - [x] The phase closes only when all requests resolve
+      - [x] It is NOT implemented as sequential private turns
+    ```md
+    - **Cuts through:** phase machine, decision queue, projection, events
+    - **Depends on:** K-023, K-016
+    - **PRD:** FR-9.5, FR-12.1, FR-12.2, FR-10.5
+    - **Why:** First genuine test of the decision queue. Simulating concurrent decisions as private turns changes what players can observe about each other, and therefore changes the game.
+    - **Evidence:** lgbg/games/catan/rules/robber.py, lgbg/games/catan/phases.py, tests/games/test_catan_discard.py (20 tests). A seven computes every amount once, at the roll, and stores it in `discards_pending`; the phase then opens one `discard_resources` request per eligible seat, in seat order, and each request carries the amount the seven forced - not a number recomputed from a hand that has already shrunk. That is what makes the concurrency a property of the state rather than a promise in a docstring.
+    - **The decision kind was renamed to the name the rules pin.** RULES.md 4.4's table says a discard is answered with `discard_resources`, one request per eligible player; the placeholder `discard` was a name the engine had invented for a request the rules already named. Renaming it before the first record carries one is the same discipline K-022 applied to the phase names.
+    - **A phase that closes the moment it opens now closes in the same action.** With nobody over the limit a seven has nothing to ask, so `advance` no longer stops there: it walks out of every closed phase and announces each transition, which is why a seven in a fresh position records `phase_started(discard)` and `phase_started(robber)` together. Without that, a game could sit in a phase whose request set was empty from the start, waiting for an action that could never be legal.
+    - **Any composition is allowed, and the enumeration is exactly that set** (FR-12.2, FR-17.5): `legal_actions` offers every composition of the forced amount that fits the hand, and the test re-derives that set independently, asserts each offered action is accepted, and asserts the free cross product is not on offer. A discard of the wrong size is refused with `WRONG_DISCARD_TOTAL`, and one naming cards the player does not hold with the new `NOT_ENOUGH_RESOURCES`.
+    - **The discard is a move, not a destruction** (FR-6.9): the cards go to the bank, and the conservation invariant is asserted after the phase. The tests deal every hand out of the bank, so the position is one the rules could have produced rather than one that merely looks plausible.
+    - **The robber phase is where the machine now waits** (K-026): entering it is a transition like any other, and asking it for decisions is still a loud error.
     ```

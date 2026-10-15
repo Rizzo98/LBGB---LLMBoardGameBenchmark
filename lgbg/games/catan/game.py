@@ -10,7 +10,7 @@ projection, the phases and each rule area live in their own modules; this one sa
 game is called, what versions it implements, and where each protocol member is answered.
 
 The modules a card has not reached yet answer honestly for the slice that exists: the action
-schema declares the two setup actions, the benchmark profile is the shape Catan has, the
+schema declares the actions that exist, the benchmark profile is the shape Catan has, the
 invariants are the two conservation laws that hold from the first placement. Each is complete
 for what the game can currently do, and each grows with the card that needs it.
 """
@@ -54,7 +54,7 @@ from lgbg.games.catan.notation import Detail
 from lgbg.games.catan.projection import observe as project
 from lgbg.games.catan.projection import observe_spectator as project_spectator
 from lgbg.games.catan.rejections import DECLARED_CODES
-from lgbg.games.catan.rules import setup, turn
+from lgbg.games.catan.rules import robber, setup, turn
 from lgbg.games.catan.state import (
     BANK_PER_RESOURCE,
     NO_OWNER,
@@ -85,6 +85,7 @@ ACTIONS: Final[dict[str, RuleFunction]] = {
     phases.PLACE_ROAD: setup.place_road,
     phases.ROLL_DICE: turn.roll_dice,
     phases.END_TURN: turn.end_turn,
+    phases.DISCARD_RESOURCES: robber.discard_resources,
 }
 """The action types the game accepts, and the rule function each one runs."""
 
@@ -220,6 +221,7 @@ class CatanGame:
             },
             phases.ROLL_DICE: _no_parameters(),
             phases.END_TURN: _no_parameters(),
+            phases.DISCARD_RESOURCES: _resource_counts(),
         }
 
     def observation_schema(self) -> JsonSchema:
@@ -323,6 +325,17 @@ def _no_parameters() -> JsonSchema:
     return {"type": "object", "properties": {}, "additionalProperties": False}
 
 
+def _resource_counts() -> JsonSchema:
+    """A composition of resource cards: each resource, optionally, as a whole number."""
+    return {
+        "type": "object",
+        "properties": {
+            resource.value: {"type": "integer", "minimum": 0} for resource in RESOURCE_ORDER
+        },
+        "additionalProperties": False,
+    }
+
+
 def _legal_actions_for(state: CatanState, request: DecisionRequest) -> list[Action]:
     """The actions one request admits, filtered by the rules that will judge them."""
     player = request.player
@@ -340,7 +353,42 @@ def _legal_actions_for(state: CatanState, request: DecisionRequest) -> list[Acti
         # The request names the action that answers it; the rest of the action phase arrives
         # with K-030 onwards.
         return [Action(player=player, type=request.schema_ref, params={})]
+    if request.kind == phases.DISCARD_RESOURCES:
+        return [
+            Action(player=player, type=phases.DISCARD_RESOURCES, params=composition)
+            for composition in _legal_discards(state, player)
+        ]
     return []
+
+
+def _legal_discards(state: CatanState, player: int) -> list[dict[str, JsonValue]]:
+    """Every composition of exactly the forced amount, out of the cards the player holds.
+
+    FR-12.2 allows any composition, so the enumeration is the whole cross product *at the
+    forced total*: the free cross product would advertise discards the rule then refuses, and a
+    driver that trusts an enumeration must be able to trust it (FR-17.5).
+    """
+    if not 0 <= player < state.players:
+        return []
+    owed = state.discards_pending[player]
+    hand = state.hands[player]
+    found: list[dict[str, JsonValue]] = []
+    taken: dict[str, JsonValue] = {}
+
+    def walk(index: int, left: int) -> None:
+        if index == len(RESOURCE_ORDER):
+            if left == 0:
+                found.append(dict(taken))
+            return
+        resource = RESOURCE_ORDER[index]
+        for count in range(min(hand[index], left) + 1):
+            if count:
+                taken[resource.value] = count
+            walk(index + 1, left - count)
+            taken.pop(resource.value, None)
+
+    walk(0, owed)
+    return found
 
 
 def _legal_settlement_vertices(state: CatanState) -> list[int]:

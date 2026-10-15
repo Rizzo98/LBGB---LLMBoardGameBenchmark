@@ -90,6 +90,8 @@ NO_OWNER: Final[int] = -1
 
 BANK_PER_RESOURCE: Final[int] = 19
 PIECES_PER_PLAYER: Final[tuple[int, int, int]] = (15, 5, 4)
+HAND_LIMIT: Final[int] = 7
+"""A seven leaves a hand of this size alone; a bigger one returns half of it (RULES.md 4.9)."""
 """Roads, settlements and cities each player starts with."""
 
 VICTORY_TARGET: Final[int] = 10

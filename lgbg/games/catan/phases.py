@@ -15,6 +15,9 @@ of the machine matter more than the rest.
 - **A phase whose card has not landed is an error, not an empty answer.** Returning no
   decisions from a phase nobody has implemented would stall a game silently, which is the worst
   way for a rule to be missing.
+- **A phase that closes the moment it opens closes in the same action.** A seven nobody has to
+  answer is over before it begins, and the turn moves on to the robber's decision in the record
+  that made it so.
 """
 
 from __future__ import annotations
@@ -32,7 +35,8 @@ PLACE_ROAD: Final[str] = "place_road"
 TAKE_TURN: Final[str] = "take_turn"
 ROLL_DICE: Final[str] = "roll_dice"
 END_TURN: Final[str] = "end_turn"
-DISCARD: Final[str] = "discard"
+DISCARD_RESOURCES: Final[str] = "discard_resources"
+"""The request a forced discard is answered with, one per eligible player (RULES.md 4.4)."""
 
 
 class PhaseError(Exception):
@@ -84,23 +88,48 @@ def begin(state: CatanState, phase: Phase) -> tuple[CatanState, list[Event]]:
 
 
 def advance(state: CatanState) -> tuple[CatanState, list[Event]]:
-    """Move to the next phase if this one is closed, announcing the transition (FR-9.4).
+    """Move past every phase that is closed, announcing each transition (FR-9.4).
 
     A phase that still has open decisions is left alone: the game is waiting for a player, not
-    for a transition.
+    for a transition. A phase can also be closed the moment it opens - a seven nobody has to
+    answer - and then it is not a resting place either, so the walk continues into the next
+    phase in the same action. A phase whose card has not landed ends the walk instead of ending
+    the game: entering it is a transition like any other, and asking it for decisions is what
+    fails loudly (see 'pending_decisions').
     """
     if state.phase is Phase.TERMINAL:
         return state, []
-    if pending_decisions(state):
-        return state, []
+    _check_this_phase_can_move_on(state)
 
+    events: list[Event] = []
+    current = state
+    while current.phase is not Phase.TERMINAL:
+        rule = PHASE_RULES.get(current.phase)
+        if rule is None or rule.successor is None or rule.requests(current):
+            break
+        current, announced = begin(current, rule.successor(current))
+        events.extend(announced)
+    return current, events
+
+
+def _check_this_phase_can_move_on(state: CatanState) -> None:
+    """An action may not leave the game in a phase that is closed and cannot be left.
+
+    That is the shape of a missing card, and it is worth an error rather than a game that
+    quietly waits for a transition nobody can make.
+    """
     rule = PHASE_RULES.get(state.phase)
-    if rule is None or rule.successor is None:
+    if rule is None:
         raise PhaseError(
-            f"phase {state.phase.value} has no open decisions and nowhere to go: its "
-            "successor belongs to a card that has not landed"
+            f"phase {state.phase.value} has no decision rules: its card has not landed, so "
+            "there is nothing sensible to answer with"
         )
-    return begin(state, rule.successor(state))
+    if rule.requests(state) or rule.successor is not None:
+        return
+    raise PhaseError(
+        f"phase {state.phase.value} has no open decisions and nowhere to go: its successor "
+        "belongs to a card that has not landed"
+    )
 
 
 def _setup_requests(state: CatanState) -> list[DecisionRequest]:
@@ -172,12 +201,22 @@ def _action_requests(state: CatanState) -> list[DecisionRequest]:
 
 
 def _discard_requests(state: CatanState) -> list[DecisionRequest]:
-    """Everybody over the limit is asked at once, in seat order (FR-9.5)."""
+    """Everybody over the limit is asked at once, in seat order (FR-9.5).
+
+    The amount comes from the state and not from the hands, so the phase asks what the seven
+    forced rather than what a shrinking hand could still afford (RULES.md 4.4 item 3).
+    """
     return [
-        _request(state, seat, DISCARD, context={"must_discard": owed})
+        _request(state, seat, DISCARD_RESOURCES, context={"must_discard": owed})
         for seat, owed in enumerate(state.discards_pending)
         if owed > 0
     ]
+
+
+def _after_discard(state: CatanState) -> Phase:
+    """The robber moves once everybody has returned their cards (RULES.md 4.5 item 5)."""
+    del state
+    return Phase.ROBBER
 
 
 PHASE_RULES: Final[Mapping[Phase, PhaseRule]] = MappingProxyType(
@@ -186,7 +225,7 @@ PHASE_RULES: Final[Mapping[Phase, PhaseRule]] = MappingProxyType(
         Phase.SETUP_ROUND_2: PhaseRule(_setup_requests, _after_setup_round_two),
         Phase.TURN_PRODUCTION: PhaseRule(_turn_production_requests, _after_turn_production),
         Phase.ACTION: PhaseRule(_action_requests, None),
-        Phase.DISCARD: PhaseRule(_discard_requests, None),
+        Phase.DISCARD: PhaseRule(_discard_requests, _after_discard),
     }
 )
 """What each implemented phase asks, and where it goes. The rest arrive with their cards."""

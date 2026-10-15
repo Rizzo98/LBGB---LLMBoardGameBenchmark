@@ -93,7 +93,9 @@ def test_the_roll_closes_the_production_phase() -> None:
 
     assert isinstance(rolled, Applied)
     seven = sum(rolled.state.dice) == 7
-    assert rolled.state.phase is (Phase.DISCARD if seven else Phase.ACTION)
+    # Nobody holds a card in this position, so a seven opens the discard phase and closes it in
+    # the same breath: the game is then the robber's to move.
+    assert rolled.state.phase is (Phase.ROBBER if seven else Phase.ACTION)
     if not seven:
         assert [request.schema_ref for request in GAME.pending_decisions(rolled.state)] == [
             "end_turn"
@@ -106,9 +108,12 @@ def test_a_seven_opens_the_discard_phase_instead() -> None:
 
     advanced, events = phases.advance(state)
 
-    assert advanced.phase is Phase.DISCARD
-    assert [event.type for event in events] == ["phase_started"]
-    assert dict(events[0].payload)["phase"] == "discard"
+    assert [event.type for event in events] == ["phase_started", "phase_started"]
+    assert [dict(event.payload)["phase"] for event in events] == ["discard", "robber"]
+    assert advanced.phase is Phase.ROBBER, (
+        "nobody holds a card in this position, so the discard phase has nothing to ask and the "
+        "game is already waiting for the robber to move"
+    )
 
 
 def test_production_ends_into_the_action_phase_on_any_other_total() -> None:

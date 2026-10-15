@@ -21,7 +21,7 @@ from lgbg.core.game import Applied, ApplyResult, Rejected
 from lgbg.core.rng import Purpose, RandomSource
 from lgbg.core.types import Action, Event
 from lgbg.games.catan import phases
-from lgbg.games.catan.rules import production
+from lgbg.games.catan.rules import production, robber
 from lgbg.games.catan.state import CatanState, Phase
 
 DICE_DIE_1: Final[Purpose] = "dice_die_1"
@@ -51,8 +51,12 @@ def roll_dice(state: CatanState, action: Action, rng: RandomSource) -> ApplyResu
     total = first + second
     rolled = replace(state, dice=(first, second))
     paid, production_events = production.produce(rolled, total)
+    # A seven forces the discards. The amounts are computed here, once, and stored: the phase
+    # then asks each player for what the seven asked them, rather than recomputing the question
+    # against hands that have already shrunk (RULES.md 4.4 item 3).
+    ready = replace(paid, discards_pending=robber.forced_discards(paid)) if total == SEVEN else paid
     return Applied(
-        state=paid,
+        state=ready,
         events=[
             Event(
                 type="dice_rolled",

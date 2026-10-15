@@ -22,6 +22,7 @@ from lgbg.core.rng import SeededRandomSource
 from lgbg.core.types import PHASE_STARTED_EVENT
 from lgbg.games.catan.board.generation import load_board
 from lgbg.games.catan.phases import (
+    DISCARD_RESOURCES,
     PHASE_RULES,
     PhaseError,
     advance,
@@ -85,7 +86,7 @@ def test_several_decisions_can_be_open_at_once() -> None:
     requests = pending_decisions(state)
 
     assert [request.player for request in requests] == [0, 2]
-    assert [request.kind for request in requests] == ["discard", "discard"]
+    assert [request.kind for request in requests] == [DISCARD_RESOURCES] * 2
     assert [dict(request.context)["must_discard"] for request in requests] == [2, 1]
 
 
@@ -178,10 +179,21 @@ def test_an_unimplemented_phase_is_reported_rather_than_answered_with_nothing() 
         pending_decisions(state)
 
 
-def test_a_closed_phase_with_no_successor_is_reported() -> None:
-    state = replace(_opening(), phase=Phase.DISCARD, discards_pending=(0, 0, 0, 0))
+def test_a_phase_that_closes_the_moment_it_opens_closes_in_the_same_action() -> None:
+    """A seven nobody has to answer is over before it begins, and the game moves on with it."""
+    state = replace(_opening(), phase=Phase.TURN_PRODUCTION, dice=(3, 4), turn=0)
 
-    with pytest.raises(PhaseError, match="discard"):
+    advanced, events = advance(state)
+
+    assert advanced.phase is Phase.ROBBER
+    assert [dict(event.payload)["phase"] for event in events] == ["discard", "robber"]
+
+
+def test_a_closed_phase_whose_transition_has_not_landed_is_reported() -> None:
+    """A phase nobody has implemented is where the machine waits, loudly, not silently."""
+    state = replace(_opening(), phase=Phase.ROAD_BUILDING)
+
+    with pytest.raises(PhaseError, match="road_building"):
         advance(state)
 
 

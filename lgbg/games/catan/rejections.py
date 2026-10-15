@@ -35,12 +35,23 @@ NO_PIECES_REMAINING: Final[RejectionCode] = RejectionCode(
     code="NO_PIECES_REMAINING", description="the player has no piece of that kind left in supply"
 )
 
+WRONG_DISCARD_TOTAL: Final[RejectionCode] = RejectionCode(
+    code="WRONG_DISCARD_TOTAL",
+    description="the forced discard does not return exactly half the hand, rounded down",
+)
+NOT_ENOUGH_RESOURCES: Final[RejectionCode] = RejectionCode(
+    code="NOT_ENOUGH_RESOURCES",
+    description="the player does not hold the resource cards the action spends or returns",
+)
+
 GAME_CODES: Final[tuple[RejectionCode, ...]] = (
     VERTEX_OCCUPIED,
     EDGE_OCCUPIED,
     TOO_CLOSE,
     NOT_CONNECTED,
     NO_PIECES_REMAINING,
+    WRONG_DISCARD_TOTAL,
+    NOT_ENOUGH_RESOURCES,
 )
 """The codes Catan itself raises, so far. Later slices add their own to this tuple."""
 

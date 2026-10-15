@@ -32,20 +32,6 @@
 
 
 
-### K-042 · Implement the knight card
-
-  - tags: [slice-5, devcards, robber, fr-12]
-  - priority: medium
-  - workload: Easy
-  - steps:
-      - [ ] Playing a knight runs the same robber flow as a 7: move, then optional steal
-      - [ ] Increments the played-knight count
-      - [ ] The robber flow is reused, not duplicated
-    ```md
-    - **Cuts through:** rules/devcards, the robber flow, largest-army counting
-    - **Depends on:** K-041, K-027
-    - **PRD:** FR-12.6
-    ```
 
 ### K-043 · Implement the Road Building card
 
@@ -1310,4 +1296,26 @@
     - **The effects are tested with a declared double.** The timing file installs one small card effect that records that it ran and says so in its docstring; it is the smallest thing that makes a card playable at all, and it disappears when K-042 implements the knight. What it lets the tests assert is the part that is real today: the card leaves the hand, the turn remembers it, the effect runs *after* the bookkeeping, and the offer appears before the roll.
     - **The refusals name the reason** (FR-13.3, FR-13.4): a card bought this turn, a second card in the same turn, a card that is never played at all, and a card the player does not hold are four different rejections with four different codes, because a player who is told which mistake they made can play the game. A finished game is refused with `GAME_OVER` rather than a phase error, which is the distinction K-037 pinned and this test re-asserts from a new direction.
     - **What arrives next:** the effects themselves (K-042 the knight, K-043 to K-046 the rest), and with the knight the completion of FR-10.1 - the offer before the roll already exists, and what it will do is K-042's card.
+    ```
+
+### K-042 · Implement the knight card
+
+  - tags: [slice-5, devcards, robber, fr-12]
+  - priority: medium
+  - workload: Easy
+  - steps:
+      - [x] Playing a knight runs the same robber flow as a 7: move, then optional steal
+      - [x] Increments the played-knight count
+      - [x] The robber flow is reused, not duplicated
+    ```md
+    - **Cuts through:** rules/devcards, robber, phase machine, turn history
+    - **Depends on:** K-041
+    - **PRD:** FR-12.6, FR-13.5
+    - **Evidence:** lgbg/games/catan/rules/devcards.py (`knight_effect`, the first entry in `EFFECTS`), lgbg/games/catan/phases.py (`_after_robber`), tests/games/test_catan_knight.py (6 tests).
+    - **The flow is reused because the card does not implement it.** `knight_effect` increments the played-knight count and puts the game into the robber phase; from there the phase machine asks for the move, asks for a victim if there is a choice, and closes. Every rule about the robber - a different hex, adjacency derived from the board, one card drawn uniformly - is the same code a seven runs, which is the only way the two can be guaranteed to agree.
+    - **The interesting question was where the turn goes afterwards, and the answer was already in the state.** The robber flow is reached from two places: a seven, and a knight played *before the roll*. A seven must return the turn to its action phase, and a knight played before the roll must return it to the roll - and the state says which, because a turn whose dice are still unrolled cannot have rolled a seven. `_after_robber` is therefore one expression, with no new field and no new rules_version.
+    - **A knight never opens the discard phase** (A-2), and the test makes that visible rather than incidental: a player holding fifteen cards plays a knight, and their hand is asserted untouched beside an assertion that no discard event was emitted. It would have been easy to reach the discard phase by calling the wrong transition, and the rulebook is explicit that only a seven forces discards.
+    - **The count accumulates across turns**, which is what Largest Army will read (K-047): played knights stay face up for the rest of the game, and there is no way back. The test plays one knight, resolves the flow, ends the turn, and plays another on the next turn.
+    - **The knight is the only card offered, and the test says so.** With a knight and a Year of Plenty in hand, the offer is `[knight]` - the progress card has no effect yet, so it is not playable, which is K-041's rule doing its job one card later. The K-041 test that asserted "nothing is playable" while the table was empty has been rewritten to the same statement in its current form: the cards whose effect exists are playable, and the ones whose effect has not landed are refused with `CARD_NOT_PLAYABLE`.
+    - **What arrives next:** the three progress cards (K-043 to K-046), each of which slots into the same `EFFECTS` table.
     ```

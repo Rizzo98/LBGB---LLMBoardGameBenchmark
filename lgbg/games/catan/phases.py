@@ -368,9 +368,14 @@ def _robber_requests(state: CatanState) -> list[DecisionRequest]:
 
 
 def _after_robber(state: CatanState) -> Phase:
-    """The turn goes on to its action phase once the seven is fully resolved (RULES.md 4.4)."""
-    del state
-    return Phase.ACTION
+    """Where the turn goes on: the action phase, or back to the roll a knight interrupted.
+
+    The robber flow is reached from two places - a seven, and a knight played before the roll -
+    and it returns the game to whichever of them it interrupted. The state says which: a turn
+    whose dice are still unrolled cannot have rolled a seven, so the robber was a knight's and
+    the turn is still waiting for its roll (RULES.md 4.4, 4.9).
+    """
+    return Phase.TURN_PRODUCTION if state.dice is None else Phase.ACTION
 
 
 PHASE_RULES: Final[Mapping[Phase, PhaseRule]] = MappingProxyType(

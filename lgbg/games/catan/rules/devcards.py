@@ -43,12 +43,35 @@ PLAYABLE: tuple[DevCard, ...] = (
 """The four kinds that may be *played*. A victory-point card is not: RULES.md 4.13 item 3 says
 revealing one is not an action, it is what winning looks like."""
 
-EFFECTS: Mapping[DevCard, Effect] = MappingProxyType({})
+
+def knight_effect(
+    state: CatanState, player: int, rng: RandomSource
+) -> tuple[CatanState, list[Event]]:
+    """A knight moves the robber and steals - the same flow a seven runs (FR-12.6; RULES.md 4.9).
+
+    The flow is not re-implemented here. The card puts the game into the robber phase, and the
+    phase machine asks the mover to move the robber and then to choose a victim: the two steps
+    that a seven already runs, with the same rules and the same events. What a knight does *not*
+    do is open the discard phase (A-2), and it does not, because nothing here mentions it.
+
+    The card also counts itself: a knight that has been played stays face up for the rest of the
+    game, and that count is what Largest Army is computed from (K-047).
+    """
+    played = list(state.knights_played)
+    played[player] += 1
+    with_knight = replace(state, knights_played=tuple(played))
+    entered, announced = phases.begin(with_knight, Phase.ROBBER)
+    _ = rng  # the robber flow draws when it steals, not here
+    return entered, announced
+
+
+EFFECTS: Mapping[DevCard, Effect] = MappingProxyType({DevCard.KNIGHT: knight_effect})
 """What each playable card does, filled in by the cards that implement them (K-042 to K-046).
 
 A card whose effect is not in here is not playable, and that is deliberate: an action that took a
 card out of a player's hand and did nothing would be a rule missing *silently*, which is the one
-thing this engine does not do.
+thing this engine does not do. The knight is the first entry, and the four that follow are the
+progress cards.
 """
 
 

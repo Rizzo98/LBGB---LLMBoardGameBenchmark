@@ -107,15 +107,17 @@ def an_effect(monkeypatch: pytest.MonkeyPatch) -> list[DevCard]:
     return ran
 
 
-def test_no_card_is_playable_until_its_effect_exists() -> None:
-    """The interim state: a card with no effect is not offered, rather than played for nothing."""
+def test_only_the_cards_whose_effect_exists_are_playable() -> None:
+    """A card whose effect has not landed is not offered, rather than played for nothing."""
     state = _with_cards(_opening(), held=3)
+    assert playable_cards(state, 0) == (DevCard.KNIGHT,)
 
-    assert playable_cards(state, 0) == ()
-    assert phases.PLAY_DEV_CARD not in [
-        str(name) for name in GAME.pending_decisions(state)[0].context["actions"]
-    ]
-    refusal = _refusal(state)
+    cards = [list(row) for row in state.dev_cards]
+    cards[0][CARD_ORDER.index(DevCard.MONOPOLY)] = 1
+    pending = replace(state, dev_cards=tuple(tuple(row) for row in cards))
+
+    assert playable_cards(pending, 0) == (DevCard.KNIGHT,), "the progress card is not playable yet"
+    refusal = _refusal(pending, card=DevCard.MONOPOLY.value)
     assert refusal.code == CARD_NOT_PLAYABLE
 
 

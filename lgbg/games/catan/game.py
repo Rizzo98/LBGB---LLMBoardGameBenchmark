@@ -92,6 +92,7 @@ ACTIONS: Final[dict[str, RuleFunction]] = {
     phases.END_TURN: turn.end_turn,
     phases.DISCARD_RESOURCES: robber.discard_resources,
     phases.MOVE_ROBBER: robber.move_robber,
+    phases.CHOOSE_ROBBER_VICTIM: robber.choose_robber_victim,
 }
 """The action types the game accepts, and the rule function each one runs."""
 
@@ -234,6 +235,12 @@ class CatanGame:
                 "required": ["hex"],
                 "additionalProperties": False,
             },
+            phases.CHOOSE_ROBBER_VICTIM: {
+                "type": "object",
+                "properties": {"victim": {"type": "integer", "minimum": 0, "maximum": 3}},
+                "required": ["victim"],
+                "additionalProperties": False,
+            },
         }
 
     def observation_schema(self) -> JsonSchema:
@@ -374,6 +381,11 @@ def _legal_actions_for(state: CatanState, request: DecisionRequest) -> list[Acti
         return [
             Action(player=player, type=phases.MOVE_ROBBER, params={"hex": hex_id})
             for hex_id in robber.destinations(state)
+        ]
+    if request.kind == phases.CHOOSE_ROBBER_VICTIM:
+        return [
+            Action(player=player, type=phases.CHOOSE_ROBBER_VICTIM, params={"victim": victim})
+            for victim in robber.robber_victims(state)
         ]
     return []
 

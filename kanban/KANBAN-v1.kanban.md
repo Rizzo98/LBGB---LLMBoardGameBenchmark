@@ -17,21 +17,6 @@
 
 
 
-### K-027 · Implement steal with recorded draw and asymmetric visibility
-
-  - tags: [slice-3, robber, rng, projection, fr-12]
-  - priority: high
-  - workload: Normal
-  - steps:
-      - [ ] One random resource moves from a chosen adjacent opponent
-      - [ ] Thief learns what was taken; victim learns what left their hand
-      - [ ] The draw is recorded and replays exactly
-    ```md
-    - **Cuts through:** rules/robber, core/rng, the per-observer projection, replay
-    - **Depends on:** K-026
-    - **PRD:** FR-12.4, FR-12.5
-    - **Why:** First card where the projection must express asymmetric knowledge rather than merely private state.
-    ```
 
 ### K-028 · Extend projection to resource hands
 
@@ -1189,4 +1174,26 @@
     - **Blocking is asserted through the roll, not around it** (FR-12.3). The test places a settlement on each of the two hexes that share the number 5, rolls a 5 twice - once with the robber on the desert, once with it on one of those hexes - and asserts that the first roll pays the blocked hex and the second does not, while the hex that shares its number is still paid. `produce` blocks by hex identity, so no separate rule had to be written for it, and none was.
     - **The neighbours are derived twice, by different routes.** `robber_victims` walks the robber's hex to its vertices and reads the occupancy; the test re-derives the same set through the inverse relation (`hexes_at(vertex)`) and compares, so a change that made the two agree by accident - an authored list, a cached set - would fail. A city counts like a settlement, the mover is never a candidate, and holding cards is deliberately not part of candidacy: the rules let the mover name a victim who holds nothing and get nothing.
     - **Every hex but one is a destination.** The desert included, and the current hex refused with `ROBBER_SAME_HEX`; a second move in the same phase with `ROBBER_ALREADY_MOVED`; an unknown hex, a missing parameter or a non-integer with `BAD_PARAMS`. The enumeration in `legal_actions` is exactly the set the rule accepts, checked by applying every action it offers.
+    ```
+
+### K-027 · Implement steal with recorded draw and asymmetric visibility
+
+  - tags: [slice-3, robber, rng, projection, fr-12]
+  - priority: high
+  - workload: Normal
+  - steps:
+      - [x] One random resource moves from a chosen adjacent opponent
+      - [x] Thief learns what was taken; victim learns what left their hand
+      - [x] The draw is recorded and replays exactly
+    ```md
+    - **Cuts through:** rules/robber, core/rng, the per-observer projection, replay
+    - **Depends on:** K-026
+    - **PRD:** FR-12.4, FR-12.5
+    - **Why:** First card where the projection must express asymmetric knowledge rather than merely private state.
+    - **Evidence:** lgbg/games/catan/rules/robber.py (`choose_robber_victim`, `steal`, draw `robber_steal`), lgbg/games/catan/projection.py (the first observer-relative field), lgbg/games/catan/notation.py, tests/games/test_catan_steal.py (24 tests).
+    - **One card, drawn over the cards and not over the types** (draw D8, RULES.md 3.1 and 4.9 item 6). The draw is a single `choice` over the victim's hand materialised in canonical resource order and repeated by count, so a hand of three wood and one ore loses wood three times in four - which is what drawing one card out of a physical hand means. The test asserts the purpose label, the kind, the argument (the size of the hand, not the number of resource types), and the value; over 240 fixed seeds it asserts that both are reachable and that wood outweighs ore by more than two to one, which a per-type draw would not do.
+    - **`choice` returns a resource name and not the enum member, deliberately.** A replay returns whatever the record holds - and a record holds JSON - so a live draw handing back a `Resource` and a replayed draw handing back a `str` would be two different kinds of answer to the same question. The steal reads the name and finds the position itself, so the live path and the replayed path are the same code (FR-2.4).
+    - **The engine does not ask a question whose answer is already settled** (RULES.md 4.9 item 5). With exactly one candidate, the move *is* the steal: it draws D8 and robs that player, and the phase closes into the action phase. Only with two or more candidates is `choose_robber_victim` opened, and only then does a name mean anything - naming a victim before the move, or in the phase that follows it, is refused. A mandatory steal is never left unrunnable, and the same hand cannot be robbed twice.
+    - **The first observer-relative field.** The projection was built from an allow-list that took no account of who was asking; FR-12.5 needs the opposite, so `OBSERVER_FIELDS` now declares the fields that answer differently per observer, and the player's view is the public position plus their own hand. The thief sees the card it gained, the victim sees it leave, and a third player is told nothing about anybody's cards - all asserted on one position. `hands` (the spectator's view of everyone) stays a different field with a different shape, and the "the spectator sees everything a player sees" assertion now excludes the observer-relative fields explicitly instead of pretending they line up.
+    - **FR-12.4's wording is corrected (RULES.md D-5).** The PRD says the steal is from an opponent "holding at least one card"; the rulebook lets the mover name a card-less victim and get nothing, and the steal is mandatory, so reading the PRD literally would make the move unrunnable when every candidate is empty-handed. The candidates are every other player with a building on the robber's hex, a victim who holds nothing yields nothing, and no draw is consumed - asserted with the null source. Two inline-code spans mangled into section signs in the D-4 row are repaired in the same change.
     ```

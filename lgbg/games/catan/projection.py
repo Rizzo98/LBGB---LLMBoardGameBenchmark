@@ -14,8 +14,10 @@ with hidden victory-point cards, "who is ahead" is not determinable from any pla
 so analysis and replay use the spectator's, and it is tested on its own.
 
 What slice 2 shows: the board, the robber, every player's placed pieces, the public turn state
-and the bank. Hands and the development deck arrive with the slice that needs them, each with
-the leak test that proves they do not escape.
+and the bank. Slice 3 adds the one hand a player is entitled to see - their own - because a
+steal is only observable to the two players it touches if each of them can see their own cards
+(FR-12.5). The other players' hands are still absent, and the development deck with them; each
+arrives with the slice that needs it, and with the leak test that proves it does not escape.
 """
 
 from __future__ import annotations
@@ -117,7 +119,30 @@ SPECTATOR_FIELDS: Final[tuple[tuple[str, Projector], ...]] = (
 )
 """The allow-list for the spectator's view: the player's, plus what the god view holds back."""
 
-PLAYER_OBSERVATION_FIELDS: Final[frozenset[str]] = frozenset(name for name, _ in PLAYER_FIELDS)
+ObserverProjector = Callable[[CatanState, PlayerId], JsonValue]
+
+
+def _own_hand(state: CatanState, player: PlayerId) -> JsonValue:
+    """The observer's own hand, and nobody else's (FR-12.5, FR-16.5)."""
+    if not 0 <= player < state.players:
+        return None
+    return {
+        resource.value: state.hands[player][index] for index, resource in enumerate(RESOURCE_ORDER)
+    }
+
+
+OBSERVER_FIELDS: Final[tuple[tuple[str, ObserverProjector], ...]] = (("hand", _own_hand),)
+"""The fields whose answer depends on *who is asking*.
+
+An observer-relative field is not in the spectator's view at all, which is why the spectator's
+allow-list is a superset of the player's minus this list: the spectator has no hand of their own,
+and 'everyone's hand' is a different field with a different shape. Declaring the difference is
+what keeps 'the spectator sees everything a player sees' an assertion rather than a hope.
+"""
+
+PLAYER_OBSERVATION_FIELDS: Final[frozenset[str]] = frozenset(
+    {*(name for name, _ in PLAYER_FIELDS), *(name for name, _ in OBSERVER_FIELDS)}
+)
 SPECTATOR_OBSERVATION_FIELDS: Final[frozenset[str]] = frozenset(
     name for name, _ in SPECTATOR_FIELDS
 )
@@ -127,10 +152,13 @@ def observe(state: CatanState, player: PlayerId) -> Observation:
     """What one player may see.
 
     The observer is a parameter rather than a flag, so a view that differs *between* players
-    - one hand, not 'mine and theirs' - needs no new interface (FR-16.5).
+    needs no new interface: the public position is the same for everybody, and the fields that
+    are about the observer are appended for the observer alone (FR-16.5).
     """
-    del player  # slice 2 shows the same public position to everyone
-    return _project(state, PLAYER_FIELDS)
+    observation = dict(_project(state, PLAYER_FIELDS))
+    for name, extract in OBSERVER_FIELDS:
+        observation[name] = extract(state, player)
+    return observation
 
 
 def observe_spectator(state: CatanState) -> Observation:

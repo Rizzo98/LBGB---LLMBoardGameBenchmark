@@ -17,21 +17,31 @@ from __future__ import annotations
 from dataclasses import replace
 from typing import Any, Final
 
-from lgbg.core.errors import BAD_PARAMS, NOT_YOUR_DECISION, WRONG_PHASE, Rejection
+from lgbg.core.errors import (
+    BAD_PARAMS,
+    NO_SUCH_REQUEST,
+    NOT_YOUR_DECISION,
+    WRONG_PHASE,
+    Rejection,
+)
 from lgbg.core.game import Applied, ApplyResult, Rejected
-from lgbg.core.rng import RandomSource
+from lgbg.core.rng import Purpose, RandomSource
 from lgbg.core.types import Action, Event, JsonValue
 from lgbg.games.catan.board.layout import Resource
 from lgbg.games.catan.rejections import (
     NOT_ENOUGH_RESOURCES,
     ROBBER_ALREADY_MOVED,
     ROBBER_SAME_HEX,
+    ROBBER_VICTIM_NOT_ADJACENT,
     WRONG_DISCARD_TOTAL,
 )
 from lgbg.games.catan.state import HAND_LIMIT, NO_OWNER, RESOURCE_ORDER, CatanState, Phase
 
 NOTHING: Final[int] = 0
 """No cards: the amount a hand within the limit owes, and the amount left after a discard."""
+
+ROBBER_STEAL: Final[Purpose] = "robber_steal"
+"""Draw D8 of RULES.md section 3.1: which card of the victim's hand is taken."""
 
 
 def forced_discards(state: CatanState) -> tuple[int, ...]:
@@ -53,7 +63,6 @@ def move_robber(state: CatanState, action: Action, rng: RandomSource) -> ApplyRe
     single exception: the rules offer no way to leave the robber where it is, so an engine that
     accepted its current hex would quietly make "move" optional.
     """
-    del rng  # choosing where it goes is a decision, not a draw
     if state.phase is not Phase.ROBBER:
         return Rejected(
             Rejection(
@@ -90,14 +99,102 @@ def move_robber(state: CatanState, action: Action, rng: RandomSource) -> ApplyRe
                 details={"from": state.robber},
             )
         )
-    return Applied(
-        state=replace(state, robber=destination, robber_moved_at=state.phase_index),
-        events=[
-            Event(
-                type="robber_moved",
-                payload={"player": action.player, "from": state.robber, "to": destination},
+    moved = replace(state, robber=destination, robber_moved_at=state.phase_index)
+    events = [
+        Event(
+            type="robber_moved",
+            payload={"player": action.player, "from": state.robber, "to": destination},
+        )
+    ]
+    candidates = robber_victims(moved)
+    if len(candidates) == 1:
+        # RULES.md 4.9 item 5: one candidate settles the choice, so the engine does not ask a
+        # question whose answer is already determined - it robs them as part of the move.
+        moved, stolen = steal(moved, action.player, candidates[0], rng)
+        events.append(stolen)
+    return Applied(state=moved, events=events)
+
+
+def choose_robber_victim(state: CatanState, action: Action, rng: RandomSource) -> ApplyResult:
+    """Rob one of the neighbours the mover is choosing between (FR-12.4; RULES.md 4.9 item 5).
+
+    The choice is only open when there is one to make and the robber has already moved: with a
+    single candidate the move itself resolved the steal, and naming that candidate here would
+    take a second card out of the same hand.
+    """
+    if state.phase is not Phase.ROBBER:
+        return Rejected(
+            Rejection(
+                code=WRONG_PHASE,
+                message=f"{action.type!r} is only legal while the robber is being resolved",
+                details={"phase": state.phase.value},
             )
-        ],
+        )
+    if not 0 <= action.player < state.players or action.player != state.turn:
+        return Rejected(
+            Rejection(
+                code=NOT_YOUR_DECISION,
+                message=f"seat {action.player} is not the player who moved the robber; "
+                f"seat {state.turn} is",
+                details={"turn": state.turn},
+            )
+        )
+    candidates = robber_victims(state)
+    if state.robber_moved_at != state.phase_index or len(candidates) < 2:
+        return Rejected(
+            Rejection(
+                code=NO_SUCH_REQUEST,
+                message="no victim is being chosen: the move settled it, or has not happened yet",
+                details={"phase": state.phase.value, "candidates": list(candidates)},
+            )
+        )
+    victim = _victim(action, state)
+    if isinstance(victim, Rejected):
+        return victim
+    if victim not in candidates:
+        return Rejected(
+            Rejection(
+                code=ROBBER_VICTIM_NOT_ADJACENT,
+                message=f"seat {victim} has no building on the hex the robber occupies",
+                details={"victim": victim, "candidates": list(candidates)},
+            )
+        )
+    robbed, stolen = steal(state, action.player, victim, rng)
+    return Applied(state=robbed, events=[stolen])
+
+
+def steal(
+    state: CatanState, thief: int, victim: int, rng: RandomSource
+) -> tuple[CatanState, Event]:
+    """Take one card, uniformly, out of the victim's hand (RULES.md 4.9 item 6, draw D8).
+
+    The draw is over the *cards*, materialised in canonical resource order and repeated by count,
+    not over the resource types: a player holding three wood and one ore loses wood three times
+    in four, which is what drawing one card out of a hand physically means. A player holding
+    nothing gives nothing and no draw is made - the rules let the mover name such a victim, and
+    they get nothing.
+    """
+    hand = state.hands[victim]
+    cards = [
+        resource.value for index, resource in enumerate(RESOURCE_ORDER) for _ in range(hand[index])
+    ]
+    # The card is a resource *name* rather than the enum member, so that the value a replay
+    # returns - which is whatever the record holds, and a record holds JSON - is the same kind
+    # of thing the live draw returned (FR-2.4).
+    taken = rng.choice(cards, purpose=ROBBER_STEAL) if cards else None
+    hands = [list(row) for row in state.hands]
+    if taken is not None:
+        index = next(
+            index for index, resource in enumerate(RESOURCE_ORDER) if resource.value == taken
+        )
+        hands[victim][index] -= 1
+        hands[thief][index] += 1
+    return (
+        replace(state, hands=tuple(tuple(row) for row in hands)),
+        Event(
+            type="robber_stole",
+            payload={"player": thief, "victim": victim, "resource": taken},
+        ),
     )
 
 
@@ -214,6 +311,20 @@ def discard_resources(state: CatanState, action: Action, rng: RandomSource) -> A
             )
         ],
     )
+
+
+def _victim(action: Action, state: CatanState) -> int | Rejected:
+    """Read the chosen victim, refusing anything that is not a seat at this table (FR-18.2)."""
+    value: Any = action.params.get("victim")
+    if not isinstance(value, int) or isinstance(value, bool) or not 0 <= value < state.players:
+        return Rejected(
+            Rejection(
+                code=BAD_PARAMS,
+                message="victim must be the seat of one of the players",
+                details={"victim": _json(value), "players": state.players},
+            )
+        )
+    return value
 
 
 def _destination(action: Action, hexes: int) -> int | Rejected:

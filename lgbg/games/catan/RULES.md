@@ -1567,7 +1567,7 @@ different value; **no row differs.**
 
 ### 6.2 Disagreements and corrections to PRD-v1
 
-**No Appendix A value disagrees with the rulebook.** Four PRD statements nonetheless need correction or
+**No Appendix A value disagrees with the rulebook.** Five PRD statements nonetheless need correction or
 clarification before implementation.
 
 | ID | PRD-v1 statement | What the rulebook says | Resolution |
@@ -1575,7 +1575,8 @@ clarification before implementation.
 | **D-1** | Appendix A: "Structure 19 hexes, **54 vertices, 72 edges**" | No retrieved rulebook states 54 or 72 | The two counts are **derived, not confirmed**. The derivation is reproduced in §4.1 and is asserted by the structural self-check (PRD-v1 SC-7, FR-6.10). The requirement is unchanged; its *status* changes: it is a derived value that a test must protect. |
 | **D-2** | FR-10.4: "Production MUST be limited by bank supply; a partial distribution MUST be deterministic and documented in RULES.md" | The general rule is **all-or-nothing per resource**; a partial grant applies **only** when exactly one player is affected (S1 p.6; S2 Almanac p.10; S4 §3.0.11; S5) | The rulebook rule is implemented (§4.6, A-5). The test for FR-10.4 must assert **both** branches, not only the partial one. |
 | **D-3** | FR-8.4: "The second settlement MUST grant **one of each resource** from adjacent non-desert hexes" | One resource card **per adjacent hex**, of that hex's type: two forest hexes grant two wood (S1 p.11; S2 Almanac p.12) | The rulebook rule is implemented (§4.3 rule 6). PRD-v1's wording is shorthand and must not be read as "one of each of the five resources". |
-| **D-4** | FR-10.1: the turn begins with a decision offering "§roll_dice§ or a legal §play_dev_card§ (knight)" | **Any** playable development card may be played before the roll (S1 p.9; S4 §3.0.1) | The broader rulebook rule is implemented (§4.8, A-2); "(knight)" in FR-10.1 is treated as an example. |
+| **D-4** | FR-10.1: the turn begins with a decision offering "`roll_dice` or a legal `play_dev_card` (knight)" | **Any** playable development card may be played before the roll (S1 p.9; S4 §3.0.1) | The broader rulebook rule is implemented (§4.8, A-2); "(knight)" in FR-10.1 is treated as an example. |
+| **D-5** | FR-12.4: "A steal MUST transfer one random resource from a chosen adjacent opponent **holding at least one card**" | Candidacy does not depend on holding cards: the mover may name a card-less victim and get nothing (S2 Almanac p.8 "Knight Cards" — "If he has no cards, you get nothing!"; S5 — "Bad luck: You won't be able to draw a card from this player"). The steal itself is mandatory (§4.9, B-7) | The rulebook rule is implemented (§4.9 items 5 and 6): the candidates are every other player with a building on the robber's hex, and a victim who holds nothing yields nothing. Reading FR-12.4 as a restriction on who may be **chosen** would make a mandatory steal unrunnable whenever every candidate is empty-handed. |
 
 Two further notes on wording, which are **not** disagreements:
 

@@ -175,14 +175,14 @@ def test_the_robber_does_not_move_in_another_phase() -> None:
 def test_the_robber_moves_once_per_phase() -> None:
     """RULES.md 4.4: the phase has two steps, and the move is the first of them."""
     hex_id = _token_hex(_opening(), 5)
-    vertex = _opening().board.topology.vertices_of_hex(hex_id)[0]
-    state = _resolving(_building(_opening(), settlements=[(vertex, 1)]))
+    first, second = _opening().board.topology.vertices_of_hex(hex_id)[:2]
+    state = _resolving(_building(_opening(), settlements=[(first, 1), (second, 2)]))
 
     moved = _move(state, state.turn, hex_id)
     refusal = _refusal(moved.state, state.turn, {"hex": 1})
 
     assert moved.state.robber == hex_id
-    assert moved.state.phase is Phase.ROBBER, "somebody is next to it: the steal is not resolved"
+    assert moved.state.phase is Phase.ROBBER, "two candidates: the steal is not resolved"
     assert refusal.code == ROBBER_ALREADY_MOVED
     assert dict(refusal.details)["to"] == hex_id
 
@@ -219,12 +219,11 @@ def test_the_phase_closes_into_the_action_phase_when_nobody_is_adjacent() -> Non
     assert [dict(event.payload)["phase"] for event in announced] == ["action"]
 
 
-def test_a_victim_is_asked_for_when_the_hex_carries_a_building() -> None:
+def test_a_victim_is_asked_for_when_there_is_a_choice() -> None:
     """RULES.md 4.9 item 5: the choice arrives as its own request, answered by K-027."""
-    state = _resolving(_opening())
-    hex_id = _token_hex(state, 5)
-    vertex = state.board.topology.vertices_of_hex(hex_id)[0]
-    occupied = _resolving(_building(_opening(), settlements=[(vertex, 1)]))
+    hex_id = _token_hex(_opening(), 5)
+    first, second = _opening().board.topology.vertices_of_hex(hex_id)[:2]
+    occupied = _resolving(_building(_opening(), settlements=[(first, 1), (second, 2)]))
 
     moved = _move(occupied, occupied.turn, hex_id)
 
@@ -233,7 +232,7 @@ def test_a_victim_is_asked_for_when_the_hex_carries_a_building() -> None:
     assert moved.state.robber_moved_at == moved.state.phase_index
     assert [request.kind for request in requests] == [phases.CHOOSE_ROBBER_VICTIM]
     assert requests[0].player == occupied.turn
-    assert dict(requests[0].context)["candidates"] == [1]
+    assert dict(requests[0].context)["candidates"] == [1, 2]
 
 
 def test_the_mover_is_never_a_candidate() -> None:
@@ -361,7 +360,9 @@ def test_a_seven_is_resolved_through_the_runtime(tmp_path: Any) -> None:
     ]
 
     assert recorded == [{"player": mover, "from": DESERT, "to": run.state.robber}]
-    assert [record.phase for record in log.phases][-2:] == ["discard", "robber"]
+    assert [record.phase for record in log.phases][-3:] == ["discard", "robber", "action"], (
+        "the seven is resolved: the discards, the robber, and the turn's action phase"
+    )
     assert verify(log, GAME).rejections == 0
 
 

@@ -23,6 +23,7 @@ from lgbg.core.rng import NullRandomSource, RandomSource, SeededRandomSource
 from lgbg.core.types import JsonValue
 from lgbg.games.catan.board.generation import load_board
 from lgbg.games.catan.projection import (
+    OBSERVER_FIELDS,
     PLAYER_OBSERVATION_FIELDS,
     SPECTATOR_OBSERVATION_FIELDS,
     observe,
@@ -101,11 +102,19 @@ def test_every_player_sees_the_same_public_board() -> None:
 
 
 def test_the_spectator_projection_is_a_distinct_superset() -> None:
-    """FR-16.7: the spectator view is its own artefact, not the player view by another name."""
+    """FR-16.7: the spectator view is its own artefact, not the player view by another name.
+
+    It is a superset of the player's view *apart from the fields that are about the observer*:
+    the spectator has no hand of their own, and "everybody's hand" is a different field with a
+    different shape. Writing that exception down is what keeps the superset claim testable.
+    """
     spectator = observe_spectator(_played_state())
+    observer_relative = {name for name, _ in OBSERVER_FIELDS}
 
     assert set(spectator) == SPECTATOR_OBSERVATION_FIELDS
-    assert PLAYER_OBSERVATION_FIELDS < SPECTATOR_OBSERVATION_FIELDS
+    assert observer_relative == {"hand"}
+    assert SPECTATOR_OBSERVATION_FIELDS | observer_relative > PLAYER_OBSERVATION_FIELDS
+    assert observer_relative.isdisjoint(SPECTATOR_OBSERVATION_FIELDS)
 
 
 def test_the_hidden_information_is_absent_from_a_players_view() -> None:
@@ -136,9 +145,10 @@ def test_the_allow_list_names_fields_the_state_actually_has() -> None:
     assert state_fields, "control: the encoding describes the state"
 
     named = PLAYER_OBSERVATION_FIELDS | SPECTATOR_OBSERVATION_FIELDS
+    observer_relative = {name for name, _ in OBSERVER_FIELDS}
 
     assert named, "the allow-list must not be empty"
-    assert set(PLAYER_OBSERVATION_FIELDS) <= SPECTATOR_OBSERVATION_FIELDS
+    assert set(PLAYER_OBSERVATION_FIELDS) <= SPECTATOR_OBSERVATION_FIELDS | observer_relative
 
 
 def test_observing_consumes_no_randomness_and_does_not_change_the_state() -> None:

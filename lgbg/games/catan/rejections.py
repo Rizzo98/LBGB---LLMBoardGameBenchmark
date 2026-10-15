@@ -50,6 +50,10 @@ ROBBER_SAME_HEX: Final[RejectionCode] = RejectionCode(
 ROBBER_ALREADY_MOVED: Final[RejectionCode] = RejectionCode(
     code="ROBBER_ALREADY_MOVED", description="the robber has already moved in this phase"
 )
+ROBBER_VICTIM_NOT_ADJACENT: Final[RejectionCode] = RejectionCode(
+    code="ROBBER_VICTIM_NOT_ADJACENT",
+    description="the named victim has no building on the hex the robber occupies",
+)
 
 GAME_CODES: Final[tuple[RejectionCode, ...]] = (
     VERTEX_OCCUPIED,
@@ -61,6 +65,7 @@ GAME_CODES: Final[tuple[RejectionCode, ...]] = (
     NOT_ENOUGH_RESOURCES,
     ROBBER_SAME_HEX,
     ROBBER_ALREADY_MOVED,
+    ROBBER_VICTIM_NOT_ADJACENT,
 )
 """The codes Catan itself raises, so far. Later slices add their own to this tuple."""
 

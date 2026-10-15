@@ -33,6 +33,7 @@ HANDLED_FIELDS: Final[frozenset[str]] = frozenset(
         "bank",
         "board",
         "dice",
+        "hand",
         "hands",
         "phase",
         "pieces",
@@ -98,6 +99,8 @@ def _full(observation: Observation) -> str:
     lines.append(f"robber: {_robber(observation)}")
     lines.append(f"pieces: {_pieces(observation)}")
     lines.append(f"bank: {_bank(observation)}")
+    if "hand" in observation:
+        lines.append(f"hand: {_hand(observation)}")
     lines.append(f"supply: {_supply(observation)}")
     lines.append(f"awards: {_awards(observation)}")
     lines.append(f"dice: {_dice(observation)}")
@@ -121,6 +124,8 @@ def _compact(observation: Observation) -> str:
     parts.append(f"robber {_robber(observation)}")
     parts.append(f"pieces {_pieces(observation)}")
     parts.append(f"bank {_bank(observation)}")
+    if "hand" in observation:
+        parts.append(f"hand {_hand(observation)}")
     parts.append(f"supply {_supply(observation)}")
     parts.append(f"awards {_awards(observation)}")
     parts.append(f"dice {_dice(observation)}")
@@ -241,6 +246,15 @@ def _supply(observation: Observation) -> str:
         for seat, entry in enumerate(supply)
         if isinstance(entry, Sequence)
     )
+
+
+def _hand(observation: Observation) -> str:
+    """The observer's own hand, by resource name, because 'wood 3 brick 1' is what they hold."""
+    hand = observation.get("hand")
+    if not isinstance(hand, Mapping):
+        return "-"
+    held = [f"{name} {count}" for name, count in hand.items() if count]
+    return " ".join(held) if held else "empty"
 
 
 def _hands(observation: Observation) -> str:

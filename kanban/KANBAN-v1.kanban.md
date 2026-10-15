@@ -24,6 +24,7 @@
     - **Depends on:** K-061, K-056, K-034
     - **PRD:** FR-22.1 to FR-22.6
     - **Why:** Because invariants are declared rather than hardcoded, this one harness validates every game, present and future. It is a test harness, never scored, never presented as a bot.
+- **How this card should start, recorded by the session that stopped before it.** FR-22.3 asks the harness to assert *event sufficiency*: applying events to the pre-state reproduces the post-state. Nothing in the plugin interface can do that today - a rule returns a state and a list of events, and no member reduces one into the other - so the card has a decision to make before it has code: either add an optional protocol member (say `explain(state, events) -> State`, implemented by the fixture game and by Catan, with ARCHITECTURE.md 7.1 updated and the registry test's member list with it), or interpret sufficiency as the weaker claim the interface can support (an accepted action emits at least one event, a rejected one emits none). Everything else the card asks for is already available and asserted: declared invariants (K-061), schema conformance (K-056), projection purity (K-057), rejection invariance, and the livelock measurement from K-062 - a uniform-random driver played the 4000-action cap without ending, which is why a livelock must be reported distinctly from a rule failure rather than treated as one.
     ```
 
 ### K-066 · Sweep requirement coverage and build the traceability matrix

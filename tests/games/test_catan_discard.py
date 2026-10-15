@@ -47,8 +47,16 @@ NOTHING: Final[tuple[int, ...]] = (0,) * len(RESOURCE_ORDER)
 """A hand holding no cards, in canonical resource order."""
 
 
-def _hand(*counts: int) -> tuple[int, ...]:
-    return tuple(counts)
+def _hand(**counts: int) -> tuple[int, ...]:
+    """A hand named resource by resource.
+
+    The canonical order is pinned by the state tests and by the golden fixture; here the names
+    are what the test is about, and a hand written positionally would quietly become a different
+    hand the day that order changed (RULES.md section 3). The one naming the hand and the one
+    reading it back cannot drift apart.
+    """
+    assert set(counts) <= {resource.value for resource in RESOURCE_ORDER}
+    return tuple(counts.get(resource.value, 0) for resource in RESOURCE_ORDER)
 
 
 def _opening() -> CatanState:
@@ -123,7 +131,9 @@ def _roll(state: CatanState) -> Applied:
 
 def test_a_seven_forces_every_hand_over_the_limit_to_discard() -> None:
     """FR-9.5, FR-10.5: a seven produces nothing, and everybody over seven cards discards."""
-    state = _at_the_roll(_hand(3, 2, 0, 0, 4), _hand(4, 4, 0, 0, 0), _hand(7, 0, 0, 0, 0), NOTHING)
+    state = _at_the_roll(
+        _hand(wood=3, brick=2, ore=4), _hand(wood=4, brick=4), _hand(wood=7), NOTHING
+    )
 
     rolled = _roll(state)
 
@@ -140,10 +150,10 @@ def test_a_seven_forces_every_hand_over_the_limit_to_discard() -> None:
 def test_a_hand_of_exactly_seven_cards_is_left_alone() -> None:
     """RULES.md 4.9: more than seven means eight or more, and half is rounded down."""
     hands = (
-        _hand(7, 0, 0, 0, 0),
-        _hand(0, 8, 0, 0, 0),
-        _hand(0, 0, 9, 0, 0),
-        _hand(0, 0, 0, 0, 15),
+        _hand(wood=7),
+        _hand(brick=8),
+        _hand(wool=9),
+        _hand(ore=15),
     )
 
     rolled = _roll(_at_the_roll(*hands))
@@ -155,7 +165,9 @@ def test_a_hand_of_exactly_seven_cards_is_left_alone() -> None:
 
 def test_the_requests_open_together_in_seat_order() -> None:
     """One request per eligible player, all at once, each naming its own amount (FR-9.5)."""
-    state = _discarding(_hand(3, 2, 0, 0, 4), _hand(4, 4, 0, 0, 0), _hand(7, 0, 0, 0, 0), NOTHING)
+    state = _discarding(
+        _hand(wood=3, brick=2, ore=4), _hand(wood=4, brick=4), _hand(wood=7), NOTHING
+    )
 
     requests = GAME.pending_decisions(state)
 
@@ -176,7 +188,7 @@ def test_the_phase_is_not_a_sequence_of_private_turns() -> None:
     order pending_decisions returns, so a driver that follows it produces the record a game of
     four simultaneous clients produces (item 4).
     """
-    state = _discarding(_hand(3, 2, 0, 0, 4), NOTHING, _hand(4, 4, 0, 0, 0), NOTHING)
+    state = _discarding(_hand(wood=3, brick=2, ore=4), NOTHING, _hand(wood=4, brick=4), NOTHING)
 
     assert [request.player for request in GAME.pending_decisions(state)] == [0, 2]
 
@@ -188,7 +200,7 @@ def test_the_phase_is_not_a_sequence_of_private_turns() -> None:
 
 def test_answering_one_discard_does_not_change_what_the_next_player_owes() -> None:
     """RULES.md 4.4 item 3: every request is answered against the state the phase opened with."""
-    state = _discarding(_hand(3, 2, 0, 0, 4), _hand(4, 4, 0, 0, 0), NOTHING, NOTHING)
+    state = _discarding(_hand(wood=3, brick=2, ore=4), _hand(wood=4, brick=4), NOTHING, NOTHING)
     before = next(r for r in GAME.pending_decisions(state) if r.player == 1)
 
     later = _discard(state, 0, wood=3, ore=1)
@@ -201,7 +213,7 @@ def test_answering_one_discard_does_not_change_what_the_next_player_owes() -> No
 
 def test_the_phase_closes_only_when_every_request_is_answered() -> None:
     """The phase ends when its request set is empty, and then the robber moves (RULES.md 4.5)."""
-    state = _discarding(_hand(3, 2, 0, 0, 4), NOTHING, _hand(4, 4, 0, 0, 0), NOTHING)
+    state = _discarding(_hand(wood=3, brick=2, ore=4), NOTHING, _hand(wood=4, brick=4), NOTHING)
 
     halfway = _discard(state, 0, wood=3, ore=1)
 
@@ -218,22 +230,22 @@ def test_the_phase_closes_only_when_every_request_is_answered() -> None:
 
 def test_any_composition_of_the_hand_may_be_returned() -> None:
     """FR-12.2: the player chooses which cards leave, as long as the count is right."""
-    hand = _hand(3, 2, 0, 3, 1)
+    hand = _hand(wood=3, brick=2, wheat=3, ore=1)
     state = _discarding(hand, NOTHING, NOTHING, NOTHING)
 
     spread = _discard(state, 0, wood=1, brick=1, wheat=1, ore=1)
     hoarded = _discard(state, 0, wheat=3, ore=1)
     single = _discard(state, 0, wood=3, wheat=1)
 
-    assert spread.state.hands[0] == _hand(2, 1, 0, 2, 0)
-    assert hoarded.state.hands[0] == _hand(3, 2, 0, 0, 0)
-    assert single.state.hands[0] == _hand(0, 2, 0, 2, 1)
+    assert spread.state.hands[0] == _hand(wood=2, brick=1, wheat=2)
+    assert hoarded.state.hands[0] == _hand(wood=3, brick=2)
+    assert single.state.hands[0] == _hand(brick=2, wheat=2, ore=1)
     for result in (spread, hoarded, single):
         assert sum(result.state.hands[0]) == sum(hand) - 4
 
 
 def test_a_discard_of_the_wrong_size_is_refused() -> None:
-    state = _discarding(_hand(3, 2, 0, 0, 4), NOTHING, NOTHING, NOTHING)
+    state = _discarding(_hand(wood=3, brick=2, ore=4), NOTHING, NOTHING, NOTHING)
 
     short = _refusal(state, 0, {"wood": 3})
     long = _refusal(state, 0, {"wood": 3, "brick": 2, "ore": 1})
@@ -241,11 +253,11 @@ def test_a_discard_of_the_wrong_size_is_refused() -> None:
     assert short.code == WRONG_DISCARD_TOTAL
     assert long.code == WRONG_DISCARD_TOTAL
     assert dict(long.details)["must_discard"] == 4
-    assert state.hands[0] == _hand(3, 2, 0, 0, 4), "a refusal changes nothing"
+    assert state.hands[0] == _hand(wood=3, brick=2, ore=4), "a refusal changes nothing"
 
 
 def test_a_discard_of_cards_the_player_does_not_hold_is_refused() -> None:
-    state = _discarding(_hand(3, 2, 0, 0, 4), NOTHING, NOTHING, NOTHING)
+    state = _discarding(_hand(wood=3, brick=2, ore=4), NOTHING, NOTHING, NOTHING)
 
     refusal = _refusal(state, 0, {"wood": 3, "wool": 1})
 
@@ -265,7 +277,7 @@ def test_a_discard_of_cards_the_player_does_not_hold_is_refused() -> None:
 )
 def test_a_malformed_discard_is_a_parameter_error(params: dict[str, Any]) -> None:
     """FR-18.2: the declared schema is what judges the shape, before any rule logic."""
-    state = _discarding(_hand(3, 2, 0, 0, 4), NOTHING, NOTHING, NOTHING)
+    state = _discarding(_hand(wood=3, brick=2, ore=4), NOTHING, NOTHING, NOTHING)
 
     refusal = _refusal(state, 0, params)
 
@@ -273,7 +285,7 @@ def test_a_malformed_discard_is_a_parameter_error(params: dict[str, Any]) -> Non
 
 
 def test_a_seat_with_nothing_to_discard_is_refused() -> None:
-    state = _discarding(_hand(3, 2, 0, 0, 4), NOTHING, NOTHING, NOTHING)
+    state = _discarding(_hand(wood=3, brick=2, ore=4), NOTHING, NOTHING, NOTHING)
 
     refusal = _refusal(state, 1, {"wood": 1})
 
@@ -282,7 +294,7 @@ def test_a_seat_with_nothing_to_discard_is_refused() -> None:
 
 
 def test_a_discard_outside_the_discard_phase_is_refused() -> None:
-    once = _discarding(_hand(3, 2, 0, 0, 4), NOTHING, NOTHING, NOTHING)
+    once = _discarding(_hand(wood=3, brick=2, ore=4), NOTHING, NOTHING, NOTHING)
     state = replace(once, phase=Phase.ACTION)
 
     refusal = _refusal(state, 0, {"wood": 3, "ore": 1})
@@ -293,13 +305,14 @@ def test_a_discard_outside_the_discard_phase_is_refused() -> None:
 
 def test_the_returned_cards_go_back_to_the_bank() -> None:
     """FR-6.9: a discard moves cards, it does not destroy them."""
-    state = _discarding(_hand(3, 2, 0, 0, 4), NOTHING, NOTHING, NOTHING)
+    state = _discarding(_hand(wood=3, brick=2, ore=4), NOTHING, NOTHING, NOTHING)
     before = sum(state.bank)
 
     result = _discard(state, 0, wood=3, ore=1)
 
+    returned = _hand(wood=3, ore=1)
     assert result.state.bank == tuple(
-        bank + taken for bank, taken in zip(state.bank, (3, 0, 0, 0, 1), strict=True)
+        cards + taken for cards, taken in zip(state.bank, returned, strict=True)
     )
     assert sum(result.state.bank) == before + 4
     assert GAME.check_invariants(result.state) == []
@@ -307,7 +320,7 @@ def test_the_returned_cards_go_back_to_the_bank() -> None:
 
 def test_every_enumerated_discard_is_accepted_and_every_other_one_refused() -> None:
     """FR-17.5, for this action: the offered set is exactly the set the rule accepts."""
-    hand = _hand(3, 2, 0, 0, 4)
+    hand = _hand(wood=3, brick=2, ore=4)
     state = _discarding(hand, NOTHING, NOTHING, NOTHING)
 
     offered = GAME.legal_actions(state, 0)

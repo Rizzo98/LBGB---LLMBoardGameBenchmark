@@ -199,12 +199,12 @@ def test_the_encoding_covers_the_board() -> None:
 def test_the_canonical_orders_are_pinned() -> None:
     """Hands and decks are counts in a canonical order, so the order has to be asserted."""
     assert [resource.value for resource in RESOURCE_ORDER] == [
-        "wood",
         "brick",
+        "wood",
         "wool",
         "wheat",
         "ore",
-    ]
+    ], "RULES.md section 3 pins this order for every list, projection and hash"
     assert [card.value for card in CARD_ORDER] == [
         "knight",
         "victory_point",

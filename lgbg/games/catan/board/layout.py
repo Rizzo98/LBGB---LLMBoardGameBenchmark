@@ -36,10 +36,15 @@ class Terrain(StrEnum):
 
 
 class Resource(StrEnum):
-    """The five resources a hand can hold."""
+    """The five resources a hand can hold.
 
-    WOOD = "wood"
+    Declared in the canonical order of RULES.md section 3 - the order in which the rulebook
+    lists the five resource-card stacks - because the engine's RESOURCE_ORDER follows the
+    declaration order, and that order is written into every recorded hand.
+    """
+
     BRICK = "brick"
+    WOOD = "wood"
     WOOL = "wool"
     WHEAT = "wheat"
     ORE = "ore"

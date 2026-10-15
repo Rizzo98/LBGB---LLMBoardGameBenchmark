@@ -68,8 +68,13 @@ from lgbg.games.catan.state import (
     initial_state,
 )
 
-RULES_VERSION: Final[str] = "catan-rules-2"
-"""Bumped whenever a pinned rule changes (RULES.md section 1.2), which invalidates the corpus."""
+RULES_VERSION: Final[str] = "catan-rules-3"
+"""Bumped whenever a pinned rule changes (RULES.md section 1.2), which invalidates the corpus.
+
+Also bumped when the engine is corrected to a rule the document already pinned and the encoded
+state changes with it: a record made by a corrected engine is not comparable with one made by the
+engine it corrects, even though the rule was never in doubt.
+"""
 
 SCHEMA_VERSION: Final[str] = "catan-actions-1"
 """Bumped whenever the action or observation schema changes."""

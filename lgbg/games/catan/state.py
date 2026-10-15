@@ -37,13 +37,20 @@ from lgbg.games.catan.board.layout import Board, Port, Resource, Terrain
 from lgbg.games.catan.board.topology import standard_topology
 
 RESOURCE_ORDER: Final[tuple[Resource, ...]] = (
-    Resource.WOOD,
     Resource.BRICK,
+    Resource.WOOD,
     Resource.WOOL,
     Resource.WHEAT,
     Resource.ORE,
 )
-"""The canonical resource order. Hands, the bank and offers are counts in this order."""
+"""The canonical resource order of RULES.md section 3: brick, wood, wool, wheat, ore.
+
+That is the order in which the rulebook lists the five resource-card stacks, and the document
+pins it for *every* list, projection and hash that enumerates resources. Hands, the bank, a
+trade offer and the encoded state are therefore counts in this order, and a reordering would
+reinterpret every recorded hand - which is why the order is asserted by a test and pinned by
+the golden fixture rather than left to the declaration order of the enum above.
+"""
 
 RESOURCES: Final[int] = len(RESOURCE_ORDER)
 

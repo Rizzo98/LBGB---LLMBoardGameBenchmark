@@ -6,8 +6,8 @@
 | **Game** | CATAN (originally *The Settlers of Catan*) — base game, 4 players |
 | **Plugin** | `catan` |
 | **Status** | **PINNED** — this file is the rule authority for the plugin (`ARCHITECTURE.md` §7.9, PRD-v1 §11, SC-12) |
-| **Document revision** | 1 |
-| **Plugin `rules_version`** | `catan-rules-1` |
+| **Document revision** | 2 |
+| **Plugin `rules_version`** | `catan-rules-3` |
 | **Edition basis** | CATAN 6th edition rulebook (2025) as the primary text; the 5th-edition *Game Rules & Almanac* (2015) and the official CATAN GmbH base-game FAQ for rules the 6th edition leaves implicit |
 | **Written** | before any rules code exists (milestone M0, card K-001) |
 | **Owner** | Maintainer |
@@ -28,12 +28,18 @@ This document contains **no strategy advice**. It states legality, not quality o
 
 ### 1.2 Pinning and versioning
 
-* The plugin declares `rules_version = "catan-rules-2"` (shape from `ARCHITECTURE.md` §8.3). The value
-  is pinned by this document. It was bumped from `catan-rules-1` when the engine's phase vocabulary
-  was brought into line with the table in §4.4: the phase name is part of the encoded state and
-  therefore of every hash, so records made under the old names are not comparable with records made
-  under these. The rules themselves did not change; the engine was corrected to the rule this
-  document already pinned, and the golden fixture was regenerated in the same change.
+* The plugin declares `rules_version = "catan-rules-3"` (shape from `ARCHITECTURE.md` §8.3). The value
+  is pinned by this document. It was bumped from `catan-rules-1` to `catan-rules-2` when the engine's
+  phase vocabulary was brought into line with the table in §4.4: the phase name is part of the encoded
+  state and therefore of every hash, so records made under the old names are not comparable with
+  records made under these. The rules themselves did not change; the engine was corrected to the rule
+  this document already pinned, and the golden fixture was regenerated in the same change.
+* It was bumped again, to `catan-rules-3`, when the engine's canonical resource order was brought into
+  line with §3. The position of each resource inside a hand is written into every encoded state, so
+  two orders give two different hashes for one position: the §3 order - brick, wood, wool, wheat, ore,
+  the order in which the rulebook lists the five resource-card stacks - is the pinned one, and the
+  engine had picked an order of its own. The rules did not change here either, and the golden fixture
+  was regenerated in the same change.
 * **Any change to a pinned rule in this document MUST bump `rules_version`** (for example to
   `catan-rules-2`) before the change is implemented. A pinned rule is any sentence in §4, §5, §6 or §7
   under the labels *Rule as implemented*, *Chosen interpretation*, *Confirmation* or *Pinned draw*.

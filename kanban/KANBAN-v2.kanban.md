@@ -1,57 +1,6 @@
 # KANBAN-v2 · PRD-v2 · horizontal slices
 
 ## Todo
-### K-001 · Settle and pin the v2 dependencies
-
-  - tags: [slice-0, infra, fr-16, sc-11]
-  - priority: high
-  - workload: Normal
-  - steps:
-      - [ ] MCP SDK, ASGI server and provider-client dependencies chosen, pinned, and justified in the pyproject header comment
-      - [ ] lgbg/core and lgbg/games still resolve to zero third-party runtime dependencies
-      - [ ] A test asserts the core and games dependency list is empty, so the boundary fails the build when it erodes
-    ```md
-    - **Cuts through:** pyproject, uv.lock, the dependency-boundary test, every later layer
-    - **Depends on:** nothing
-    - **PRD:** FR-16.1 to FR-16.4, SC-11
-    - **Why:** The boundary is cheapest to defend before there is pressure to break it. Once host and agents exist, an import that reaches back into core looks harmless and is not.
-    - **Slice note:** slice 0 is the one exception to the thin-slicing rule and it does not end in a demo. The dependency decision and the frozen artefact shapes are what every later slice is built to, and guessing at them inside slice 1 is how the shape becomes three incompatible shapes. Recorded here rather than left as an omission.
-    ```
-
-### K-002 · Freeze the v2 artefact contracts
-
-  - tags: [slice-0, records, fr-10, sc-4]
-  - priority: high
-  - workload: Normal
-  - steps:
-      - [ ] run.json extended on paper: design, seats, policies, prompt hashes, price table, provider identity
-      - [ ] The decision sidecar record shape declared: attempt, redo budget, rejection, route, native tools, usage, cost, latency, failure
-      - [ ] A fixture manifest and a fixture decision record validate against the declared shape
-      - [ ] The god log is confirmed unchanged, field for field
-    ```md
-    - **Cuts through:** run manifest, sidecar, the log reader, every later slice that writes a record
-    - **Depends on:** nothing
-    - **PRD:** FR-10.1 to FR-10.6, FR-11.10, SC-4
-    - **Why:** v1's god log is frozen and stays frozen. Everything new goes in the sidecar, so freezing the sidecar shape now means slices 3 to 7 add fields to a shape instead of inventing one each.
-    ```
-
-### K-003 · Session facade over the v1 engine
-
-  - tags: [slice-1, facade, fr-1, nfr-6]
-  - priority: high
-  - workload: Hard
-  - defaultExpanded: true
-  - steps:
-      - [ ] One component owns mutable state: create, read projection, read pending decisions, submit action, read decision surface, read outcome
-      - [ ] No game-specific operation exists anywhere in the facade
-      - [ ] An action for a player with no open decision is rejected with the v1 core code, not queued
-      - [ ] Concurrent access is safe: several sessions advance in parallel, and one session may have several open decisions answered at once
-    ```md
-    - **Cuts through:** lgbg/host, the v1 engine and log, the session registry, and the logging path
-    - **Depends on:** K-002
-    - **PRD:** FR-1.1 to FR-1.6, NFR-6
-    - **Why:** The single authority. Every surface above is a transport over this, so whether the whole release can be trusted rests on this being the only mutable thing.
-    ```
 
 ## In Progress
 
@@ -627,4 +576,61 @@
     - **Cuts through:** README, the run directory, the design model
     - **Depends on:** K-036
     - **PRD:** D9
+    ```
+
+## Done
+
+### K-001 · Settle and pin the v2 dependencies
+
+  - tags: [slice-0, infra, fr-16, sc-11]
+  - priority: high
+  - workload: Normal
+  - steps:
+      - [x] MCP SDK, ASGI server and provider-client dependencies chosen, pinned, and justified in the pyproject header comment
+      - [x] lgbg/core and lgbg/games still resolve to zero third-party runtime dependencies
+      - [x] A test asserts the core and games dependency list is empty, so the boundary fails the build when it erodes
+    ```md
+    - **Cuts through:** pyproject, uv.lock, the dependency-boundary test, every later layer
+    - **Depends on:** nothing
+    - **PRD:** FR-16.1 to FR-16.4, SC-11
+    - **Why:** The boundary is cheapest to defend before there is pressure to break it. Once host and agents exist, an import that reaches back into core looks harmless and is not.
+    - **Slice note:** slice 0 is the one exception to the thin-slicing rule and it does not end in a demo. The dependency decision and the frozen artefact shapes are what every later slice is built to, and guessing at them inside slice 1 is how the shape becomes three incompatible shapes. Recorded here rather than left as an omission.
+    - **Evidence:** `pyproject.toml` declares three exactly-pinned dependencies, each justified in the file's own header comment: `mcp==1.30.0` (the official SDK, FR-16.3; the 1.x line rather than 2.x, whose tracing, JWT and second-validator additions are dependencies with no benchmark value), `uvicorn==0.54.0` (the ASGI server FR-2.7 buys, with no framework beside it) and `httpx==0.28.1` (the OpenRouter adapter's one HTTP client, because a vendor SDK would carry the retry and repair policy FR-5.5 forbids). `uv.lock` is regenerated, which is what CI's `uv sync --locked` reads. The boundary is `tests/tooling/test_dependency_boundary.py`: every module of `lgbg/core` and `lgbg/games` is parsed and any import that is neither the standard library nor `lgbg` fails the build, and every declared dependency must be exactly pinned and named in the header comment - with controls that prove the scan flags `import mcp`, that a version range is refused and that an unjustified name is reported.
+    ```
+
+### K-002 · Freeze the v2 artefact contracts
+
+  - tags: [slice-0, records, fr-10, sc-4]
+  - priority: high
+  - workload: Normal
+  - steps:
+      - [x] run.json extended on paper: design, seats, policies, prompt hashes, price table, provider identity
+      - [x] The decision sidecar record shape declared: attempt, redo budget, rejection, route, native tools, usage, cost, latency, failure
+      - [x] A fixture manifest and a fixture decision record validate against the declared shape
+      - [x] The god log is confirmed unchanged, field for field
+    ```md
+    - **Cuts through:** run manifest, sidecar, the log reader, every later slice that writes a record
+    - **Depends on:** nothing
+    - **PRD:** FR-10.1 to FR-10.6, FR-11.10, SC-4
+    - **Why:** v1's god log is frozen and stays frozen. Everything new goes in the sidecar, so freezing the sidecar shape now means slices 3 to 7 add fields to a shape instead of inventing one each.
+    - **Evidence:** `lgbg/core/contracts.py` declares both shapes as JSON Schema data, checked by v1's own `core.schema` validator rather than a second general-purpose one. The manifest carries the run config, the seats with their agents and sampling, the design with its derivation, every policy value, the four prompt hashes of FR-9.1, the provider identities and the price table with the time it was read. The decision record carries the attempt index, the redo budget, the rejection that prompted the retry, the upstream route, native-tool support, usage, cost, latency and failure kind. `tests/fixtures/v2/run.json` and `decisions.jsonl` validate against them, and both shapes are closed, so a later slice amends the declaration instead of inventing a record. Three decisions are written down in the module: money is integer micro-dollars, sampling integer thousandths and latency integer milliseconds, because every artefact is written through the one canonical serialiser and that serialiser refuses floats; the transcript is provider-neutral while the exact payload stays the adapter's (FR-5.4). `GOD_LOG_FIELDS` freezes the god log field for field, and `tests/core/test_contracts.py` holds both the seven-game corpus and the runtime's writer to it.
+    ```
+
+### K-003 · Session facade over the v1 engine
+
+  - tags: [slice-1, facade, fr-1, nfr-6]
+  - priority: high
+  - workload: Hard
+  - defaultExpanded: true
+  - steps:
+      - [x] One component owns mutable state: create, read projection, read pending decisions, submit action, read decision surface, read outcome
+      - [x] No game-specific operation exists anywhere in the facade
+      - [x] An action for a player with no open decision is rejected with the v1 core code, not queued
+      - [x] Concurrent access is safe: several sessions advance in parallel, and one session may have several open decisions answered at once
+    ```md
+    - **Cuts through:** lgbg/host, the v1 engine and log, the session registry, and the logging path
+    - **Depends on:** K-002
+    - **PRD:** FR-1.1 to FR-1.6, NFR-6
+    - **Why:** The single authority. Every surface above is a transport over this, so whether the whole release can be trusted rests on this being the only mutable thing.
+    - **Evidence:** `lgbg/host/facade.py`: `SessionFacade` is the one mutable authority - create, read a projection, read the open decisions, submit an action, read the decision surface at the run's assist level, read the outcome, end the session - closed as a set in `PUBLIC_OPERATIONS` and asserted against the class, so an operation is a decision rather than an accident. One lock per session and one around the registry, so games advance in parallel; a session holding several open decisions answers each on a state that only moves when an action is accepted. The facade writes the terminal record itself the instant an accepted action makes the game terminal, so a completed game cannot be mistaken for an abandoned one, and `end_session` leaves a record with no terminal line that still replays. `tests/host/test_facade.py` covers the rejection path (the core's `NOT_YOUR_DECISION`, no state change, nothing queued), one code path over two games of different shapes, eight parallel sessions producing identical hash chains, and a four-way concurrent decision set answered at once and verified afterwards. `tests/tooling/test_layering.py` adds that the host layer never imports a game.
     ```

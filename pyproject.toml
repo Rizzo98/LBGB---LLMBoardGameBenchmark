@@ -1,10 +1,46 @@
+# Dependency policy (PRD-v2 FR-16.1 to FR-16.4, SC-11).
+#
+# The engine is dependency-free and stays that way. 'lgbg/core' and 'lgbg/games' import the
+# standard library and each other and nothing else, which is what makes a record readable by a
+# machine that has this repository and nothing else, and what keeps a game plugin a data
+# declaration rather than a stack. The boundary is a test, not a convention:
+# tests/tooling/test_dependency_boundary.py fails the build the moment it erodes.
+#
+# Everything below is a v2 transport, agent or runner dependency. Each is pinned to one exact
+# version, because a benchmark cannot tolerate a client library changing between two runs it
+# means to compare, and each is justified here (FR-16.2):
+#
+#   mcp==1.30.0      The official MCP Python SDK (FR-16.3). The protocol is not reimplemented -
+#                    a hand-rolled one is a maintenance liability with no benchmark value. The
+#                    1.x line rather than 2.x, whose additions (OpenTelemetry tracing, JWT auth,
+#                    multipart upload, a second JSON Schema implementation) are dependencies
+#                    with no benchmark value; every one of them is another version that could
+#                    change the request path between two models (FR-16.4).
+#   uvicorn==0.54.0  The ASGI server for the HTTP host (FR-2.7). Routing is written directly
+#                    against the ASGI interface, so no web framework is bought here - only the
+#                    server, which is the one transport dependency FR-2.7 allows.
+#   httpx==0.28.1    The HTTP client the OpenRouter adapter speaks through (FR-5.2). OpenRouter
+#                    is OpenAI-compatible over HTTP, so a typed client is the whole of what the
+#                    adapter needs. A vendor SDK would carry its own retry and repair policy,
+#                    which FR-5.5 forbids and which would be invisible in the manifest.
+#
+# No dependency may carry game logic or model logic (FR-16.4), and no test may need a network or
+# a key (NFR-8): the mock provider is what the suite drives.
+#
+# Development tooling, unchanged from v1 and pinned by uv.lock: ruff (lint and format), mypy
+# (types, strict), pytest and pytest-cov (tests and coverage). None of them runs in a game.
+
 [project]
 name = "lgbg"
 version = "0.1.0"
 description = "LBGB - LLM Board Game Benchmark: game engine core and verifiable replay"
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "httpx==0.28.1",
+    "mcp==1.30.0",
+    "uvicorn==0.54.0",
+]
 
 [dependency-groups]
 dev = [

@@ -1,0 +1,111 @@
+{
+  "schema": "lgbg.run.v1",
+  "run_id": "r-0001",
+  "engine_version": "0.1.0",
+  "game": {
+    "name": "catan",
+    "rules_version": "catan-rules-6",
+    "schema_version": "catan-actions-1"
+  },
+  "config": {
+    "seed": 123456789,
+    "players": 4,
+    "assist": "L1",
+    "rejection_detail": "standard",
+    "interaction_protocol": "decline_only",
+    "board": "fixed:standard_a"
+  },
+  "seats": [
+    {
+      "seat": 0,
+      "agent": "llm",
+      "player": null,
+      "model": "vendor/model-a",
+      "provider": "openrouter",
+      "sampling": {
+        "temperature_milli": 0,
+        "top_p_milli": 1000,
+        "seed": null
+      }
+    },
+    {
+      "seat": 1,
+      "agent": "reference",
+      "player": "heuristic",
+      "model": null,
+      "provider": null,
+      "sampling": null
+    },
+    {
+      "seat": 2,
+      "agent": "llm",
+      "player": null,
+      "model": "vendor/model-b",
+      "provider": "openrouter",
+      "sampling": {
+        "temperature_milli": 0,
+        "top_p_milli": 1000,
+        "seed": null
+      }
+    },
+    {
+      "seat": 3,
+      "agent": "reference",
+      "player": "random",
+      "model": null,
+      "provider": null,
+      "sampling": null
+    }
+  ],
+  "design": {
+    "seating": "rotated",
+    "initial_configuration": "fixed:standard_a",
+    "configuration_scope": "per_experiment",
+    "replicates": 5,
+    "uncontrolled": [],
+    "derivation": {
+      "rule": "games = replicates x seatings",
+      "replicates": 5,
+      "seatings": 4,
+      "games": 20
+    }
+  },
+  "policies": {
+    "context": "delta_with_refresh",
+    "redo_budget": 3,
+    "on_exhausted": "abandon_game",
+    "step_budget": 8,
+    "decision_timeout_s": 120,
+    "game_timeout_s": 7200,
+    "budget_micro_usd": 25000000
+  },
+  "prompts": {
+    "game": "9f7828c89056096439c48c183607824af5dc40d7de3d2438402db69137d4b4a0",
+    "system": "7a1f0c4e6b2d9385710abc4e0f8d3927b6c5a4d3e2f1098a7b6c5d4e3f2019a8",
+    "policy": "3c9b8a7f6e5d4c3b2a1908f7e6d5c4b3a2918f7e6d5c4b3a2918f7e6d5c4b3a2",
+    "redo": "5e4d3c2b1a0f9e8d7c6b5a4938271605f4e3d2c1b0a9f8e7d6c5b4a3928170f6"
+  },
+  "providers": [
+    {
+      "id": "openrouter",
+      "version": "0.2.0"
+    }
+  ],
+  "price_table": {
+    "source": "https://openrouter.ai/api/v1/models",
+    "read_at": "2026-02-11T09:30:00+00:00",
+    "unit": "micro_usd_per_million_tokens",
+    "models": [
+      {
+        "model": "vendor/model-a",
+        "prompt": 250000,
+        "completion": 1000000
+      },
+      {
+        "model": "vendor/model-b",
+        "prompt": 3000000,
+        "completion": 15000000
+      }
+    ]
+  }
+}

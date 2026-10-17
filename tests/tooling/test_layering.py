@@ -88,3 +88,25 @@ def test_core_never_imports_games() -> None:
     )
 
     assert offenders == [], "game facts reach the core as declarations, never as imports"
+
+
+def test_the_host_layer_never_imports_a_game() -> None:
+    """PRD-v2 FR-1.2: a facade that imports a game is a facade that knows which games exist.
+
+    Games reach the host through the registry, by name, the same way they reach any other caller -
+    so adding a game stays a plugin decision rather than a change to the one component every
+    surface sits on. Importing the package for its registration side effect is a *front-end*'s job,
+    which is why the CLI does it and the host does not.
+    """
+    host_sources = sorted((PACKAGE_ROOT / "host").rglob("*.py"))
+
+    assert host_sources, "control: a guard that scans nothing passes vacuously"
+
+    offenders = sorted(
+        f"{path.relative_to(REPO_ROOT)} imports {module}"
+        for path in host_sources
+        for module in _imported_modules(path)
+        if module == "lgbg.games" or module.startswith("lgbg.games.")
+    )
+
+    assert offenders == [], "a game reaches the host as a registered name, never as an import"

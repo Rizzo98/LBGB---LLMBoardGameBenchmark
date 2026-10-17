@@ -42,7 +42,17 @@ def matrix() -> dict[str, list[str]]:
         # cited itself would find every requirement traced and would prove nothing at all.
         if path.name != Path(__file__).name
     }
-    return {name: [file for file, text in sources.items() if name in text] for name in ids}
+    return {name: [file for file, text in sources.items() if _cites(text, name)] for name in ids}
+
+
+def _cites(source: str, requirement: str) -> bool:
+    """Whether this source cites *this* document's requirement by that name.
+
+    'PRD-v2 FR-1.2' is a different requirement that happens to share a number, so a citation that
+    names its release is not a citation of this document's, and counting it would trace a v1
+    requirement to a test that was never about it.
+    """
+    return re.search(rf"(?<!v2 ){re.escape(requirement)}", source) is not None
 
 
 def test_every_requirement_is_traced_or_recorded_with_a_reason() -> None:

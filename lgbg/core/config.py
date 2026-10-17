@@ -66,6 +66,22 @@ DEFAULT_DETAIL_FOR_ASSIST: Final[Mapping[AssistLevel, RejectionDetail]] = Mappin
 )
 
 
+def declared_assist_levels() -> tuple[str, ...]:
+    """The assist levels a run may declare, spelled as a record spells them.
+
+    The level belongs to the configuration and to the renderer and to nothing else (ARCHITECTURE.md
+    section 9), so a module that needs only its *spelling* - a record shape that must name the
+    permitted values, say - asks here rather than importing the enum. That is what keeps the enum
+    readable in one place in the core, which is what keeps a rule from ever deciding by it.
+    """
+    return tuple(level.value for level in AssistLevel)
+
+
+def declared_rejection_details() -> tuple[str, ...]:
+    """The rejection-detail tiers, spelled the same way, for the same reason."""
+    return tuple(detail.value for detail in RejectionDetail)
+
+
 def _as_enum[E: StrEnum](value: JsonValue, enum_type: type[E], field_name: str) -> E:
     if not isinstance(value, str):
         raise ConfigError(f"{field_name} must be a string, got {value!r}")

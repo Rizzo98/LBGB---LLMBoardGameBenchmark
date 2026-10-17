@@ -531,7 +531,8 @@ be inferred from code. The plugin MUST declare them:
 
 | Fact | Why the platform needs it |
 |---|---|
-| **Positional asymmetry** | Where an earlier seat or position confers an advantage, pairings must be mirrored or the result flatters whoever moves first. |
+| **Positional asymmetry** | Where an earlier seat or position confers an advantage, seat assignment must be controlled or the result flatters whoever moves first. This axis exists in every game with more than one seat, including games whose starting position is otherwise fixed. |
+| **Configuration variability** | Whether the starting position admits more than one arrangement. A game with a single starting position has nothing to vary, and a runner that assumed otherwise would demand a random draw the game cannot make. Seat assignment and starting configuration are independent axes, and a game may have either, both, or neither. |
 | **Outcome shape** | Winner-take-all, ranked, or scored outcomes require different statistics. |
 | **Stochasticity and variance class** | A high-variance game needs far more games per pairing for a usable signal than a deterministic one; run sizing depends on it. |
 | **Interaction character** | Whether players are adversarial, cooperative, or mixed determines whether a shared score even means one thing. |

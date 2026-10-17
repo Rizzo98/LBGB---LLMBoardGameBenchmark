@@ -9,7 +9,7 @@ This file is a map, not a manual. Read only the document your task actually need
 | Path | What it is |
 |---|---|
 | `ARCHITECTURE.md` | **How the system is built — the source of truth.** Versionless and game-agnostic: it stays true regardless of what is implemented today and which games exist. Read it before designing anything. |
-| `prd/` | **What a release delivers.** One file per release. Carries scope, functional requirements, acceptance criteria and milestones. |
+| `prd/` | **What a release delivers.** One file per release. Carries scope, functional requirements, acceptance criteria and milestones. `ACCEPTANCE-v1.md` at the root records what v1 actually is, deviations included. |
 | `kanban/` | **What to do next.** One board per release, in Markdown Kanban format. Work is cut into horizontal slices: each task cuts through every layer end to end and ends in something runnable. |
 
 `.agents/skills/` holds reusable working procedures. Load the matching skill before starting.
@@ -20,10 +20,13 @@ This file is a map, not a manual. Read only the document your task actually need
 .
 ├── AGENTS.md                     this file
 ├── ARCHITECTURE.md               how the system is built - versionless, game-agnostic
+├── ACCEPTANCE-v1.md              release record - what v1 actually is, deviations included
 ├── prd/
-│   └── PRD-v1.md                 release scope, requirements, acceptance
+│   ├── PRD-v1.md                 release v1 scope, requirements, acceptance
+│   └── PRD-v2.md                 release v2 (draft)
 ├── kanban/
-│   └── KANBAN-v1.kanban.md       task board - horizontal slices
+│   ├── KANBAN-v1.kanban.md       release v1 task board - done
+│   └── KANBAN-v2.kanban.md       release v2 task board - current
 ├── .agents/skills/
 │   ├── horizontal-slicing/       how to cut and read the board
 │   └── test-driven-development/  how to write the code
@@ -34,9 +37,9 @@ The authoritative code layout is `ARCHITECTURE.md` section 4.1. Do not restate i
 
 ## How to work
 
-1. **Pick a task** from `kanban/KANBAN-v1.kanban.md`. Its description names the slice, what it integrates,
+1. **Pick a task** from the board of the release you are working on. Its description names the slice, what it integrates,
    its dependencies and the requirements it satisfies.
-2. **Read the requirement** it cites in `prd/PRD-v1.md`.
+2. **Read the requirement** it cites in the PRD for its release.
 3. **Read the architecture section** the PRD points to, before writing code.
 4. Follow the `test-driven-development` skill: a failing test first, then the least code that passes,
    then refactor. Run the tooling gate before calling anything done.

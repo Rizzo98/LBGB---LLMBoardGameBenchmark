@@ -5,9 +5,10 @@ from standard input. Every read and every action goes through the MCP client; th
 touches the facade or the engine directly. That is the point of the command: a person can check
 that the published tools and resources are sufficient before a model is pointed at them.
 
-The loop prints the projection when asked, prints the open decisions, and accepts one JSON action
-per line. `state`, `decisions` and `quit` are the only commands beyond JSON. A record is written
-by the server exactly as it would be for any other client.
+The loop prints the projection when asked, prints the open decisions when the level exposes them,
+and accepts one JSON action per line. `state`, `decisions` and `quit` are the only commands
+beyond JSON. At L0 there is no decisions resource, so `--player` names the seat whose projection
+is shown. A record is written by the server exactly as it would be for any other client.
 """
 
 from __future__ import annotations
@@ -25,7 +26,7 @@ from mcp import types
 from mcp.client.session import ClientSession
 from mcp.client.stdio import StdioServerParameters, stdio_client
 
-from lgbg.adapters.cli.mcp_client import ClientError, GameClient
+from lgbg.adapters.cli.mcp_client import DECISIONS_RESOURCE, ClientError, GameClient
 from lgbg.core.config import AssistLevel
 from lgbg.core.log import god_log_path
 
@@ -45,6 +46,7 @@ def play_live(
     detail: str,
     plugins: Sequence[str],
     game_options: Mapping[str, Any],
+    player: int = 0,
 ) -> int:
     """Run one interactive session to completion. Returns a process exit code."""
     return asyncio.run(
@@ -59,6 +61,7 @@ def play_live(
             detail=detail,
             plugins=plugins,
             game_options=game_options,
+            player=player,
         )
     )
 
@@ -75,6 +78,7 @@ async def _play_live(
     detail: str,
     plugins: Sequence[str],
     game_options: Mapping[str, Any],
+    player: int,
 ) -> int:
     server_args = [
         "-m",
@@ -116,12 +120,12 @@ async def _play_live(
         print(f"game: {game} ({game_id})")
         print(f"record: {god_log_path(out, game_id)}")
 
-        decisions = await client.decisions(game_id)
-        if decisions:
-            await _show_projection(client, game_id, int(decisions[0]["player"]))
-        _print_decisions(decisions)
+        decisions = await _open_decisions(client, game_id)
+        seat = int(decisions[0]["player"]) if decisions else player
+        await _show_projection(client, game_id, seat)
+        _print_decisions(decisions, exposed=client.has_resource(game_id, DECISIONS_RESOURCE))
 
-        while decisions:
+        while decisions or assist is AssistLevel.L0:
             print("action> ", end="", flush=True)
             line = await asyncio.to_thread(sys.stdin.readline)
             if not line:
@@ -132,10 +136,12 @@ async def _play_live(
             if command in {"quit", "exit"}:
                 break
             if command in {"state", "s"}:
-                await _show_projection(client, game_id, int(decisions[0]["player"]))
+                await _show_projection(client, game_id, seat)
                 continue
             if command in {"decisions", "d"}:
-                _print_decisions(decisions)
+                _print_decisions(
+                    decisions, exposed=client.has_resource(game_id, DECISIONS_RESOURCE)
+                )
                 continue
             try:
                 payload = json.loads(command)
@@ -146,19 +152,21 @@ async def _play_live(
                 print("error: an action must be a JSON object", file=sys.stderr)
                 continue
             try:
-                player = _player(payload, decisions)
+                acted_by = _player(payload, decisions, default=seat)
                 action = str(payload["type"])
                 params = payload.get("params", {})
                 if not isinstance(params, Mapping):
                     raise ClientError("'params' must be an object")
-                result = await client.submit(game_id, action=action, player=player, params=params)
+                result = await client.submit(game_id, action=action, player=acted_by, params=params)
             except (ClientError, KeyError, TypeError, ValueError) as error:
                 print(f"error: {error}", file=sys.stderr)
                 continue
-            _print_result(action, player, result)
-            decisions = await client.decisions(game_id)
+            _print_result(action, acted_by, result)
+            decisions = await _open_decisions(client, game_id)
+            if decisions:
+                seat = int(decisions[0]["player"])
 
-        _print_decisions(decisions)
+        _print_decisions(decisions, exposed=client.has_resource(game_id, DECISIONS_RESOURCE))
         await _end(client, game_id)
     return 0
 
@@ -167,7 +175,10 @@ async def _show_projection(client: GameClient, game_id: str, player: int) -> Non
     print(await client.read_projection(game_id, player=player))
 
 
-def _print_decisions(decisions: Sequence[Mapping[str, Any]]) -> None:
+def _print_decisions(decisions: Sequence[Mapping[str, Any]], *, exposed: bool = True) -> None:
+    if not exposed:
+        print("open decisions: not exposed at this assist level")
+        return
     if not decisions:
         print("open decisions: none")
         return
@@ -193,11 +204,20 @@ def _print_result(action: str, player: int, result: types.CallToolResult) -> Non
     print(f"rejected {code}: {message}", file=sys.stderr)
 
 
-def _player(payload: Mapping[str, Any], decisions: Sequence[Mapping[str, Any]]) -> int:
-    value = payload.get("player", decisions[0].get("player") if decisions else None)
+def _player(
+    payload: Mapping[str, Any], decisions: Sequence[Mapping[str, Any]], *, default: int
+) -> int:
+    value = payload.get("player", decisions[0].get("player") if decisions else default)
     if not isinstance(value, int) or isinstance(value, bool):
         raise ClientError("an action must name a seat")
     return value
+
+
+async def _open_decisions(client: GameClient, game_id: str) -> list[dict[str, Any]]:
+    """The decisions resource, when the level advertises it; L0 has none (PRD-v2 FR-4.1)."""
+    if not client.has_resource(game_id, DECISIONS_RESOURCE):
+        return []
+    return await client.decisions(game_id)
 
 
 async def _end(client: GameClient, game_id: str) -> None:

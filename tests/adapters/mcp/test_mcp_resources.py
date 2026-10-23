@@ -23,7 +23,9 @@ from lgbg.core.types import Action
 from tests.adapters.mcp.support import bound_surface, listed_resources, run
 from tests.games.fixture_game import FixtureGame  # noqa: F401
 
-RESOURCE_SHAPE = re.compile(r"^[a-z0-9_-]+://sessions/[^/]+/(?:state|decisions)(?:\?player=\d+)?$")
+RESOURCE_SHAPE = re.compile(
+    r"^[a-z0-9_-]+://sessions/[^/]+/(?:state|decisions|surface)(?:\?player=\d+)?$"
+)
 
 
 async def read(surface: McpSurface, uri: str) -> str:

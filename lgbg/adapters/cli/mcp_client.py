@@ -28,7 +28,7 @@ LIFECYCLE_TOOLS: Final[frozenset[str]] = frozenset(
 
 STATE_RESOURCE: Final[str] = "state"
 DECISIONS_RESOURCE: Final[str] = "decisions"
-"""The two reads the server advertises (PRD-v2 FR-3.6, FR-3.7)."""
+"""The reads this client uses; at L1+ the server also advertises a rendered decision surface."""
 
 SESSION_FIELD: Final[str] = "session_id"
 PLAYER_FIELD: Final[str] = "player"
@@ -85,6 +85,18 @@ class GameClient:
         await self._ensure_discovered()
         uri = self._resource_uri(session_id, STATE_RESOURCE, player=player)
         return await self._read_text(uri)
+
+    def has_resource(self, session_id: str, read: str, *, player: int | None = None) -> bool:
+        """Whether the server advertised that read for this session and seat.
+
+        The assist level can remove a read (PRD-v2 FR-4.1), so a generic client asks before it
+        reads rather than treating an absent resource as a transport failure.
+        """
+        try:
+            self._resource_uri(session_id, read, player=player)
+        except ClientError:
+            return False
+        return True
 
     async def decisions(self, session_id: str) -> list[dict[str, Any]]:
         """All open decisions, read from the resource the server advertised."""

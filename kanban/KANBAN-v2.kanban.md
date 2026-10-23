@@ -8,39 +8,6 @@
 
 ## Backlog
 
-### K-010 · Assist level gates the resource surface
-
-  - tags: [slice-2, mcp, fr-4, assist]
-  - priority: high
-  - workload: Hard
-  - steps:
-      - [ ] At L0 only the projection is exposed, and rejection detail is minimal and leaks no enumeration
-      - [ ] At L1 the decision surface is added: action types, costs, permitted parameter domains, never the cross product
-      - [ ] At L2 enumerated legal actions and full rejection detail
-      - [ ] Assist level is set by the operator and is not readable or adjustable by the client
-    ```md
-    - **Cuts through:** adapters/mcp resources, core/assist, the facade, run config
-    - **Depends on:** K-009
-    - **PRD:** FR-4.1 to FR-4.4
-    - **Why:** v1 proved the levels with scripted actions and no surface. The surface is new, so the leak channels are new.
-    ```
-
-### K-011 · The tool set is constant across assist levels
-
-  - tags: [slice-2, mcp, test, fr-3, fr-4]
-  - priority: high
-  - workload: Easy
-  - steps:
-      - [ ] tools/list is identical at L0, L1 and L2
-      - [ ] Assist level changes only what a resource reveals and what a rejection explains
-      - [ ] A test compares the served tool list across all three levels
-    ```md
-    - **Cuts through:** the tool generator, the resource surface, config
-    - **Depends on:** K-010
-    - **PRD:** FR-3.3
-    - **Why:** If the tool list shrank at L0, the action vocabulary itself would become an assist channel and assist level would stop being a clean variable.
-    ```
-
 ### K-012 · Assist equivalence through the MCP surface
 
   - tags: [slice-2, test, fr-4, sc-3]
@@ -639,4 +606,40 @@
     - **Slice exit:** the named command is a played game, not a passing unit test.
     - **Why this ordering:** if the first thing driven through the surface were a model, a defect in the surface and a defect in the agent would look identical, and the debugging budget would go to the wrong layer.
     - **Evidence:** `tests/adapters/mcp/test_full_game.py` drives the committed 743-action four-player fixture through the real sandbox server over stdio, one generated action tool at a time; the resulting god log is byte-identical to `tests/golden/catan/full_game.god.jsonl`, v1's `verify` reports 743 actions and no rejections, and `replay` yields all 744 intermediate states plus the terminal record. `lgbg/adapters/cli/live.py` adds the slice's named command, `python -m lgbg.adapters.cli play-live`, which starts the same sandbox entry point over stdio, opens a session through `create_session`, shows the projection and decisions, and reads one JSON action per line. `tests/cli/test_play_live.py` feeds the same 743 actions to that command and gets the same byte-identical record and the same verified replay. Both paths go through `GameClient` and the MCP tools/resources; neither touches the facade directly. A deliberate mutation dropping an action's parameters made the first tool call fail validation and broke the scripted test, and was reverted.
+    ```
+
+### K-010 · Assist level gates the resource surface
+
+  - tags: [slice-2, mcp, fr-4, assist]
+  - priority: high
+  - workload: Hard
+  - defaultExpanded: true
+  - steps:
+      - [x] At L0 only the projection is exposed, and rejection detail is minimal and leaks no enumeration
+      - [x] At L1 the decision surface is added: action types, costs, permitted parameter domains, never the cross product
+      - [x] At L2 enumerated legal actions and full rejection detail
+      - [x] Assist level is set by the operator and is not readable or adjustable by the client
+    ```md
+    - **Cuts through:** adapters/mcp resources, core/assist, the facade, run config
+    - **Depends on:** K-009
+    - **PRD:** FR-4.1 to FR-4.4
+    - **Why:** v1 proved the levels with scripted actions and no surface. The surface is new, so the leak channels are new.
+    - **Evidence:** `lgbg/adapters/mcp/server.py` adds `SURFACE_RESOURCE` (`<game>://sessions/{id}/surface?player=N`) and gates the decision reads on the level fixed at construction: `_list_resources` advertises only `state` at L0 and adds `decisions` plus `surface` at L1/L2, while `_read_resource` refuses the decision reads at L0 even when a client guesses the URI. `_read_surface` is `facade.decision_surface`, so it is v1's one `render_decision` at the run's level - domains at L1, enumeration at L2 - rather than a second renderer. `_act` answers a refusal with `rejection_view` at `DEFAULT_DETAIL_FOR_ASSIST[assist]`: L0 is `{"ok": false, "error": ...}` and nothing beside it, L1 keeps the facts, L2 keeps the alternative lists. The level is an operator argument to `build_server`; no tool or resource carries it, and `create_session` declares no `assist` field for a request to set. `tests/adapters/mcp/test_mcp_assist.py` holds the ladder: L0 advertises state only and refuses `decisions`/`surface`; L1's surface equals the facade's and names `vertex=one of ...` without enumerating; L2 lists the placements and drops the domain line; a real Catan setup-road refusal (`NOT_CONNECTED`) has keys exactly `{ok,error}` at L0, `{edge,must_touch}` at L1, and `touches` at L2; a sandbox `create_session` carrying `assist` is rejected by the served schema. `tests/cli/test_play_live.py` covers the product path at L0, where `--player` names the seat because there is no decisions resource. Two deliberate mutations - always advertising the decision resources, and always rendering full rejections - each failed the L0 tests and were reverted. Gate: 997 passed, 1 skipped.
+    ```
+
+### K-011 · The tool set is constant across assist levels
+
+  - tags: [slice-2, mcp, test, fr-3, fr-4]
+  - priority: high
+  - workload: Easy
+  - steps:
+      - [x] tools/list is identical at L0, L1 and L2
+      - [x] Assist level changes only what a resource reveals and what a rejection explains
+      - [x] A test compares the served tool list across all three levels
+    ```md
+    - **Cuts through:** the tool generator, the resource surface, config
+    - **Depends on:** K-010
+    - **PRD:** FR-3.3
+    - **Why:** If the tool list shrank at L0, the action vocabulary itself would become an assist channel and assist level would stop being a clean variable.
+    - **Evidence:** `tests/adapters/mcp/test_mcp_tools.py` replaces the two-level comparison with `test_tools_list_is_identical_at_all_three_assist_levels`, parametrized over the benchmark and sandbox profiles: every served tool's name, description and full `inputSchema` must be equal at L0, L1 and L2. The sandbox is included because its lifecycle schemas are the ones that could plausibly have grown a level, and the benchmark because a missing action at L0 would make the vocabulary itself a hint. `test_the_projection_and_pending_decisions_do_not_move_with_the_level` holds the other half of FR-3.3: the projection resource is byte-identical at all three levels, and the pending-decisions resource is identical at L1 and L2. What does move is confined to the decision surface and the refusal, which K-010's tests assert. A deliberate mutation dropping one tool from `tools/list` at L0 failed both profile cases, and was reverted. Gate: 999 passed, 1 skipped.
     ```

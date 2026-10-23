@@ -112,6 +112,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     live.add_argument("--out", required=True, help="the run directory to write the record into")
     live.add_argument(
+        "--player",
+        type=int,
+        default=0,
+        help="the seat to show when the assist level exposes no decisions (L0)",
+    )
+    live.add_argument(
         "--assist",
         choices=[level.value for level in AssistLevel],
         default=AssistLevel.L1.value,
@@ -303,6 +309,7 @@ def _play_live(args: argparse.Namespace, game_options: dict[str, JsonValue]) -> 
         detail=args.detail,
         plugins=args.plugin,
         game_options=game_options,
+        player=args.player,
     )
 
 

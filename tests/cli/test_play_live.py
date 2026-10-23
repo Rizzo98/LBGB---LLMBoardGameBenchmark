@@ -70,3 +70,39 @@ def test_play_live_plays_the_full_game_by_hand(
     assert verify(log, game).actions == len(actions)
     assert len(replay(log, game).states) == len(actions) + 1
     assert log.terminal is not None
+
+
+def test_play_live_at_l0_exposes_the_projection_and_still_accepts_an_action(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: Path,
+) -> None:
+    """PRD-v2 FR-4.1: with no decisions resource, the operator names the seat and plays on."""
+    typed = json.dumps({"player": 0, "type": "take"}) + "\nquit\n"
+    monkeypatch.setattr(sys, "stdin", io.StringIO(typed))
+    out = tmp_path / "l0"
+
+    code = main(
+        [
+            "play-live",
+            "--game",
+            "fixture",
+            "--plugin",
+            "tests.games.fixture_game",
+            "--players",
+            "2",
+            "--session-id",
+            "g-l0",
+            "--out",
+            str(out),
+            "--assist",
+            "L0",
+        ]
+    )
+
+    captured = capsys.readouterr()
+    assert code == 0, captured.err
+    assert "open decisions: not exposed at this assist level" in captured.out
+    assert "accepted take by seat 0" in captured.out
+    log = GameLogReader(god_log_path(out, "g-l0")).read()
+    assert [record.action.type for record in log.actions] == ["take"]

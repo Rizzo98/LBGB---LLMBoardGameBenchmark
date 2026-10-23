@@ -6,8 +6,9 @@ own declaration, and every observation resource is rendered by the plugin's own 
 If a second game needed a line of code here, the plugin system would have failed.
 
 **Tools act; resources read.** An action tool is an intent and is the only thing that reaches
-`submit_action`. A resource read is a projection or a list of open decisions, and both are pure
-reads in the facade (FR-3.8), so a client may re-read without changing the game.
+`submit_action`. A resource read is a projection, a list of open decisions, or the rendered
+decision surface, and all of them are pure reads in the facade (FR-3.8), so a client may re-read
+without changing the game.
 
 **Two profiles.** A benchmark surface is constructed for one live session and one seat. The
 runner creates that session; the surface does not hold a lifecycle capability at all, so no
@@ -15,9 +16,15 @@ request can reach one. A sandbox surface is constructed for an operator and adds
 tools, which are exactly the facade's own operations. The profile is chosen once, at construction
 and never again (FR-3.4 to FR-3.4c).
 
-**Resource URIs are a shape, not a vocabulary.** `<game>://sessions/{id}/state?player=N` and
-`<game>://sessions/{id}/decisions` name a session, a read and a seat - never a board, a piece or
-any other mechanic (FR-3.7).
+**The assist level gates what the resources reveal.** At L0 the surface is the projection and a
+refusal is a category. At L1 the decision surface and the pending decisions appear, as action
+types, costs and parameter domains. At L2 the same surface carries the enumeration, and a refusal
+carries the alternatives. The level is fixed when the process is built; no request can read or
+move it (FR-4.1 to FR-4.4). The tools do not move at all (FR-3.3).
+
+**Resource URIs are a shape, not a vocabulary.** `<game>://sessions/{id}/state?player=N`,
+`<game>://sessions/{id}/decisions` and `<game>://sessions/{id}/surface?player=N` name a session,
+a read and a seat - never a board, a piece or any other mechanic (FR-3.7).
 """
 
 from __future__ import annotations
@@ -35,10 +42,10 @@ from mcp.server.stdio import stdio_server
 from mcp.shared.exceptions import McpError
 from mcp.types import ErrorData
 
+from lgbg.core.assist import rejection_view
 from lgbg.core.canonical import to_canonical_json
-from lgbg.core.config import AssistLevel, GameConfig, RunConfig
+from lgbg.core.config import DEFAULT_DETAIL_FOR_ASSIST, AssistLevel, GameConfig, RunConfig
 from lgbg.core.game import Applied, Game, get_game
-from lgbg.core.log import rejected_result
 from lgbg.core.run import AmbiguousRequestError
 from lgbg.core.tools import DESCRIPTION, INPUT_SCHEMA, NAME, tool_definitions
 from lgbg.core.types import Action, GameId, JsonValue, PlayerId
@@ -59,7 +66,15 @@ PLAYER: Final[str] = "player"
 
 STATE_RESOURCE: Final[str] = "state"
 DECISIONS_RESOURCE: Final[str] = "decisions"
-"""The two sibling reads FR-3.6 names, spelled as path segments rather than mechanics."""
+SURFACE_RESOURCE: Final[str] = "surface"
+"""The sibling reads FR-3.6 names, spelled as path segments rather than mechanics.
+
+`surface` is the rendered decision at the run's level: the domains at L1, the enumeration at L2.
+`decisions` is the structured list of open requests that leads to it.
+"""
+
+DECISION_RESOURCES: Final[frozenset[str]] = frozenset({DECISIONS_RESOURCE, SURFACE_RESOURCE})
+"""The reads L1 adds. L0 exposes the projection and nothing else (FR-4.1)."""
 
 DEFAULT_DETAIL: Final[str] = "full"
 DEFAULT_PROTOCOL: Final[str] = "decline_only"
@@ -149,6 +164,7 @@ class McpSurface:
         self._session_id = session_id
         self._player = player
         self._assist = assist
+        self._rejection_detail = DEFAULT_DETAIL_FOR_ASSIST[assist]
         self._detail = detail
         self._directory = directory
         self._known_players: dict[GameId, list[int]] = {}
@@ -197,6 +213,8 @@ class McpSurface:
                         mimeType="text/plain",
                     )
                 )
+            if self._assist is AssistLevel.L0:
+                continue
             resources.append(
                 types.Resource(
                     name=f"{game_id} pending decisions",
@@ -204,6 +222,14 @@ class McpSurface:
                     mimeType="application/json",
                 )
             )
+            for player in self._known_players[game_id]:
+                resources.append(
+                    types.Resource(
+                        name=f"{game_id} decision surface for seat {player}",
+                        uri=cast("Any", _uri(self.game, game_id, SURFACE_RESOURCE, player=player)),
+                        mimeType="text/plain",
+                    )
+                )
         return resources
 
     async def _read_resource(self, uri: Any) -> str:
@@ -216,10 +242,14 @@ class McpSurface:
         if len(segments) != 2:
             raise _invalid(f"resource path must be sessions/{{id}}/{{read}}, got {parsed.path!r}")
         game_id, read = segments
+        if read in DECISION_RESOURCES and self._assist is AssistLevel.L0:
+            raise _invalid(f"resource {read!r} is not served at this assist level")
         if read == STATE_RESOURCE:
             return self._read_state(game_id, parse_qs(parsed.query))
         if read == DECISIONS_RESOURCE:
             return self._read_decisions(game_id)
+        if read == SURFACE_RESOURCE:
+            return self._read_surface(game_id, parse_qs(parsed.query))
         raise _invalid(f"resource {read!r} is not served by this surface")
 
     # --- actions ----------------------------------------------------------------------------
@@ -251,7 +281,7 @@ class McpSurface:
                 {"type": event.type, "payload": dict(event.payload)} for event in result.events
             ]
             return _answer({"ok": True, "events": events})
-        return _answer(rejected_result(result.rejection))
+        return _answer(rejection_view(result.rejection, detail=self._rejection_detail))
 
     # --- lifecycle --------------------------------------------------------------------------
 
@@ -310,20 +340,33 @@ class McpSurface:
     # --- resources --------------------------------------------------------------------------
 
     def _read_state(self, game_id: GameId, query: dict[str, list[str]]) -> str:
-        values = query.get(PLAYER)
-        if values is None:
-            player = self._player
-            if player is None:
-                raise _invalid("a state resource must name its seat")
-        else:
-            try:
-                player = int(values[0])
-            except (IndexError, ValueError):
-                raise _invalid("player must be an integer seat") from None
-        if self._player is not None and player != self._player:
-            raise _invalid("this surface may only read its own seat's projection")
+        player = self._seat(query, missing="a state resource must name its seat")
         observation = self._facade.projection(game_id, player)
         return self._plugin.render(observation, detail=self._detail)
+
+    def _read_surface(self, game_id: GameId, query: dict[str, list[str]]) -> str:
+        """The rendered decision at the level this process was built for (FR-4.2, FR-4.3)."""
+        player = self._seat(query, missing="a surface resource must name its seat")
+        return self._facade.decision_surface(game_id, player)
+
+    def _seat(self, query: dict[str, list[str]], *, missing: str) -> PlayerId:
+        """The seat a per-player read names, defaulting to the bound one.
+
+        A benchmark surface is bound to one seat and may read no other; a sandbox surface names
+        the seat in the URI. The distinction is the profile's, not the request's.
+        """
+        values = query.get(PLAYER)
+        if values is None:
+            if self._player is None:
+                raise _invalid(missing)
+            return self._player
+        try:
+            player = int(values[0])
+        except (IndexError, ValueError):
+            raise _invalid("player must be an integer seat") from None
+        if self._player is not None and player != self._player:
+            raise _invalid("this surface may only read its own seat's projection")
+        return player
 
     def _read_decisions(self, game_id: GameId) -> str:
         requests = self._facade.pending_decisions(game_id)

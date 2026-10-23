@@ -9,10 +9,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
 from mcp.shared.memory import create_connected_server_and_client_session
-from mcp.types import CallToolResult
+from mcp.types import CallToolResult, TextResourceContents
 
 import lgbg.games  # noqa: F401 - importing the package registers the in-repo plugins
+from lgbg.adapters.mcp.sandbox import sandbox_surface
 from lgbg.adapters.mcp.server import McpSurface
 from lgbg.core.config import AssistLevel
 from lgbg.core.game import get_game
@@ -26,6 +28,14 @@ MCP_SOURCES = Path(__file__).resolve().parents[3] / "lgbg" / "adapters" / "mcp"
 async def call(surface: McpSurface, name: str, arguments: dict[str, object]) -> CallToolResult:
     async with create_connected_server_and_client_session(surface.server) as client:
         return await client.call_tool(name, arguments)
+
+
+async def read(surface: McpSurface, uri: str) -> str:
+    async with create_connected_server_and_client_session(surface.server) as client:
+        result = await client.read_resource(uri)  # type: ignore[arg-type]
+    content = result.contents[0]
+    assert isinstance(content, TextResourceContents)
+    return content.text
 
 
 def test_the_served_tools_are_the_v1_generator_s_answer(tmp_path: Path) -> None:
@@ -111,18 +121,53 @@ def test_the_mcp_adapter_names_no_game_or_mechanic() -> None:
     assert offenders == [], "the MCP adapter must be game-agnostic: " + str(offenders)
 
 
-def test_the_tool_set_does_not_change_with_the_assist_level(tmp_path: Path) -> None:
-    """v2 FR-3.3: assist gates what a rejection explains, never which actions appear to exist."""
-    quiet, _, _ = bound_surface(tmp_path / "quiet", assist=AssistLevel.L0)
-    loud, _, _ = bound_surface(tmp_path / "loud", assist=AssistLevel.L2)
+@pytest.mark.parametrize("profile", ["benchmark", "sandbox"])
+def test_tools_list_is_identical_at_all_three_assist_levels(tmp_path: Path, profile: str) -> None:
+    """PRD-v2 FR-3.3: the action vocabulary is not an assist channel.
 
-    assert run(_listed(quiet)) == run(_listed(loud))
+    The benchmark and sandbox profiles are both checked. The sandbox is the one that could
+    plausibly have grown a level-dependent lifecycle schema, and a benchmark surface missing a
+    tool at L0 would turn the vocabulary itself into a hint.
+    """
+    surfaces: list[McpSurface] = []
+    for level in AssistLevel:
+        if profile == "benchmark":
+            surface, _, _ = bound_surface(tmp_path / level.value, assist=level)
+        else:
+            surface = sandbox_surface("fixture", assist=level)
+        surfaces.append(surface)
+
+    served = [run(_served(surface)) for surface in surfaces]
+
+    assert served[0], "control: the surface serves its declared actions"
+    assert served[1] == served[0]
+    assert served[2] == served[0]
+
+
+def test_the_projection_and_pending_decisions_do_not_move_with_the_level(
+    tmp_path: Path,
+) -> None:
+    """PRD-v2 FR-3.3: the level adds around a read; it does not change the read itself.
+
+    The projection is identical at all three levels, and the pending decisions are identical at
+    the two levels that expose them. What does move - the decision surface and the refusal - is
+    the subject of `test_mcp_assist.py`.
+    """
+    projections: list[str] = []
+    decisions: list[str] = []
+    for level in AssistLevel:
+        surface, _, game_id = bound_surface(tmp_path / level.value, assist=level)
+        projections.append(run(read(surface, f"fixture://sessions/{game_id}/state?player=0")))
+        if level is not AssistLevel.L0:
+            decisions.append(run(read(surface, f"fixture://sessions/{game_id}/decisions")))
+
+    assert len(set(projections)) == 1, "the projection must not move with the level"
+    assert len(decisions) == 2, "control: L1 and L2 expose the pending decisions"
+    assert decisions[0] == decisions[1], "the pending decisions must not move with the level"
 
 
 def test_the_sandbox_action_schemas_keep_the_plugin_s_union_intact() -> None:
     """The sandbox envelope is added to each branch, not laid over a closed union."""
-    from lgbg.adapters.mcp.sandbox import sandbox_surface
-
     surface = sandbox_surface("catan")
     tools = {tool.name: tool.inputSchema for tool in run(listed_tools(surface))}
     unions = tools["play_dev_card"]["oneOf"]
@@ -157,5 +202,10 @@ def test_a_sandbox_action_acts_on_the_session_and_seat_it_names(tmp_path: Path) 
     assert accepted is True
 
 
-async def _listed(surface: McpSurface) -> list[tuple[str, dict[str, object]]]:
-    return [(tool.name, dict(tool.inputSchema)) for tool in await listed_tools(surface)]
+async def _served(
+    surface: McpSurface,
+) -> list[tuple[str, str | None, dict[str, object]]]:
+    return [
+        (tool.name, tool.description, dict(tool.inputSchema))
+        for tool in await listed_tools(surface)
+    ]

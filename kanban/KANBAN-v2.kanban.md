@@ -12,22 +12,6 @@
 
 
 
-### K-016 · The OpenRouter adapter
-
-  - tags: [slice-3, provider, fr-5, sc-9]
-  - priority: high
-  - workload: Hard
-  - steps:
-      - [ ] Native tool calling, with model id, upstream route and native-tool support recorded per request
-      - [ ] A documented text protocol for a model without native tool calling, implemented in the adapter rather than the loop
-      - [ ] Pricing read from the gateway's model listing and recorded with the time it was read
-      - [ ] The same logical model routed differently is visible in the record
-    ```md
-    - **Cuts through:** agents/providers, the run manifest, cost accounting
-    - **Depends on:** K-014, K-015
-    - **PRD:** FR-5.2, FR-5.3, FR-5.8, FR-5.9
-    - **Why:** One gateway is a benchmark decision: every model is then driven through the same request path, so a difference between models is not a difference between two client libraries.
-    ```
 
 ### K-017 · Verbatim payload recording
 
@@ -650,4 +634,22 @@
     - **PRD:** FR-5.2, FR-15.1, FR-15.4, NFR-8
     - **Why:** Everything genuinely hard about v2 is a model behaving badly. The mock is what makes those behaviours testable at all, so it has to exist before the code that handles them, not after.
     - **Evidence:** `lgbg/agents/providers/mock.py` declares `Behaviour` with six named values - `correct-play`, `always-illegal`, `malformed-arguments`, `prose-only`, `timeout`, `runaway` - and `MockProvider`, which is structurally a `Provider`. Correct play returns a scripted action per decision and raises `MockScriptError` rather than repeating the last move when the script ends; always-illegal repeats the supplied refused action; malformed arguments name a real offered tool but carry unparseable text, the shape the record keeps; prose-only emits text and no call; timeout raises `ProviderTimeoutError`; runaway keeps emitting calls to `read_state`, so only the step budget can stop it. `label` is `mock:<behaviour>` and `calls` counts attempts, so a record can name the behaviour that produced a failure. Usage is reported by default and can be omitted, in which case it is `None`. `tests/agents/providers/test_mock.py` (11 tests) covers every behaviour, the script-exhaustion path and both usage answers; `tests/tooling/test_offline_suite.py` (4 tests) scans every test source for a call that would leave the process or an API-key name, excluding its own patterns, so the no-network/no-key property is enforced rather than asserted. Two deliberate mutations - turning timeout into text and coercing prose into a tool call - each failed and were reverted. Gate: 1048 passed, 1 skipped.
+    ```
+
+### K-016 · The OpenRouter adapter
+
+  - tags: [slice-3, provider, fr-5, sc-9]
+  - priority: high
+  - workload: Hard
+  - steps:
+      - [x] Native tool calling, with model id, upstream route and native-tool support recorded per request
+      - [x] A documented text protocol for a model without native tool calling, implemented in the adapter rather than the loop
+      - [x] Pricing read from the gateway's model listing and recorded with the time it was read
+      - [x] The same logical model routed differently is visible in the record
+    ```md
+    - **Cuts through:** agents/providers, the run manifest, cost accounting
+    - **Depends on:** K-014, K-015
+    - **PRD:** FR-5.2, FR-5.3, FR-5.8, FR-5.9
+    - **Why:** One gateway is a benchmark decision: every model is then driven through the same request path, so a difference between models is not a difference between two client libraries.
+    - **Evidence:** `lgbg/agents/providers/openrouter.py` is `OpenRouterProvider`: one OpenAI-compatible request path for every model. `complete` reads the gateway's listing once, decides native versus text from `supported_parameters`, sends function definitions or the one `TEXT_PROTOCOL` system instruction, and returns `CallMetadata` with the configured model, the response's `provider` route and whether native tools were used; the metadata rides on `Completion` and is deliberately outside the frozen response mapping. Native calls parse JSON-string arguments and keep the raw text when they do not parse; the text protocol parses one JSON object, optionally fenced, into the same `ToolCall`, while anything else stays prose. `read_pricing` reads the same listing, converts per-token decimal prices to integer micro-dollars per million tokens with `Decimal`, refuses negative or sub-micro prices, and stamps the table with an injected clock; the table validates against K-002's frozen manifest. `tests/agents/providers/test_openrouter.py` (20 tests) drives `httpx.MockTransport` only: native request and response, both text-protocol shapes, prose, malformed arguments, usage, route changes, pricing, unknown models, unrepresentable prices, a 500 that is not retried, a timeout, wire history and the structural seam. Two deliberate mutations - treating every model as native, and using 10^6 instead of 10^12 for the price scale - each failed and were reverted. Gate: 1068 passed, 1 skipped.
     ```

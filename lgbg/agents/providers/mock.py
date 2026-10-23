@@ -22,6 +22,7 @@ from enum import StrEnum
 from typing import Final
 
 from lgbg.agents.providers.base import (
+    CallMetadata,
     Completion,
     CompletionConfig,
     Message,
@@ -106,12 +107,13 @@ class MockProvider:
         tools: Sequence[ToolSpec],
         config: CompletionConfig,
     ) -> Completion:
-        del messages, config
+        del messages
         self._calls += 1
+        metadata = CallMetadata(model=config.model, route=None, native_tools=True)
         if self._behaviour is Behaviour.TIMEOUT:
             raise ProviderTimeoutError("the mock timed out")
         if self._behaviour is Behaviour.PROSE_ONLY:
-            return Completion(text=PROSE, tool_calls=None, usage=self._usage)
+            return Completion(text=PROSE, tool_calls=None, usage=self._usage, metadata=metadata)
         if self._behaviour is Behaviour.MALFORMED_ARGUMENTS:
             name = tools[0].name if tools else DEFAULT_TOOL
             return Completion(
@@ -124,6 +126,7 @@ class MockProvider:
                     ),
                 ),
                 usage=self._usage,
+                metadata=metadata,
             )
         if self._behaviour is Behaviour.RUNAWAY:
             return Completion(
@@ -136,16 +139,19 @@ class MockProvider:
                     ),
                 ),
                 usage=self._usage,
+                metadata=metadata,
             )
         if self._behaviour is Behaviour.ALWAYS_ILLEGAL:
-            return Completion(text=None, tool_calls=(self._actions[0],), usage=self._usage)
+            return Completion(
+                text=None, tool_calls=(self._actions[0],), usage=self._usage, metadata=metadata
+            )
         if self._next_action >= len(self._actions):
             raise MockScriptError(
                 f"the {self._behaviour.value} script has no answer after {len(self._actions)}"
             )
         action = self._actions[self._next_action]
         self._next_action += 1
-        return Completion(text=None, tool_calls=(action,), usage=self._usage)
+        return Completion(text=None, tool_calls=(action,), usage=self._usage, metadata=metadata)
 
 
 __all__: list[str] = [

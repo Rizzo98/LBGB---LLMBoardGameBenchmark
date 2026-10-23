@@ -195,12 +195,33 @@ class CompletionConfig:
 
 
 @dataclass(frozen=True, slots=True)
+class CallMetadata:
+    """What the record needs to know about one request beyond its answer (FR-5.8).
+
+    The model is the logical identifier that was asked for; the route is the upstream the gateway
+    actually selected. They are separate fields because the same logical model reached through two
+    upstreams is not the same measurement, and a silent route change would otherwise look like a
+    model change.
+    """
+
+    model: str
+    route: str | None
+    native_tools: bool
+
+
+@dataclass(frozen=True, slots=True)
 class Completion:
-    """One answer: text, tool calls, and what it cost - or the explicit unknown."""
+    """One answer: text, tool calls, and what it cost - or the explicit unknown.
+
+    'metadata' is about the request rather than the answer, so it is deliberately not part of
+    'to_mapping': the frozen response shape stays text and tool calls, while the sidecar takes the
+    model, route and native-tool flag from here (FR-5.8).
+    """
 
     text: str | None
     tool_calls: tuple[ToolCall, ...] | None
     usage: Usage | None
+    metadata: CallMetadata | None = None
 
     def to_mapping(self) -> dict[str, JsonValue]:
         return {
@@ -225,6 +246,7 @@ class Provider(Protocol):
 
 __all__: list[str] = [
     "SAMPLING_MAX",
+    "CallMetadata",
     "Completion",
     "CompletionConfig",
     "Message",

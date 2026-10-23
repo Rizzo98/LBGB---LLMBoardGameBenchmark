@@ -2,6 +2,7 @@
 
 from lgbg.agents.providers.base import (
     SAMPLING_MAX,
+    CallMetadata,
     Completion,
     CompletionConfig,
     Message,
@@ -19,15 +20,38 @@ from lgbg.agents.providers.mock import (
     MockProvider,
     MockScriptError,
 )
+from lgbg.agents.providers.openrouter import (
+    DEFAULT_BASE_URL,
+    NAME,
+    PRICE_UNIT,
+    TEXT_PROTOCOL,
+    VERSION,
+    ModelInfo,
+    ModelPrice,
+    OpenRouterProvider,
+    PriceTable,
+    PricingUnavailableError,
+)
 
 __all__: list[str] = [
+    "DEFAULT_BASE_URL",
+    "NAME",
+    "PRICE_UNIT",
     "SAMPLING_MAX",
+    "TEXT_PROTOCOL",
+    "VERSION",
     "Behaviour",
+    "CallMetadata",
     "Completion",
     "CompletionConfig",
     "Message",
     "MockProvider",
     "MockScriptError",
+    "ModelInfo",
+    "ModelPrice",
+    "OpenRouterProvider",
+    "PriceTable",
+    "PricingUnavailableError",
     "Provider",
     "ProviderError",
     "ProviderTimeoutError",

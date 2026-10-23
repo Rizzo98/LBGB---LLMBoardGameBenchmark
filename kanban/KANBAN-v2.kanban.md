@@ -9,22 +9,6 @@
 ## Backlog
 
 
-### K-013 · The HTTP host, and three surfaces that agree
-
-  - tags: [slice-2, host, facade, fr-2, sc-2]
-  - priority: medium
-  - workload: Hard
-  - steps:
-      - [ ] ASGI application with routing written directly against the ASGI interface, no framework
-      - [ ] A session registry assigns and validates game_id
-      - [ ] An illegal move is a 200 with a rejection body; transport failures are HTTP errors, and the two are never confused
-      - [ ] The same actions through MCP, HTTP and in-process produce byte-identical god logs
-    ```md
-    - **Cuts through:** host, facade, registry, the equivalence test
-    - **Depends on:** K-009
-    - **PRD:** FR-2.1 to FR-2.7, FR-1.4, SC-2
-    - **Why:** Three surfaces, one hash. This is the test that stops the transports drifting into three subtly different games.
-    ```
 
 ### K-014 · Provider protocol and usage normalisation
 
@@ -644,4 +628,22 @@
     - **PRD:** FR-4.5, FR-7.4, SC-3
     - **Why:** v1 proved this for a scripted player with no surface. Proving it again through one is not redundant: the surface is exactly where a level can leak.
     - **Evidence:** `tests/adapters/mcp/test_assist_equivalence.py` plays one committed script (`tests/fixtures/v2/assist_script.json`, 21 attempts including two refusals and a terminal verdict) three times through the real sandbox entry point over stdio, one process per level. The records are byte-identical below the header; the only header fields that move are `assist` and the `rejection_detail` tier it defaults to, and the test asserts that nothing else moved. The L0 record verifies with v1's `verify` and replays to all 22 states. The redo turn is followed on a wrong-seat attempt: L0 answers `{"ok": false, "error": "NOT_YOUR_DECISION"}`, L1 adds the sentence but withholds the list, L2 adds `details: {"open_players": [0]}`, and the god log keeps that detail at every level. Two deliberate mutations - making every refusal full-detail, and letting the level enter an action record's result - each failed the relevant test and were reverted. Gate: 1001 passed, 1 skipped.
+    ```
+
+### K-013 · The HTTP host, and three surfaces that agree
+
+  - tags: [slice-2, host, facade, fr-2, sc-2]
+  - priority: medium
+  - workload: Hard
+  - steps:
+      - [x] ASGI application with routing written directly against the ASGI interface, no framework
+      - [x] A session registry assigns and validates game_id
+      - [x] An illegal move is a 200 with a rejection body; transport failures are HTTP errors, and the two are never confused
+      - [x] The same actions through MCP, HTTP and in-process produce byte-identical god logs
+    ```md
+    - **Cuts through:** host, facade, registry, the equivalence test
+    - **Depends on:** K-009
+    - **PRD:** FR-2.1 to FR-2.7, FR-1.4, SC-2
+    - **Why:** Three surfaces, one hash. This is the test that stops the transports drifting into three subtly different games.
+    - **Evidence:** `lgbg/host/http.py` is `HttpHost`, an ASGI application whose routing is a method-and-segment dispatch written against the interface: `POST/GET /sessions`, `DELETE /sessions/{id}`, and `GET state|decisions|surface|outcome` plus `POST actions`. Every response, success or failure, carries `"schema": "lgbg.host.v1"`; a rejection is a 200 whose body is the engine's full refusal, while a malformed body, an unknown session, a wrong method and a duplicate id are 400, 404, 405 and 409 with the same JSON envelope. `lgbg/host/registry.py` is the host's table over the facade: it validates the id as a path segment, allocates it through the facade, records the game, refuses a second claim, and is consulted on every route so a session the host did not open is not served through it. The HTTP body is read by `RunConfig.from_mapping`, so the transport does not re-implement the configuration ladder and never names the assist enum. `tests/host/test_http.py` (10 tests) drives the application with raw ASGI scopes, covering every route, the 200-rejection/HTTP-error split, the schema version, the seat requirement and the lifespan handshake; `tests/host/test_registry.py` covers allocation, collision, malformed ids and ending; `tests/host/test_surface_equivalence.py` plays the committed 21-attempt script through MCP, HTTP and the facade in-process and asserts the three god logs are byte-identical, then verifies and replays each. Two deliberate mutations - turning a rejection into a 400, and letting the HTTP path alter an action - each failed and were reverted. Gate: 1016 passed, 1 skipped.
     ```

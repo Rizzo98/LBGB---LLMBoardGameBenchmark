@@ -10,20 +10,6 @@
 
 
 
-### K-014 · Provider protocol and usage normalisation
-
-  - tags: [slice-3, provider, fr-5]
-  - priority: high
-  - workload: Normal
-  - steps:
-      - [ ] The narrow interface of ARCHITECTURE section 13, and nothing wider
-      - [ ] Usage normalised to prompt, completion and total tokens
-      - [ ] A provider that omits usage is marked unknown, never recorded as zero
-    ```md
-    - **Cuts through:** agents/providers, config, cost accounting
-    - **Depends on:** K-002
-    - **PRD:** FR-5.1, FR-5.6
-    ```
 
 ### K-015 · The mock provider
 
@@ -646,4 +632,20 @@
     - **PRD:** FR-2.1 to FR-2.7, FR-1.4, SC-2
     - **Why:** Three surfaces, one hash. This is the test that stops the transports drifting into three subtly different games.
     - **Evidence:** `lgbg/host/http.py` is `HttpHost`, an ASGI application whose routing is a method-and-segment dispatch written against the interface: `POST/GET /sessions`, `DELETE /sessions/{id}`, and `GET state|decisions|surface|outcome` plus `POST actions`. Every response, success or failure, carries `"schema": "lgbg.host.v1"`; a rejection is a 200 whose body is the engine's full refusal, while a malformed body, an unknown session, a wrong method and a duplicate id are 400, 404, 405 and 409 with the same JSON envelope. `lgbg/host/registry.py` is the host's table over the facade: it validates the id as a path segment, allocates it through the facade, records the game, refuses a second claim, and is consulted on every route so a session the host did not open is not served through it. The HTTP body is read by `RunConfig.from_mapping`, so the transport does not re-implement the configuration ladder and never names the assist enum. `tests/host/test_http.py` (10 tests) drives the application with raw ASGI scopes, covering every route, the 200-rejection/HTTP-error split, the schema version, the seat requirement and the lifespan handshake; `tests/host/test_registry.py` covers allocation, collision, malformed ids and ending; `tests/host/test_surface_equivalence.py` plays the committed 21-attempt script through MCP, HTTP and the facade in-process and asserts the three god logs are byte-identical, then verifies and replays each. Two deliberate mutations - turning a rejection into a 400, and letting the HTTP path alter an action - each failed and were reverted. Gate: 1016 passed, 1 skipped.
+    ```
+
+### K-014 · Provider protocol and usage normalisation
+
+  - tags: [slice-3, provider, fr-5]
+  - priority: high
+  - workload: Normal
+  - steps:
+      - [x] The narrow interface of ARCHITECTURE section 13, and nothing wider
+      - [x] Usage normalised to prompt, completion and total tokens
+      - [x] A provider that omits usage is marked unknown, never recorded as zero
+    ```md
+    - **Cuts through:** agents/providers, config, cost accounting
+    - **Depends on:** K-002
+    - **PRD:** FR-5.1, FR-5.6
+    - **Evidence:** `lgbg/agents/providers/base.py` declares `Provider` as a runtime-checkable protocol whose only member is `complete(messages, tools, config) -> Completion`; a test asserts the protocol's attribute set is exactly `{"complete"}`, that it is asynchronous, and that the parameter list is the one ARCHITECTURE.md section 13 names. The request and answer are plain immutable values: `Message`, `ToolCall` (arguments as an object or as unparsed text, per FR-7.6), `ToolSpec`, `Completion`, and `CompletionConfig` carrying a model and integer-thousandth `Sampling`. `Usage` is a non-negative triple; `Usage.normalise` derives a total the provider omitted from its parts, and returns `None` when either part is missing, so an omission is unknown rather than zero. A zero report stays a known `Usage(0, 0, 0)`. The value mappings are checked against K-002's frozen decision schema, with `usage` both a triple and `null`. A deliberate mutation turning an omitted usage into `Usage(0, 0, 0)` failed four tests and was reverted. Gate: 1033 passed, 1 skipped.
     ```

@@ -14,12 +14,20 @@ from lgbg.agents.providers.base import (
     ToolSpec,
     Usage,
 )
+from lgbg.agents.providers.mock import (
+    Behaviour,
+    MockProvider,
+    MockScriptError,
+)
 
 __all__: list[str] = [
     "SAMPLING_MAX",
+    "Behaviour",
     "Completion",
     "CompletionConfig",
     "Message",
+    "MockProvider",
+    "MockScriptError",
     "Provider",
     "ProviderError",
     "ProviderTimeoutError",

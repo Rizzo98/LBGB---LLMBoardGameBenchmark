@@ -11,22 +11,6 @@
 
 
 
-### K-015 · The mock provider
-
-  - tags: [slice-3, provider, test, fr-5, fr-15]
-  - priority: high
-  - workload: Normal
-  - defaultExpanded: true
-  - steps:
-      - [ ] Scripted behaviours: correct play, always-illegal, malformed arguments, prose-only, timeout, runaway
-      - [ ] Every test in the suite uses it; no test needs network access or a key
-      - [ ] Its behaviours are named, so a failure kind in a record can be traced to the behaviour that caused it
-    ```md
-    - **Cuts through:** agents/providers, the tool loop, every policy test in slice 5
-    - **Depends on:** K-014
-    - **PRD:** FR-5.2, FR-15.1, FR-15.4, NFR-8
-    - **Why:** Everything genuinely hard about v2 is a model behaving badly. The mock is what makes those behaviours testable at all, so it has to exist before the code that handles them, not after.
-    ```
 
 ### K-016 · The OpenRouter adapter
 
@@ -648,4 +632,22 @@
     - **Depends on:** K-002
     - **PRD:** FR-5.1, FR-5.6
     - **Evidence:** `lgbg/agents/providers/base.py` declares `Provider` as a runtime-checkable protocol whose only member is `complete(messages, tools, config) -> Completion`; a test asserts the protocol's attribute set is exactly `{"complete"}`, that it is asynchronous, and that the parameter list is the one ARCHITECTURE.md section 13 names. The request and answer are plain immutable values: `Message`, `ToolCall` (arguments as an object or as unparsed text, per FR-7.6), `ToolSpec`, `Completion`, and `CompletionConfig` carrying a model and integer-thousandth `Sampling`. `Usage` is a non-negative triple; `Usage.normalise` derives a total the provider omitted from its parts, and returns `None` when either part is missing, so an omission is unknown rather than zero. A zero report stays a known `Usage(0, 0, 0)`. The value mappings are checked against K-002's frozen decision schema, with `usage` both a triple and `null`. A deliberate mutation turning an omitted usage into `Usage(0, 0, 0)` failed four tests and was reverted. Gate: 1033 passed, 1 skipped.
+    ```
+
+### K-015 · The mock provider
+
+  - tags: [slice-3, provider, test, fr-5, fr-15]
+  - priority: high
+  - workload: Normal
+  - defaultExpanded: true
+  - steps:
+      - [x] Scripted behaviours: correct play, always-illegal, malformed arguments, prose-only, timeout, runaway
+      - [x] Every test in the suite uses it; no test needs network access or a key
+      - [x] Its behaviours are named, so a failure kind in a record can be traced to the behaviour that caused it
+    ```md
+    - **Cuts through:** agents/providers, the tool loop, every policy test in slice 5
+    - **Depends on:** K-014
+    - **PRD:** FR-5.2, FR-15.1, FR-15.4, NFR-8
+    - **Why:** Everything genuinely hard about v2 is a model behaving badly. The mock is what makes those behaviours testable at all, so it has to exist before the code that handles them, not after.
+    - **Evidence:** `lgbg/agents/providers/mock.py` declares `Behaviour` with six named values - `correct-play`, `always-illegal`, `malformed-arguments`, `prose-only`, `timeout`, `runaway` - and `MockProvider`, which is structurally a `Provider`. Correct play returns a scripted action per decision and raises `MockScriptError` rather than repeating the last move when the script ends; always-illegal repeats the supplied refused action; malformed arguments name a real offered tool but carry unparseable text, the shape the record keeps; prose-only emits text and no call; timeout raises `ProviderTimeoutError`; runaway keeps emitting calls to `read_state`, so only the step budget can stop it. `label` is `mock:<behaviour>` and `calls` counts attempts, so a record can name the behaviour that produced a failure. Usage is reported by default and can be omitted, in which case it is `None`. `tests/agents/providers/test_mock.py` (11 tests) covers every behaviour, the script-exhaustion path and both usage answers; `tests/tooling/test_offline_suite.py` (4 tests) scans every test source for a call that would leave the process or an API-key name, excluding its own patterns, so the no-network/no-key property is enforced rather than asserted. Two deliberate mutations - turning timeout into text and coercing prose into a tool call - each failed and were reverted. Gate: 1048 passed, 1 skipped.
     ```

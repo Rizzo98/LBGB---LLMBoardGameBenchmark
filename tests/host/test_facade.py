@@ -30,7 +30,7 @@ import lgbg.games  # noqa: F401 - importing the package registers the in-repo pl
 from lgbg.core.canonical import to_canonical_json
 from lgbg.core.config import AssistLevel, RunConfig
 from lgbg.core.errors import NOT_YOUR_DECISION, UNKNOWN_ACTION
-from lgbg.core.game import Applied, Rejected, get_game
+from lgbg.core.game import Applied, ApplyResult, Rejected, get_game
 from lgbg.core.log import GameLogReader, god_log_path
 from lgbg.core.replay import verify
 from lgbg.core.types import Action, GameId
@@ -160,6 +160,23 @@ def test_two_sessions_get_distinct_game_ids_and_a_duplicate_is_refused() -> None
     assert (first, second) == ("g-0001", "g-0002")
     with pytest.raises(SessionExistsError):
         facade.create_session("fixture", fixture_config(), game_id=first)
+
+
+def test_listing_sessions_reports_open_ids_in_order_and_forgets_an_ended_one(
+    tmp_path: Path,
+) -> None:
+    """PRD-v2 FR-3.4's sandbox reads the facade's registry, not a transport's memory."""
+    facade = SessionFacade()
+    later = facade.create_session("fixture", fixture_config(), game_id="g-0002", directory=tmp_path)
+    earlier = facade.create_session(
+        "fixture", fixture_config(), game_id="g-0001", directory=tmp_path
+    )
+
+    assert facade.list_sessions() == [earlier, later]
+
+    facade.end_session(earlier)
+
+    assert facade.list_sessions() == [later]
 
 
 def test_reading_a_session_that_does_not_exist_is_reported_as_such() -> None:
@@ -342,16 +359,20 @@ def test_one_session_may_have_several_open_decisions_answered_at_once(tmp_path: 
     open_now = facade.pending_decisions(game_id)
     assert len(open_now) == 4, "this fixture is chosen because four players decide at once"
 
-    def answer(entry: dict[str, Any]) -> bool:
-        return isinstance(
-            facade.submit_action(game_id, action(entry), request_id=entry.get("request_id")),
-            Applied,
-        )
+    def answer(entry: dict[str, Any]) -> ApplyResult:
+        return facade.submit_action(game_id, action(entry), request_id=entry.get("request_id"))
 
     with ThreadPoolExecutor(max_workers=len(open_now)) as pool:
         answered = list(pool.map(answer, entries[34:38]))
 
-    assert answered == [True, True, True, True]
+    # The four trade responses are not independent: accepting one ends the trade and closes
+    # the others. What is asserted is that four concurrent answers each reached the engine,
+    # none interleaved a record, and the game still replays; which of them the rules accept
+    # is the game's decision, not the lock's.
+    assert len(answered) == 4
+    assert all(isinstance(result, Applied | Rejected) for result in answered)
+    assert any(isinstance(result, Applied) for result in answered)
+    assert len(read_log(tmp_path, game_id).actions) == 38
     still_open = {request.request_id for request in facade.pending_decisions(game_id)}
     assert still_open.isdisjoint({request.request_id for request in open_now})
     facade.end_session(game_id)

@@ -26,6 +26,8 @@ from pathlib import Path
 from typing import Any
 
 import lgbg.games  # noqa: F401 - importing the package registers the in-repo plugins
+from lgbg.adapters.cli.live import play_live as run_live
+from lgbg.adapters.cli.mcp_client import ClientError
 from lgbg.adapters.cli.script import ScriptError, drive, load_script
 from lgbg.core.assist import render_decision
 from lgbg.core.canonical import hash_state, to_canonical_json
@@ -45,6 +47,7 @@ EXPECTED_FAILURES: tuple[type[Exception], ...] = (
     ReplayError,
     ScriptError,
     AmbiguousRequestError,
+    ClientError,
     OSError,
 )
 """Failures an operator is expected to cause, and so deserves a sentence, not a stack trace."""
@@ -95,6 +98,26 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="keep playing after a rejected action instead of stopping",
     )
+
+    live = commands.add_parser(
+        "play-live", help="play interactively through the MCP sandbox surface"
+    )
+    _add_plugin_option(live)
+    live.add_argument("--game", required=True, help="a registered game name")
+    live.add_argument("--seed", type=int, default=1, help="the seed the run starts from")
+    live.add_argument("--players", type=int, default=DEFAULT_PLAYERS, help="seats in the run")
+    live.add_argument("--protocol", default="decline_only", help="the interaction protocol")
+    live.add_argument(
+        "--session-id", default=DEFAULT_GAME_ID, help="the id this game is recorded under"
+    )
+    live.add_argument("--out", required=True, help="the run directory to write the record into")
+    live.add_argument(
+        "--assist",
+        choices=[level.value for level in AssistLevel],
+        default=AssistLevel.L1.value,
+        help="what the resources reveal, fixed for the run",
+    )
+    live.add_argument("--detail", default="full", help="the renderer's detail level")
 
     replay_command = commands.add_parser("replay", help="replay a record, verifying every hash")
     _add_plugin_option(replay_command)
@@ -179,7 +202,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         for module in args.plugin:
             importlib.import_module(module)
-        if extra and args.command not in ("new", "fuzz"):
+        if extra and args.command not in ("new", "fuzz", "play-live"):
             parser.error(f"unrecognised arguments: {' '.join(extra)}")
         match args.command:
             case "new":
@@ -188,6 +211,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 return _fuzz(args, _game_options(extra))
             case "play":
                 return _play(args)
+            case "play-live":
+                return _play_live(args, _game_options(extra))
             case "replay":
                 return _replay(args)
             case "inspect":
@@ -263,6 +288,22 @@ def _print_requests(requests: Sequence[DecisionRequest]) -> None:
             f"  {request.request_id}  player {request.player}  kind {request.kind}  "
             f"phase {request.phase}  schema {request.schema_ref}  context {context}"
         )
+
+
+def _play_live(args: argparse.Namespace, game_options: dict[str, JsonValue]) -> int:
+    """Drive one interactive game through the MCP sandbox surface (FR-14.4)."""
+    return run_live(
+        game=args.game,
+        seed=args.seed,
+        players=args.players,
+        protocol=args.protocol,
+        session_id=args.session_id,
+        out=Path(args.out),
+        assist=AssistLevel(args.assist),
+        detail=args.detail,
+        plugins=args.plugin,
+        game_options=game_options,
+    )
 
 
 def _play_interactively(args: argparse.Namespace) -> int:

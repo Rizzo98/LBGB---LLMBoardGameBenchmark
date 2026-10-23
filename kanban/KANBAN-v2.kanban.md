@@ -8,108 +8,6 @@
 
 ## Backlog
 
-### K-004 · Prove the facade does not change the game
-
-  - tags: [slice-1, facade, test, fr-1, sc-2]
-  - priority: high
-  - workload: Normal
-  - steps:
-      - [ ] The same action sequence driven through the facade and through v1's GameRun produces byte-identical god logs
-      - [ ] All seven v1 golden games replay through the new path with identical final hashes
-      - [ ] The test is the corpus, not a new fixture: nothing is written that v1 did not already pin
-    ```md
-    - **Cuts through:** facade, core run, core log, the golden corpus
-    - **Depends on:** K-003
-    - **PRD:** FR-1.4, SC-2
-    - **Why:** The cheapest possible proof that a new layer has not altered the game, and stronger than any new test could be: it asks whether v1's own evidence still holds through the new path.
-    ```
-
-### K-005 · Serve v1's generated tool definitions over MCP
-
-  - tags: [slice-1, mcp, fr-3, sc-6]
-  - priority: high
-  - workload: Normal
-  - steps:
-      - [ ] Tool definitions come from lgbg.core.tools.tool_definitions, with no per-game code
-      - [ ] Each action type the plugin declares appears exactly once, with its declared input schema
-      - [ ] An action tool call reaches the facade and returns the engine's answer, rejection included
-    ```md
-    - **Cuts through:** adapters/mcp, core/tools, the facade, the plugin's own schema
-    - **Depends on:** K-003
-    - **PRD:** FR-3.1, FR-3.2, SC-6
-    - **Why:** v1 already emits the shape MCP wants. This is the proof that the plugin system delivers its claim, and it should stay small enough to be obviously correct.
-    ```
-
-### K-006 · Observation and decision resources
-
-  - tags: [slice-1, mcp, fr-3, sc-14]
-  - priority: high
-  - workload: Normal
-  - steps:
-      - [ ] A resource for the player's projection and one for the pending decisions
-      - [ ] Resource URIs are game-agnostic in shape and never name a game mechanic
-      - [ ] Renderings come from the game's own render method, so the CLI and MCP share one renderer
-      - [ ] A resource read consumes no randomness and mutates nothing
-    ```md
-    - **Cuts through:** adapters/mcp resources, Game.render, the facade, notation
-    - **Depends on:** K-005
-    - **PRD:** FR-3.6 to FR-3.9
-    - **Why:** A second renderer written for MCP would drift from the CLI's, and divergent renderings of the same state are a confound in anything a model is shown.
-    ```
-
-### K-007 · Stdio transport and the two profile entry points
-
-  - tags: [slice-1, mcp, fr-3, sc-14]
-  - priority: high
-  - workload: Hard
-  - defaultExpanded: true
-  - steps:
-      - [ ] stdio transport serves a live session
-      - [ ] The sandbox entry point offers lifecycle tools; the benchmark entry point does not
-      - [ ] The profile is fixed when the server is constructed; no request and no configuration value can change it
-      - [ ] A test asserts that the benchmark entry point's served tool list contains no lifecycle tool
-    ```md
-    - **Cuts through:** adapters/mcp, the two CLI entry points, the facade factory
-    - **Depends on:** K-006
-    - **PRD:** FR-3.4, FR-3.4a, FR-3.4b, FR-3.4c, FR-3.5
-    - **Why:** A model is a player, never an operator. Absence rather than gating is the mechanism, and the test is what turns absence into a fact instead of an intention (Q6).
-    ```
-
-### K-008 · A client that knows nothing about Catan
-
-  - tags: [slice-1, cli, mcp, sc-6]
-  - priority: medium
-  - workload: Normal
-  - steps:
-      - [ ] A client drives itself entirely from tools/list and the exposed resources
-      - [ ] It creates a session, reads a projection, and plays a legal opening placement
-      - [ ] No game-specific code exists in the client at all
-    ```md
-    - **Cuts through:** adapters/cli, the MCP client path, the facade
-    - **Depends on:** K-007
-    - **PRD:** FR-3.2, SC-6
-    - **Why:** This is the only honest test of plug-and-play. If the client must know what a settlement is, the surface has failed no matter how many tests pass.
-    ```
-
-### K-009 · A complete game played through the MCP surface
-
-  - tags: [slice-1, mcp, test, sc-14, fr-1]
-  - priority: high
-  - workload: Normal
-  - defaultExpanded: true
-  - steps:
-      - [ ] A scripted client plays a complete four-player game through the real stdio transport
-      - [ ] The resulting god log verifies and replays to every intermediate state
-      - [ ] A human plays a full game by hand through play-live, using only the published tools and resources
-      - [ ] Both paths produce records that verify; neither is a special case
-    ```md
-    - **Cuts through:** everything in this slice
-    - **Depends on:** K-008
-    - **PRD:** FR-1.4, SC-14
-    - **Slice exit:** the named command is a played game, not a passing unit test.
-    - **Why this ordering:** if the first thing driven through the surface were a model, a defect in the surface and a defect in the agent would look identical, and the debugging budget would go to the wrong layer.
-    ```
-
 ### K-010 · Assist level gates the resource surface
 
   - tags: [slice-2, mcp, fr-4, assist]
@@ -633,4 +531,112 @@
     - **PRD:** FR-1.1 to FR-1.6, NFR-6
     - **Why:** The single authority. Every surface above is a transport over this, so whether the whole release can be trusted rests on this being the only mutable thing.
     - **Evidence:** `lgbg/host/facade.py`: `SessionFacade` is the one mutable authority - create, read a projection, read the open decisions, submit an action, read the decision surface at the run's assist level, read the outcome, end the session - closed as a set in `PUBLIC_OPERATIONS` and asserted against the class, so an operation is a decision rather than an accident. One lock per session and one around the registry, so games advance in parallel; a session holding several open decisions answers each on a state that only moves when an action is accepted. The facade writes the terminal record itself the instant an accepted action makes the game terminal, so a completed game cannot be mistaken for an abandoned one, and `end_session` leaves a record with no terminal line that still replays. `tests/host/test_facade.py` covers the rejection path (the core's `NOT_YOUR_DECISION`, no state change, nothing queued), one code path over two games of different shapes, eight parallel sessions producing identical hash chains, and a four-way concurrent decision set answered at once and verified afterwards. `tests/tooling/test_layering.py` adds that the host layer never imports a game.
+    ```
+
+### K-004 · Prove the facade does not change the game
+
+  - tags: [slice-1, facade, test, fr-1, sc-2]
+  - priority: high
+  - workload: Normal
+  - steps:
+      - [x] The same action sequence driven through the facade and through v1's GameRun produces byte-identical god logs
+      - [x] All seven v1 golden games replay through the new path with identical final hashes
+      - [x] The test is the corpus, not a new fixture: nothing is written that v1 did not already pin
+    ```md
+    - **Cuts through:** facade, core run, core log, the golden corpus
+    - **Depends on:** K-003
+    - **PRD:** FR-1.4, SC-2
+    - **Why:** The cheapest possible proof that a new layer has not altered the game, and stronger than any new test could be: it asks whether v1's own evidence still holds through the new path.
+    - **Evidence:** `tests/host/test_facade_equivalence.py` (9 tests) reads only v1's corpus: the seven committed records under `tests/golden/catan`, and the action sequence each one already carries. The complete 743-action `full_game` is driven once through a bare `GameRun` and once through `SessionFacade`; the produced god logs are compared byte for byte and then against the committed record. All seven records are replayed action by action through a fresh facade, each new log is walked by v1's own `verify`, and its final hash is compared with the hash that verifier reports for the committed record; the two games that stop before termination use the same path, with the facade leaving no synthetic terminal line. The control test pins the corpus to the seven names, so a shrinking corpus cannot quietly test less. A deliberate mutation - removing the facade's terminal settling - made the byte-identity test fail, and was reverted.
+    ```
+
+### K-005 · Serve v1's generated tool definitions over MCP
+
+  - tags: [slice-1, mcp, fr-3, sc-6]
+  - priority: high
+  - workload: Normal
+  - steps:
+      - [x] Tool definitions come from lgbg.core.tools.tool_definitions, with no per-game code
+      - [x] Each action type the plugin declares appears exactly once, with its declared input schema
+      - [x] An action tool call reaches the facade and returns the engine's answer, rejection included
+    ```md
+    - **Cuts through:** adapters/mcp, core/tools, the facade, the plugin's own schema
+    - **Depends on:** K-003
+    - **PRD:** FR-3.1, FR-3.2, SC-6
+    - **Why:** v1 already emits the shape MCP wants. This is the proof that the plugin system delivers its claim, and it should stay small enough to be obviously correct.
+    - **Evidence:** `lgbg/adapters/mcp/server.py` calls `tool_definitions` for the game and maps every generated name, description and `inputSchema` onto `types.Tool`; no action is named in the adapter. A benchmark surface is bound to one session and seat, so its action schema is the plugin's exactly, including the `oneOf` union. `tests/adapters/mcp/test_mcp_tools.py` pins names, descriptions and schemas against the generator, proves each action appears once, drives an accepted and a rejected action through the facade (the rejection keeps state and returns `TOKENS_UNAVAILABLE`), proves the tool set is identical at L0 and L2, and scans the adapter for game nouns. A deliberate mutation replacing the generator's description with a literal failed the generator test, and was reverted.
+    ```
+
+### K-006 · Observation and decision resources
+
+  - tags: [slice-1, mcp, fr-3, sc-14]
+  - priority: high
+  - workload: Normal
+  - steps:
+      - [x] A resource for the player's projection and one for the pending decisions
+      - [x] Resource URIs are game-agnostic in shape and never name a game mechanic
+      - [x] Renderings come from the game's own render method, so the CLI and MCP share one renderer
+      - [x] A resource read consumes no randomness and mutates nothing
+    ```md
+    - **Cuts through:** adapters/mcp resources, Game.render, the facade, notation
+    - **Depends on:** K-005
+    - **PRD:** FR-3.6 to FR-3.9
+    - **Why:** A second renderer written for MCP would drift from the CLI's, and divergent renderings of the same state are a confound in anything a model is shown.
+    - **Evidence:** `lgbg/adapters/mcp/server.py` advertises and serves `state` and `decisions` at `<game>://sessions/{id}/...`; a state read is `Game.render(facade.projection(...))` and a decisions read is the facade's own list through the canonical serialiser. `tests/adapters/mcp/test_mcp_resources.py` compares fixture and Catan renderings with the game's own renderer, pins the URI shape, and proves purity by reading resources five times in one run and comparing its god log byte for byte with an unread control after the same random action. A deliberate mutation replacing the renderer with canonical JSON failed the Catan test, and was reverted.
+    ```
+
+### K-007 · Stdio transport and the two profile entry points
+
+  - tags: [slice-1, mcp, fr-3, sc-14]
+  - priority: high
+  - workload: Hard
+  - defaultExpanded: true
+  - steps:
+      - [x] stdio transport serves a live session
+      - [x] The sandbox entry point offers lifecycle tools; the benchmark entry point does not
+      - [x] The profile is fixed when the server is constructed; no request and no configuration value can change it
+      - [x] A test asserts that the benchmark entry point's served tool list contains no lifecycle tool
+    ```md
+    - **Cuts through:** adapters/mcp, the two CLI entry points, the facade factory
+    - **Depends on:** K-006
+    - **PRD:** FR-3.4, FR-3.4a, FR-3.4b, FR-3.4c, FR-3.5
+    - **Why:** A model is a player, never an operator. Absence rather than gating is the mechanism, and the test is what turns absence into a fact instead of an intention (Q6).
+    - **Evidence:** `build_server` fixes `Profile` at construction; `benchmark.py` and `sandbox.py` are separate entry points sharing it. The benchmark surface is bound to a runner-owned session and seat and never constructs lifecycle tools; the sandbox surface constructs `create_session`, `list_sessions` and `end_session`, with `list_sessions` reading the facade's own registry. `serve_stdio` runs either server over the SDK's stdio transport. `tests/adapters/mcp/test_mcp_profiles.py` asserts absence from the benchmark tool list (with a control that actions are still served), presence in sandbox, lifecycle create/list/end, and drives both entry points as real subprocesses over stdio: benchmark acts and reads, sandbox creates and reads. A deliberate mutation constructing lifecycle tools for both profiles failed the absence test, and was reverted.
+    ```
+
+### K-008 · A client that knows nothing about Catan
+
+  - tags: [slice-1, cli, mcp, sc-6]
+  - priority: medium
+  - workload: Normal
+  - steps:
+      - [x] A client drives itself entirely from tools/list and the exposed resources
+      - [x] It creates a session, reads a projection, and plays a legal opening placement
+      - [x] No game-specific code exists in the client at all
+    ```md
+    - **Cuts through:** adapters/cli, the MCP client path, the facade
+    - **Depends on:** K-007
+    - **PRD:** FR-3.2, SC-6
+    - **Why:** This is the only honest test of plug-and-play. If the client must know what a settlement is, the surface has failed no matter how many tests pass.
+    - **Evidence:** `lgbg/adapters/cli/mcp_client.py` holds `GameClient`: it reads `tools/list` and `list_resources`, opens a session through the advertised lifecycle tool, reads the projection resource, takes the first decision from the decisions resource, and builds the action arguments from that action tool's own JSON Schema. It names no game, action, piece or coordinate. `tests/cli/test_mcp_client.py` starts the real sandbox server over stdio, asks it for a Catan session, reads the projection, acts on the first opening decision, and asserts the action was accepted, that the god log holds exactly that one accepted action, and that v1's `verify` replays it; a source scan rejects any game name or action name in the client. A deliberate mutation ignoring the decision's `schema_ref` and choosing the first action tool instead was rejected and failed the test, and was reverted.
+    ```
+
+### K-009 · A complete game played through the MCP surface
+
+  - tags: [slice-1, mcp, test, sc-14, fr-1]
+  - priority: high
+  - workload: Normal
+  - defaultExpanded: true
+  - steps:
+      - [x] A scripted client plays a complete four-player game through the real stdio transport
+      - [x] The resulting god log verifies and replays to every intermediate state
+      - [x] A human plays a full game by hand through play-live, using only the published tools and resources
+      - [x] Both paths produce records that verify; neither is a special case
+    ```md
+    - **Cuts through:** everything in this slice
+    - **Depends on:** K-008
+    - **PRD:** FR-1.4, SC-14
+    - **Slice exit:** the named command is a played game, not a passing unit test.
+    - **Why this ordering:** if the first thing driven through the surface were a model, a defect in the surface and a defect in the agent would look identical, and the debugging budget would go to the wrong layer.
+    - **Evidence:** `tests/adapters/mcp/test_full_game.py` drives the committed 743-action four-player fixture through the real sandbox server over stdio, one generated action tool at a time; the resulting god log is byte-identical to `tests/golden/catan/full_game.god.jsonl`, v1's `verify` reports 743 actions and no rejections, and `replay` yields all 744 intermediate states plus the terminal record. `lgbg/adapters/cli/live.py` adds the slice's named command, `python -m lgbg.adapters.cli play-live`, which starts the same sandbox entry point over stdio, opens a session through `create_session`, shows the projection and decisions, and reads one JSON action per line. `tests/cli/test_play_live.py` feeds the same 743 actions to that command and gets the same byte-identical record and the same verified replay. Both paths go through `GameClient` and the MCP tools/resources; neither touches the facade directly. A deliberate mutation dropping an action's parameters made the first tool call fail validation and broke the scripted test, and was reverted.
     ```

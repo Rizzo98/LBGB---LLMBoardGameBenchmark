@@ -5,13 +5,13 @@ this class and nothing else. That is the whole design, and it is what keeps thre
 drifting into three subtly different games (FR-1.4, SC-2): there is one place a move can be made,
 one place a state can be read, and one place a record can be written.
 
-**The operations are the engine's, not the game's.** Create, read a projection, read the open
-decisions, submit an action, read the decision surface at the run's assist level, read the outcome,
-and end the session. Nothing here enumerates legal actions or asks a game a question about itself:
-enumeration is an assist-level property of a *surface* (FR-3.3, FR-4), and a facade that could
-enumerate would quietly make the assist level a suggestion. The set is closed and declared in
-`PUBLIC_OPERATIONS`, and a test compares it against the class, so an operation is a decision rather
-than an accident.
+**The operations are the engine's, not the game's.** Create, list, read a projection, read the
+open decisions, submit an action, read the decision surface at the run's assist level, read the
+outcome, and end the session. Nothing here enumerates legal actions or asks a game a question
+about itself: enumeration is an assist-level property of a *surface* (FR-3.3, FR-4), and a facade
+that could enumerate would quietly make the assist level a suggestion. The set is closed and
+declared in `PUBLIC_OPERATIONS`, and a test compares it against the class, so an operation is a
+decision rather than an accident.
 
 **Concurrency, stated rather than hoped for (FR-1.5, NFR-6).** There is one lock per session, held
 for the duration of one operation, and one lock around the registry held only while the dictionary
@@ -52,6 +52,7 @@ PUBLIC_OPERATIONS: Final[frozenset[str]] = frozenset(
         "create_session",
         "decision_surface",
         "end_session",
+        "list_sessions",
         "outcome",
         "pending_decisions",
         "projection",
@@ -142,6 +143,16 @@ class SessionFacade:
             )
             self._sessions[assigned] = session
             return assigned
+
+    def list_sessions(self) -> list[GameId]:
+        """The sessions currently open, in a stable order (FR-3.4's sandbox surface).
+
+        A listing, not a second registry: the facade already owns the dictionary, so a transport
+        that needs to show an operator what is live asks here rather than remembering what it
+        created.
+        """
+        with self._lock:
+            return sorted(self._sessions)
 
     def end_session(self, session_id: GameId) -> None:
         """Close a session's record and forget it (the abandonment path of FR-7.5).

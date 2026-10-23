@@ -8,21 +8,6 @@
 
 ## Backlog
 
-### K-012 · Assist equivalence through the MCP surface
-
-  - tags: [slice-2, test, fr-4, sc-3]
-  - priority: high
-  - workload: Normal
-  - steps:
-      - [ ] One scripted action file played at L0, L1 and L2 through the real transport produces byte-identical god logs, apart from the header's assist field
-      - [ ] The test drives stdio, not the facade directly
-      - [ ] The redo turn is covered: a rejection at L0 must not reveal the alternatives a rejection at L2 does
-    ```md
-    - **Cuts through:** MCP surface, config, the log, replay
-    - **Depends on:** K-011
-    - **PRD:** FR-4.5, FR-7.4, SC-3
-    - **Why:** v1 proved this for a scripted player with no surface. Proving it again through one is not redundant: the surface is exactly where a level can leak.
-    ```
 
 ### K-013 · The HTTP host, and three surfaces that agree
 
@@ -642,4 +627,21 @@
     - **PRD:** FR-3.3
     - **Why:** If the tool list shrank at L0, the action vocabulary itself would become an assist channel and assist level would stop being a clean variable.
     - **Evidence:** `tests/adapters/mcp/test_mcp_tools.py` replaces the two-level comparison with `test_tools_list_is_identical_at_all_three_assist_levels`, parametrized over the benchmark and sandbox profiles: every served tool's name, description and full `inputSchema` must be equal at L0, L1 and L2. The sandbox is included because its lifecycle schemas are the ones that could plausibly have grown a level, and the benchmark because a missing action at L0 would make the vocabulary itself a hint. `test_the_projection_and_pending_decisions_do_not_move_with_the_level` holds the other half of FR-3.3: the projection resource is byte-identical at all three levels, and the pending-decisions resource is identical at L1 and L2. What does move is confined to the decision surface and the refusal, which K-010's tests assert. A deliberate mutation dropping one tool from `tools/list` at L0 failed both profile cases, and was reverted. Gate: 999 passed, 1 skipped.
+    ```
+
+### K-012 · Assist equivalence through the MCP surface
+
+  - tags: [slice-2, test, fr-4, sc-3]
+  - priority: high
+  - workload: Normal
+  - steps:
+      - [x] One scripted action file played at L0, L1 and L2 through the real transport produces byte-identical god logs, apart from the header's assist field
+      - [x] The test drives stdio, not the facade directly
+      - [x] The redo turn is covered: a rejection at L0 must not reveal the alternatives a rejection at L2 does
+    ```md
+    - **Cuts through:** MCP surface, config, the log, replay
+    - **Depends on:** K-011
+    - **PRD:** FR-4.5, FR-7.4, SC-3
+    - **Why:** v1 proved this for a scripted player with no surface. Proving it again through one is not redundant: the surface is exactly where a level can leak.
+    - **Evidence:** `tests/adapters/mcp/test_assist_equivalence.py` plays one committed script (`tests/fixtures/v2/assist_script.json`, 21 attempts including two refusals and a terminal verdict) three times through the real sandbox entry point over stdio, one process per level. The records are byte-identical below the header; the only header fields that move are `assist` and the `rejection_detail` tier it defaults to, and the test asserts that nothing else moved. The L0 record verifies with v1's `verify` and replays to all 22 states. The redo turn is followed on a wrong-seat attempt: L0 answers `{"ok": false, "error": "NOT_YOUR_DECISION"}`, L1 adds the sentence but withholds the list, L2 adds `details: {"open_players": [0]}`, and the god log keeps that detail at every level. Two deliberate mutations - making every refusal full-detail, and letting the level enter an action record's result - each failed the relevant test and were reverted. Gate: 1001 passed, 1 skipped.
     ```

@@ -1,0 +1,91 @@
+{
+  "seed": 7,
+  "players": 2,
+  "interaction_protocol": "decline_only",
+  "actions": [
+    {
+      "player": 0,
+      "type": "spend"
+    },
+    {
+      "player": 1,
+      "type": "take"
+    },
+    {
+      "player": 0,
+      "type": "take"
+    },
+    {
+      "player": 1,
+      "type": "take"
+    },
+    {
+      "player": 0,
+      "type": "take"
+    },
+    {
+      "player": 1,
+      "type": "take"
+    },
+    {
+      "player": 0,
+      "type": "take"
+    },
+    {
+      "player": 1,
+      "type": "take"
+    },
+    {
+      "player": 0,
+      "type": "take"
+    },
+    {
+      "player": 1,
+      "type": "take"
+    },
+    {
+      "player": 0,
+      "type": "spend"
+    },
+    {
+      "player": 1,
+      "type": "spend"
+    },
+    {
+      "player": 0,
+      "type": "take"
+    },
+    {
+      "player": 1,
+      "type": "take"
+    },
+    {
+      "player": 0,
+      "type": "take"
+    },
+    {
+      "player": 1,
+      "type": "take"
+    },
+    {
+      "player": 0,
+      "type": "take"
+    },
+    {
+      "player": 1,
+      "type": "take"
+    },
+    {
+      "player": 0,
+      "type": "take"
+    },
+    {
+      "player": 1,
+      "type": "take"
+    },
+    {
+      "player": 0,
+      "type": "spend"
+    }
+  ]
+}

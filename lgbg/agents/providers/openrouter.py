@@ -42,6 +42,7 @@ from typing import Any, Final
 
 import httpx
 
+from lgbg.agents.pricing import PRICE_UNIT, ModelPrice, PriceTable
 from lgbg.agents.providers.base import (
     CallMetadata,
     Completion,
@@ -55,14 +56,10 @@ from lgbg.agents.providers.base import (
 )
 from lgbg.agents.wire import WireExchange, encode_request
 from lgbg.core.canonical import to_canonical_json
-from lgbg.core.contracts import PRICE_UNITS
 
 NAME: Final[str] = "openrouter"
 VERSION: Final[str] = "1"
 DEFAULT_BASE_URL: Final[str] = "https://openrouter.ai/api/v1"
-
-PRICE_UNIT: Final[str] = PRICE_UNITS[0]
-"""The manifest's price unit: integer micro-dollars per million tokens."""
 
 _PRICE_SCALE: Final[Decimal] = Decimal(1_000_000_000_000)
 """Per-token USD to micro-USD per million tokens: 1e6 dollars and 1e6 tokens."""
@@ -95,36 +92,6 @@ class ModelInfo:
     def supports_tools(self) -> bool:
         """Whether this model accepts native tool calling, as the gateway declares it."""
         return "tools" in self.supported_parameters
-
-
-@dataclass(frozen=True, slots=True)
-class ModelPrice:
-    """One model's price in the unit the manifest declares."""
-
-    model: str
-    prompt: int
-    completion: int
-
-    def to_mapping(self) -> dict[str, Any]:
-        return {"model": self.model, "prompt": self.prompt, "completion": self.completion}
-
-
-@dataclass(frozen=True, slots=True)
-class PriceTable:
-    """The prices a run used, and when they were read (FR-5.9)."""
-
-    source: str
-    read_at: str
-    unit: str
-    models: tuple[ModelPrice, ...]
-
-    def to_mapping(self) -> dict[str, Any]:
-        return {
-            "source": self.source,
-            "read_at": self.read_at,
-            "unit": self.unit,
-            "models": [price.to_mapping() for price in self.models],
-        }
 
 
 class OpenRouterProvider:

@@ -13,21 +13,6 @@
 
 
 
-### K-021 · Cost and token accounting
-
-  - tags: [slice-4, accounting, fr-13]
-  - priority: medium
-  - workload: Normal
-  - steps:
-      - [ ] Every decision turn records its usage and its latency
-      - [ ] Cost is computed from the declared price table, and the table used is recorded in the manifest
-      - [ ] Missing usage is reported as unknown and the run's total is marked partial, never silently zero
-    ```md
-    - **Cuts through:** agents, the manifest, the sidecar, results
-    - **Depends on:** K-020
-    - **PRD:** FR-13.1 to FR-13.4
-    ```
-
 ### K-022 · A model plays a complete game
 
   - tags: [slice-4, test, fr-6, sc-1, sc-4]
@@ -653,5 +638,19 @@
     - **Depends on:** K-019
     - **PRD:** FR-9.1 to FR-9.6, SC-5
     - **Why:** A prompt edited mid-run turns one experiment into two, and nothing in the results would show it. Rehashing before every game is cheap and makes that failure impossible.
-    - **Evidence:** `lgbg/agents/prompting.py` declares `PromptSet`: four separable layers read from `lgbg/games/<game>/prompts/game.md` and the shared `lgbg/agents/prompts/{system,policy,redo}.md`, each hashed through v1's `core.prompts.digest`. `hashes()` produces the manifest's four hashes and the fixture manifest validates with them; `verify(expected)` re-reads every source file before a game and raises `PromptHashError` naming the changed, missing or unexpected layer. `initial_messages(state)` keeps each layer in its own system message and the position in the user message, rather than blending them. `redo_text(rejection)` performs the one substitution the shared redo artefact permits, so slice 5 has one wording to use. The fourth layer exists as an artefact now; its loop behaviour arrives with K-023. Tool descriptions already came from `core.tools.tool_definitions`; resource names now come from `core.tools.describe_read`, which the MCP server uses instead of its own f-strings, so both surfaces have one generator. `tests/agents/test_prompting.py` (12 tests) covers separability, the catan artefacts, all four manifest hashes, rehash-after-edit, expected-hash mismatch, a missing layer, initial message order, the shared redo text, the game-prompt convention, and the tool and resource generators. A deliberate mutation making `verify` compare against the in-memory hashes instead of re-reading the files failed the edit test and was reverted. Gate: 1127 passed, 1 skipped.
+
+### K-021 · Cost and token accounting
+
+  - tags: [slice-4, accounting, fr-13]
+  - priority: medium
+  - workload: Normal
+  - steps:
+      - [x] Every decision turn records its usage and its latency
+      - [x] Cost is computed from the declared price table, and the table used is recorded in the manifest
+      - [x] Missing usage is reported as unknown and the run's total is marked partial, never silently zero
+    ```md
+    - **Cuts through:** agents, the manifest, the sidecar, results
+    - **Depends on:** K-020
+    - **PRD:** FR-13.1 to FR-13.4
+    - **Evidence:** `lgbg/agents/pricing.py` is the neutral price table: `ModelPrice` and `PriceTable` moved out of the OpenRouter adapter, so accounting does not depend on a gateway, and `PriceTable.price_for` refuses an absent model rather than treating it as free. `lgbg/agents/accounting.py` computes a call's cost as tokens x micro-dollars per million tokens, rounded up so a nonzero call cannot look free; `RunAccounting.record_turn` takes every `Attempt` from a `DecisionTurn`, so usage and latency are recorded per provider call. An unknown usage records `cost_micro_usd: null`, sets `partial: true`, and is counted in `unknown_usage_decisions`; the known part of the total is still reported, and per-model rows carry their own partial flag. `manifest_fragment` is the `price_table` section of run.json and validates against K-002's manifest. The adapter's existing imports and tests still see `ModelPrice`, `PriceTable` and `PRICE_UNIT` through their re-export. `tests/agents/test_accounting.py` (11 tests) covers the formula, the ceiling, unknown-only and mixed runs, per-model arithmetic, an unpriced model, a negative latency, the manifest fragment and recording a turn's attempts. A deliberate mutation that made `partial` always false failed three tests and was reverted. Gate: 1138 passed, 1 skipped.
     ```

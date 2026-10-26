@@ -21,7 +21,7 @@ complete record.
 from __future__ import annotations
 
 import os
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from threading import Lock
 
@@ -30,7 +30,7 @@ from lgbg.agents.loop import Attempt
 from lgbg.agents.providers.base import CallMetadata, Completion
 from lgbg.agents.wire import redact
 from lgbg.core.canonical import to_canonical_json
-from lgbg.core.contracts import validate_decision
+from lgbg.core.contracts import validate_abandonment, validate_decision
 from lgbg.core.log import sidecar_path
 from lgbg.core.types import GameId, JsonValue
 
@@ -115,6 +115,48 @@ def build_decision_record(
     }
 
 
+def build_abandonment_record(
+    *,
+    game_id: GameId,
+    request_id: str,
+    seat: int,
+    model: str,
+    provider: str,
+    attempts: int,
+    redo_budget: int,
+    final_rejection: Mapping[str, JsonValue] | None,
+    failure: str,
+    actions: int,
+    at: str,
+    host: str,
+    pid: int,
+) -> dict[str, JsonValue]:
+    """One abandonment record: the game ended because this seat could not act (FR-7.5).
+
+    It is not a terminal record and does not pretend to be a verdict. It names the failing
+    decision, the refusal that ended it, how much of the redo budget was spent, and the seat and
+    model responsible, which is what makes abandonment a finding about a model rather than a
+    missing game (FR-11.6, FR-11.8).
+    """
+    return {
+        "t": "abandonment",
+        "at": at,
+        "host": host,
+        "pid": pid,
+        "game_id": game_id,
+        "request_id": request_id,
+        "player": seat,
+        "seat": seat,
+        "model": model,
+        "provider": provider,
+        "attempts": attempts,
+        "redo_budget": redo_budget,
+        "final_rejection": None if final_rejection is None else dict(final_rejection),
+        "failure": failure,
+        "actions": actions,
+    }
+
+
 def messages_from_run(
     run_directory: Path,
     game_id: GameId,
@@ -160,11 +202,24 @@ class DecisionSidecar:
         return self._path
 
     def append(self, record: Mapping[str, JsonValue]) -> None:
-        """Redact, validate, then append one line. A refused record writes nothing."""
+        """Redact, validate, then append one decision line. A refused record writes nothing."""
+        self._append(record, validate_decision, kind="decision")
+
+    def append_abandonment(self, record: Mapping[str, JsonValue]) -> None:
+        """Append the record that says the game produced no outcome (FR-7.5)."""
+        self._append(record, validate_abandonment, kind="abandonment")
+
+    def _append(
+        self,
+        record: Mapping[str, JsonValue],
+        validate: Callable[[Mapping[str, JsonValue]], list[str]],
+        *,
+        kind: str,
+    ) -> None:
         cleaned = redact(dict(record), secrets=self._secrets)
         if not isinstance(cleaned, Mapping):
-            raise SidecarError("a decision record must be an object")
-        problems = validate_decision(cleaned)
+            raise SidecarError(f"a {kind} record must be an object")
+        problems = validate(cleaned)
         if problems:
             raise SidecarError("; ".join(problems))
         line = to_canonical_json(cleaned)
@@ -201,6 +256,7 @@ def _load(line: str, number: int) -> dict[str, JsonValue]:
 __all__: list[str] = [
     "DecisionSidecar",
     "SidecarError",
+    "build_abandonment_record",
     "build_decision_record",
     "decision_path",
     "messages_from_run",

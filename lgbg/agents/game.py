@@ -29,12 +29,19 @@ from typing import Final
 
 from lgbg import __version__
 from lgbg.agents.accounting import RunAccounting
-from lgbg.agents.loop import Attempt, AttemptOutcome, DecisionTurn, TurnPolicy
+from lgbg.agents.loop import (
+    Attempt,
+    AttemptOutcome,
+    DecisionTurn,
+    TurnPolicy,
+    TurnResult,
+)
 from lgbg.agents.pricing import PriceTable
 from lgbg.agents.prompting import PromptSet
 from lgbg.agents.providers.base import CompletionConfig, Provider, Sampling, ToolCall
 from lgbg.agents.sidecar import (
     DecisionSidecar,
+    build_abandonment_record,
     build_decision_record,
     decision_path,
 )
@@ -55,7 +62,7 @@ class GameError(RuntimeError):
 
 
 class GameAbortedError(GameError):
-    """A decision did not produce a legal action. K-024 turns this into an abandoned record."""
+    """The driver could not continue for a reason that is not the model's failure."""
 
 
 class ManifestError(GameError):
@@ -94,6 +101,24 @@ type Seat = ModelSeat | ScriptedSeat
 
 
 @dataclass(frozen=True, slots=True)
+class Abandonment:
+    """Why a game produced no outcome: the failing decision, the refusal, and whose fault it was.
+
+    An abandoned game is not a loss. It is a game that stopped because its decision-maker could not
+    produce a legal action, and the record says so instead of inventing a terminal state (FR-7.5).
+    """
+
+    request_id: str
+    seat: PlayerId
+    model: str
+    provider: str
+    failure: str
+    attempts: int
+    redo_budget: int
+    final_rejection: Mapping[str, JsonValue] | None
+
+
+@dataclass(frozen=True, slots=True)
 class GameResult:
     """What one played game produced on disk."""
 
@@ -104,6 +129,10 @@ class GameResult:
     decisions: int
     actions: int
     completed: bool
+    abandonment: Abandonment | None = None
+    winner: PlayerId | None = None
+    scores: Mapping[str, int] = field(default_factory=dict)
+    model_seats: Mapping[PlayerId, str] = field(default_factory=dict)
 
 
 async def play_game(
@@ -143,6 +172,7 @@ async def play_game(
     game_id = facade.create_session(game, config, directory=directory)
     sidecar = DecisionSidecar(decision_path(directory, game_id))
     accounting = RunAccounting(price_table)
+    model_seats = {seat: spec.model for seat, spec in seats.items() if isinstance(spec, ModelSeat)}
     scripts = {
         seat: deque(spec.actions) for seat, spec in seats.items() if isinstance(spec, ScriptedSeat)
     }
@@ -199,6 +229,7 @@ async def play_game(
                 messages,
                 CompletionConfig(model=spec.model, sampling=spec.sampling),
             )
+            request_id = f"{game_id}-d{decisions + 1:04d}"
             entries = accounting.record_turn(turn, model=spec.model)
             if len(entries) != len(turn.attempts):
                 raise GameError("the accounting and the attempts disagree about the call count")
@@ -214,7 +245,7 @@ async def play_game(
                         seat=seat,
                         model=spec.model,
                         provider=spec.provider_id,
-                        request_id=f"{game_id}-d{decisions + 1:04d}",
+                        request_id=request_id,
                         attempt=attempt,
                         outcome=outcome,
                         rejection=_rejection_of(attempt, config),
@@ -228,15 +259,27 @@ async def play_game(
                 )
             decisions += 1
             if not turn.accepted:
-                raise GameAbortedError(
-                    f"seat {seat} ended its turn {turn.outcome.value}: "
-                    f"{turn.failure or turn.rejection}"
+                return _abandoned(
+                    game_id=game_id,
+                    directory=directory,
+                    manifest_path=manifest_path,
+                    sidecar=sidecar,
+                    seat=seat,
+                    request_id=request_id,
+                    spec=spec,
+                    turn=turn,
+                    config=config,
+                    policy=budgets,
+                    actions=actions,
+                    decisions=decisions,
+                    model_seats=model_seats,
+                    at=now(),
                 )
             if turn.action is None or not isinstance(turn.action.arguments, Mapping):
                 raise GameAbortedError(f"seat {seat} accepted no usable action")
             actions += 1
-        completed = facade.outcome(game_id) is not None
-        if not completed:
+        final = facade.outcome(game_id)
+        if final is None:
             raise GameAbortedError("the game stopped without a verdict")
         return GameResult(
             game_id=game_id,
@@ -246,9 +289,78 @@ async def play_game(
             decisions=decisions,
             actions=actions,
             completed=True,
+            winner=final.winner,
+            scores=dict(final.scores),
+            model_seats=model_seats,
         )
     finally:
         facade.end_session(game_id)
+
+
+def _abandoned(
+    *,
+    game_id: GameId,
+    directory: Path,
+    manifest_path: Path,
+    sidecar: DecisionSidecar,
+    seat: PlayerId,
+    request_id: str,
+    spec: ModelSeat,
+    turn: TurnResult,
+    config: RunConfig,
+    policy: TurnPolicy,
+    actions: int,
+    decisions: int,
+    model_seats: Mapping[PlayerId, str],
+    at: str,
+) -> GameResult:
+    """Stop the game where it is, record why, and return an incomplete result (FR-7.5).
+
+    The god log is closed without a terminal record; the sidecar gets one abandonment record
+    naming the failing decision and the seat that failed. No outcome is invented, so an abandoned
+    game stays distinguishable from a loss (FR-11.6).
+    """
+    last = turn.attempts[-1] if turn.attempts else None
+    final_rejection = _rejection_of(last, config) if last is not None else None
+    attempts = turn.redo_attempts if turn.redo_attempts else 1
+    failure = turn.failure or turn.outcome.value
+    sidecar.append_abandonment(
+        build_abandonment_record(
+            game_id=game_id,
+            request_id=request_id,
+            seat=seat,
+            model=spec.model,
+            provider=spec.provider_id,
+            attempts=attempts,
+            redo_budget=policy.redo_budget,
+            final_rejection=final_rejection,
+            failure=failure,
+            actions=actions,
+            at=at,
+            host=socket.gethostname(),
+            pid=os.getpid(),
+        )
+    )
+    return GameResult(
+        game_id=game_id,
+        directory=directory,
+        manifest_path=manifest_path,
+        sidecar_path=sidecar.path,
+        decisions=decisions,
+        actions=actions,
+        completed=False,
+        abandonment=Abandonment(
+            request_id=request_id,
+            seat=seat,
+            model=spec.model,
+            provider=spec.provider_id,
+            failure=failure,
+            attempts=attempts,
+            redo_budget=policy.redo_budget,
+            final_rejection=final_rejection,
+        ),
+        model_seats=model_seats,
+    )
 
 
 def _turn_attempt_outcome(attempt: Attempt, action: object) -> dict[str, JsonValue]:

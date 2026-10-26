@@ -505,8 +505,10 @@ def _verify(args: argparse.Namespace) -> int:
             failures += 1
             print(f"failed: {path}: {error}", file=sys.stderr)
             continue
+        status = "ok" if report.completed else "incomplete"
+        ending = "" if report.completed else ", no terminal record"
         print(
-            f"ok: {path}: {report.actions} action(s), {report.rejections} rejection(s), "
-            f"final hash {report.terminal_hash}"
+            f"{status}: {path}: {report.actions} action(s), {report.rejections} rejection(s), "
+            f"final hash {report.terminal_hash}{ending}"
         )
     return 1 if failures else 0

@@ -460,6 +460,50 @@ DECISION_SCHEMA: Final[JsonSchema] = {
     "decision turn, so a redo shows what it superseded",
 }
 
+# --- one abandonment record, a line of the same .meta.jsonl -------------------------------
+
+ABANDONMENT_SCHEMA: Final[JsonSchema] = {
+    "type": "object",
+    "required": [
+        "actions",
+        "at",
+        "attempts",
+        "failure",
+        "final_rejection",
+        "game_id",
+        "host",
+        "model",
+        "pid",
+        "player",
+        "provider",
+        "redo_budget",
+        "request_id",
+        "seat",
+        "t",
+    ],
+    "properties": {
+        "t": {"const": "abandonment"},
+        "at": _TEXT,
+        "host": _TEXT,
+        "pid": _COUNT,
+        "game_id": _TEXT,
+        "request_id": _TEXT,
+        "player": _COUNT,
+        "seat": _COUNT,
+        "model": _TEXT,
+        "provider": _TEXT,
+        "attempts": _COUNT,
+        "redo_budget": _COUNT,
+        "final_rejection": _REJECTION,
+        "failure": _TEXT,
+        "actions": _COUNT,
+    },
+    "additionalProperties": False,
+    "$comment": "the game produced no outcome: the failing decision, the refusal that ended it, "
+    "how much of the redo budget was spent, and whose seat and model failed (FR-7.5, FR-11.6a)",
+}
+
+
 GOD_LOG_FIELDS: Final[Mapping[str, frozenset[str]]] = MappingProxyType(
     {
         KIND_HEADER: frozenset(
@@ -522,3 +566,8 @@ def validate_manifest(record: Mapping[str, JsonValue]) -> list[str]:
 def validate_decision(record: Mapping[str, JsonValue]) -> list[str]:
     """Every way this decision record fails its declared shape, or an empty list when it fits."""
     return violations(dict(record), DECISION_SCHEMA, where="decision")
+
+
+def validate_abandonment(record: Mapping[str, JsonValue]) -> list[str]:
+    """Every way this abandonment record fails its declared shape, or an empty list when it fits."""
+    return violations(dict(record), ABANDONMENT_SCHEMA, where="abandonment")

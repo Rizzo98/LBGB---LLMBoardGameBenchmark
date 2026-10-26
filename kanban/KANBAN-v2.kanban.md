@@ -13,23 +13,6 @@
 
 
 
-### K-024 · Exhaustion abandons the game
-
-  - tags: [slice-5, policy, records, fr-7, sc-15]
-  - priority: high
-  - workload: Normal
-  - steps:
-      - [ ] Exhausting the redo budget stops the game and records it abandoned, with the failing decision, the final rejection, the attempt count and the responsible seat and model
-      - [ ] No synthetic terminal record is written
-      - [ ] verify reports an abandoned game as incomplete without failing the run
-      - [ ] An abandoned game is excluded from outcome aggregates and counted per model
-    ```md
-    - **Cuts through:** agents, the runner's game loop, the log, results
-    - **Depends on:** K-023
-    - **PRD:** FR-7.5, FR-11.6, FR-11.6a, FR-11.8, SC-15
-    - **Why:** A synthetic terminal record would make an abandoned game indistinguishable from a lost one, and the entire point is that they are different findings about a model.
-    ```
-
 ### K-025 · Failure kinds and the no-hang guarantee
 
   - tags: [slice-5, policy, fr-7, sc-10]
@@ -654,4 +637,23 @@
     - **Leak risk:** the redo turn is a channel through which L2 enumeration could reach an L0 model. FR-7.4 governs what it reveals, and K-012 is where that is proved.
     - **Evidence:** `lgbg/agents/loop.py` appends the engine's refusal as the tool result and then `PromptSet.redo_text(code)` as a user message, and calls the provider again in the same `TurnResult`; the redo callable is injected, so the loop still names no prompt file. `Attempt` now carries the provider-call index, the redo attempt it belongs to, the outcome (action, read, rejection or failure), the refusal it produced and the refusal that prompted it. `play_game` writes one decision record per provider call, each with the turn's `request_id`, so a retry shows what it superseded; the engine's `d<phase>.<seat>` ids repeat across phases, which is why the sidecar keeps its own per-decision id. `messages_from_run` gained an `attempt` selector, so any call of a decision turn is reconstructible from the run directory rather than only the last. `tests/agents/test_redo.py` plays the fixture game with seat 0 first spending without tokens and then taking legally: the two records share a request id, carry attempts 1 and 2, the second carries attempt 1's refusal at the run's detail tier, the retry's messages continue the first conversation, the redo sentence is present, and two model seats with two model ids receive the same budget and the same words. A deliberate mutation dropping the redo user message failed the prompt test, and an off-by-one in the recorded attempt failed the redo test; both were reverted. Gate: 1144 passed, 1 skipped.
     ```
+
+### K-024 · Exhaustion abandons the game
+
+  - tags: [slice-5, policy, records, fr-7, sc-15]
+  - priority: high
+  - workload: Normal
+  - steps:
+      - [x] Exhausting the redo budget stops the game and records it abandoned, with the failing decision, the final rejection, the attempt count and the responsible seat and model
+      - [x] No synthetic terminal record is written
+      - [x] verify reports an abandoned game as incomplete without failing the run
+      - [x] An abandoned game is excluded from outcome aggregates and counted per model
+    ```md
+    - **Cuts through:** agents, the runner's game loop, the log, results
+    - **Depends on:** K-023
+    - **PRD:** FR-7.5, FR-11.6, FR-11.6a, FR-11.8, SC-15
+    - **Why:** A synthetic terminal record would make an abandoned game indistinguishable from a lost one, and the entire point is that they are different findings about a model.
+    - **Evidence:** `play_game` no longer raises when a decision turn does not end in an action. It writes the failed turn's decision records, then one `abandonment` record and returns `GameResult(completed=False)`; `facade.end_session` closes the god log without a terminal line, so no verdict is invented. `lgbg/core/contracts.py` declares the abandonment record closed (the failing `request_id`, `final_rejection`, `attempts`, `redo_budget`, `seat`, `player`, `model`, `provider`, `failure` and `actions`), and `DecisionSidecar.append_abandonment` redacts and validates it before it reaches disk. `VerificationReport` gained `completed`, and `lgbg verify` prints `incomplete` with no terminal record while still exiting zero; `--strict` keeps its old meaning. `lgbg/agents/results.py` adds `summarise`: completed games count for every model in them, a win is the model whose seat the winner names, and an abandoned game is counted once for the responsible model and never as a loss. `tests/agents/test_abandonment.py` plays the fixture game with a model that always tries to spend without tokens: the result is incomplete, two refusals and one abandonment are recorded, the abandonment names the same request id and final refusal as the decision, the god log holds the two rejected actions and no terminal line, `verify` reports incomplete and the CLI exits zero, and a completed win plus an abandonment yields one completed game, one win, no loss and one abandonment for the same model. A deliberate mutation calling the abandoned result complete failed both the result assertion and the aggregate test, and was reverted. Gate: 1148 passed, 1 skipped.
+    ```
+
 

@@ -61,11 +61,17 @@ class ReplayError(Exception):
 
 @dataclass(frozen=True, slots=True)
 class VerificationReport:
-    """The result of walking a chain: counts, never a list of states (FR-4.4)."""
+    """The result of walking a chain: counts, never a list of states (FR-4.4).
+
+    'completed' says whether the record ends in a terminal line. An abandoned game verifies - its
+    actions still hash and replay - but it produced no outcome, and a verifier that called it
+    complete would make abandonment indistinguishable from a finish (FR-11.6a).
+    """
 
     actions: int
     rejections: int
     terminal_hash: str
+    completed: bool
 
 
 @dataclass(frozen=True, slots=True)
@@ -116,7 +122,12 @@ def verify(log: GameLog, game: Game) -> VerificationReport:
     actions = len(log.actions)
     rejections = sum(1 for record in log.actions if record.result.get("ok") is False)
     terminal_hash = _check_terminal(log, game, latest, actions, rejections)
-    return VerificationReport(actions=actions, rejections=rejections, terminal_hash=terminal_hash)
+    return VerificationReport(
+        actions=actions,
+        rejections=rejections,
+        terminal_hash=terminal_hash,
+        completed=log.terminal is not None,
+    )
 
 
 def projection_replay(log: GameLog, game: Game, player: PlayerId) -> list[Observation]:

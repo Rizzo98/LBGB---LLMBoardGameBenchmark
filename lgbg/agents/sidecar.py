@@ -86,7 +86,7 @@ def build_decision_record(
     if accounting.model != model:
         raise SidecarError(f"the accounting entry is for {accounting.model!r}, not {model!r}")
     completion = attempt.completion
-    metadata = completion.metadata
+    metadata = None if completion is None else completion.metadata
     return {
         "t": "decision",
         "at": at,
@@ -104,15 +104,35 @@ def build_decision_record(
         "attempt": attempt.attempt,
         "redo_budget": redo_budget,
         "messages": [message.to_mapping() for message in attempt.messages],
-        "response": completion.to_mapping(),
-        "wire": wire_of(completion),
+        "response": (
+            {"text": None, "tool_calls": None} if completion is None else completion.to_mapping()
+        ),
+        "wire": wire_of_attempt(attempt),
         "outcome": dict(outcome),
         "rejection": None if rejection is None else dict(rejection),
-        "usage": None if completion.usage is None else completion.usage.to_mapping(),
+        "usage": (
+            None
+            if completion is None or completion.usage is None
+            else completion.usage.to_mapping()
+        ),
         "cost_micro_usd": accounting.cost_micro_usd,
         "latency_ms": attempt.latency_ms,
         "failure": attempt.failure if failure is None else failure,
     }
+
+
+def wire_of_attempt(attempt: Attempt) -> dict[str, JsonValue] | None:
+    """The exchange a call carries, or None when a failed call never received one.
+
+    A successful call must carry an exchange (FR-5.4). A timed-out call has no completion to
+    carry it, so it uses the exchange the adapter attached to its error, and an adapter that
+    attached none is recorded as null rather than as a response that did not happen.
+    """
+    if attempt.wire is not None:
+        return attempt.wire.to_mapping()
+    if attempt.completion is None:
+        return None
+    return wire_of(attempt.completion)
 
 
 def build_abandonment_record(
@@ -123,6 +143,7 @@ def build_abandonment_record(
     model: str,
     provider: str,
     attempts: int,
+    calls: int,
     redo_budget: int,
     final_rejection: Mapping[str, JsonValue] | None,
     failure: str,
@@ -150,6 +171,7 @@ def build_abandonment_record(
         "model": model,
         "provider": provider,
         "attempts": attempts,
+        "calls": calls,
         "redo_budget": redo_budget,
         "final_rejection": None if final_rejection is None else dict(final_rejection),
         "failure": failure,
@@ -261,4 +283,5 @@ __all__: list[str] = [
     "decision_path",
     "messages_from_run",
     "wire_of",
+    "wire_of_attempt",
 ]

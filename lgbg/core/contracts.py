@@ -63,6 +63,19 @@ CONTEXT_STRATEGIES: Final[tuple[str, ...]] = ("bounded_window", "delta_with_refr
 ON_EXHAUSTED: Final[tuple[str, ...]] = ("abandon_game",)
 """What a decision turn does when its redo budget runs out (FR-7.5, Q3). One value, and declared."""
 
+FAILURE_KINDS: Final[tuple[str, ...]] = (
+    "malformed_arguments",
+    "no_action",
+    "redo_exhausted",
+    "runaway",
+    "timeout",
+)
+"""The declared ways a decision can fail (FR-7.10).
+
+Declared like v1's rejection codes so results can count them without parsing text. Each names a
+different budget and a different finding: malformed arguments are charged to the redo budget, a
+runaway and prose-only are not, and a timeout abandons by the same rule as exhaustion."""
+
 PRICE_UNITS: Final[tuple[str, ...]] = ("micro_usd_per_million_tokens",)
 """The unit a price table is expressed in. Integer units, for the reason the docstring gives."""
 
@@ -108,7 +121,18 @@ def _nullable(shape: JsonSchema) -> JsonSchema:
         declared_types = list(declared)
     else:
         declared_types = []
-    return {**shape, "type": [*declared_types, "null"]}
+    widened: dict[str, JsonValue] = {**shape, "type": [*declared_types, "null"]}
+    if "enum" in shape:
+        # A declared set that can be absent needs null in the set as well as in the type; a
+        # validator that checks enum before type would otherwise refuse the legitimate absence.
+        allowed = shape["enum"]
+        if isinstance(allowed, Sequence) and not isinstance(allowed, str):
+            widened["enum"] = [*allowed, None]
+        if not declared_types:
+            # An enum-only schema constrains by its set, not by a type: listing "null" alone
+            # would refuse every declared value.
+            widened.pop("type", None)
+    return widened
 
 
 _FALSE: Final[JsonSchema] = {"type": "boolean"}
@@ -452,7 +476,7 @@ DECISION_SCHEMA: Final[JsonSchema] = {
         "usage": _USAGE,
         "cost_micro_usd": _ANY_INT,
         "latency_ms": _COUNT,
-        "failure": _ANY_TEXT,
+        "failure": _nullable(_values(FAILURE_KINDS)),
     },
     "additionalProperties": False,
     "$comment": "seq is the god-log seq of the attempt this record accounts for, and null when the "
@@ -468,6 +492,7 @@ ABANDONMENT_SCHEMA: Final[JsonSchema] = {
         "actions",
         "at",
         "attempts",
+        "calls",
         "failure",
         "final_rejection",
         "game_id",
@@ -493,9 +518,10 @@ ABANDONMENT_SCHEMA: Final[JsonSchema] = {
         "model": _TEXT,
         "provider": _TEXT,
         "attempts": _COUNT,
+        "calls": _COUNT,
         "redo_budget": _COUNT,
         "final_rejection": _REJECTION,
-        "failure": _TEXT,
+        "failure": _values(FAILURE_KINDS),
         "actions": _COUNT,
     },
     "additionalProperties": False,

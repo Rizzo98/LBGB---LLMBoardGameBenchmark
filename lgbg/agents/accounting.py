@@ -86,7 +86,7 @@ class RunAccounting:
         return tuple(
             self.record(
                 model=model,
-                usage=attempt.completion.usage,
+                usage=None if attempt.completion is None else attempt.completion.usage,
                 latency_ms=attempt.latency_ms,
             )
             for attempt in result.attempts

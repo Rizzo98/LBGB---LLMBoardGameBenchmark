@@ -51,6 +51,7 @@ from lgbg.agents.providers.base import (
     ToolCall,
 )
 from lgbg.agents.surface import AgentSurface
+from lgbg.agents.wire import WireExchange
 
 
 class TurnOutcome(StrEnum):
@@ -103,7 +104,7 @@ class Attempt:
     """
 
     index: int
-    completion: Completion
+    completion: Completion | None
     latency_ms: int
     messages: tuple[Message, ...] = ()
     attempt: int = 1
@@ -112,6 +113,8 @@ class Attempt:
     prompted_by: str | None = None
     prompted_by_attempt: int | None = None
     failure: str | None = None
+    wire: WireExchange | None = None
+    """The exact exchange, when there is no completion to carry it (a timeout, FR-5.4)."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -188,21 +191,41 @@ class DecisionTurn:
                 self._converse(state, config), timeout=self._policy.decision_timeout_s
             )
         except TimeoutError:
+            state.calls += 1
+            state.attempts.append(
+                Attempt(
+                    index=state.calls,
+                    attempt=state.redo_attempts + 1,
+                    completion=None,
+                    latency_ms=0,
+                    messages=tuple(state.messages),
+                    outcome=AttemptOutcome.FAILURE,
+                    prompted_by=state.prompted_by,
+                    prompted_by_attempt=state.prompted_by_attempt,
+                    failure="timeout",
+                )
+            )
             return state.result(TurnOutcome.TIMEOUT, failure="timeout")
 
     async def _converse(self, state: _State, config: CompletionConfig) -> TurnResult:
         while state.calls < self._policy.step_budget:
             attempt = state.redo_attempts + 1
+            sent = tuple(state.messages)
             started = self._clock()
             try:
                 completion = await self._provider.complete(
                     state.messages, self._surface.tools, config
                 )
-            except ProviderTimeoutError:
-                return self._timed_out(state, started)
+            except ProviderTimeoutError as error:
+                return self._timed_out(
+                    state,
+                    started=started,
+                    sent=sent,
+                    attempt=attempt,
+                    wire=error.wire,
+                )
             latency = max(0, self._clock() - started)
             state.calls += 1
-            sent = tuple(state.messages)
             state.messages.append(
                 Message(
                     role=Role.ASSISTANT,
@@ -259,7 +282,7 @@ class DecisionTurn:
                         attempt=attempt,
                         outcome=AttemptOutcome.REJECTION,
                         rejection=answer.rejection,
-                        failure="redo_exhausted" if exhausted else None,
+                        failure=answer.failure or ("redo_exhausted" if exhausted else None),
                     )
                 )
                 state.rejection = answer.rejection
@@ -291,9 +314,37 @@ class DecisionTurn:
             state.attempts[-1] = replace(last, outcome=AttemptOutcome.FAILURE, failure="runaway")
         return state.result(TurnOutcome.STEP_BUDGET, failure="runaway")
 
-    def _timed_out(self, state: _State, started: int) -> TurnResult:
-        """A provider timeout ends the turn; K-025 records the failed call itself."""
-        del started
+    def _timed_out(
+        self,
+        state: _State,
+        *,
+        started: int,
+        sent: tuple[Message, ...],
+        attempt: int,
+        wire: WireExchange | None,
+    ) -> TurnResult:
+        """A provider timeout ends the turn and is recorded as the failed call it was (FR-7.8).
+
+        There is no completion to carry the exchange, so the call keeps the exchange the adapter
+        attached to its error. A timeout with no exchange is recorded as null rather than
+        pretending a response existed (FR-5.4).
+        """
+        latency = max(0, self._clock() - started)
+        state.calls += 1
+        state.attempts.append(
+            Attempt(
+                index=state.calls,
+                attempt=attempt,
+                completion=None,
+                latency_ms=latency,
+                messages=sent,
+                outcome=AttemptOutcome.FAILURE,
+                prompted_by=state.prompted_by,
+                prompted_by_attempt=state.prompted_by_attempt,
+                failure="timeout",
+                wire=wire,
+            )
+        )
         return state.result(TurnOutcome.TIMEOUT, failure="timeout")
 
 

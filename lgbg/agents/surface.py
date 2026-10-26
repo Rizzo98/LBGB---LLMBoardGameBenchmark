@@ -58,6 +58,8 @@ class ToolAnswer:
     accepted: bool
     payload: str
     rejection: str | None = None
+    failure: str | None = None
+    """The failure kind this answer should be recorded under, when it is one (FR-7.6)."""
 
 
 class AgentSurface(Protocol):
@@ -145,7 +147,11 @@ class FacadeSurface:
     async def act(self, call: ToolCall) -> ToolAnswer:
         """Submit one action attempt through the facade, rejection included (FR-1.6)."""
         if not isinstance(call.arguments, Mapping):
-            return _error("MALFORMED_ARGUMENTS", "the action arguments are not a JSON object")
+            return _error(
+                "MALFORMED_ARGUMENTS",
+                "the action arguments are not a JSON object",
+                failure="malformed_arguments",
+            )
         try:
             result = self._facade.submit_action(
                 self._session_id,
@@ -206,11 +212,12 @@ def _read_tool(name: str) -> ToolSpec:
     return ToolSpec(name=name, description=descriptions[name], input_schema=dict(_READ_SCHEMA))
 
 
-def _error(code: str, message: str) -> ToolAnswer:
+def _error(code: str, message: str, *, failure: str | None = None) -> ToolAnswer:
     return ToolAnswer(
         accepted=False,
         payload=to_canonical_json({"ok": False, "error": code, "message": message}),
         rejection=code,
+        failure=failure,
     )
 
 

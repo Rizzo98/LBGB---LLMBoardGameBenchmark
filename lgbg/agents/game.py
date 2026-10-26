@@ -114,6 +114,7 @@ class Abandonment:
     provider: str
     failure: str
     attempts: int
+    calls: int
     redo_budget: int
     final_rejection: Mapping[str, JsonValue] | None
 
@@ -322,7 +323,8 @@ def _abandoned(
     """
     last = turn.attempts[-1] if turn.attempts else None
     final_rejection = _rejection_of(last, config) if last is not None else None
-    attempts = turn.redo_attempts if turn.redo_attempts else 1
+    attempts = turn.redo_attempts
+    calls = len(turn.attempts)
     failure = turn.failure or turn.outcome.value
     sidecar.append_abandonment(
         build_abandonment_record(
@@ -332,6 +334,7 @@ def _abandoned(
             model=spec.model,
             provider=spec.provider_id,
             attempts=attempts,
+            calls=calls,
             redo_budget=policy.redo_budget,
             final_rejection=final_rejection,
             failure=failure,
@@ -356,6 +359,7 @@ def _abandoned(
             provider=spec.provider_id,
             failure=failure,
             attempts=attempts,
+            calls=calls,
             redo_budget=policy.redo_budget,
             final_rejection=final_rejection,
         ),

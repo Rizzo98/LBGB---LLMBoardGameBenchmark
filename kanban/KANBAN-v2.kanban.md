@@ -13,23 +13,6 @@
 
 
 
-### K-025 · Failure kinds and the no-hang guarantee
-
-  - tags: [slice-5, policy, fr-7, sc-10]
-  - priority: high
-  - workload: Normal
-  - steps:
-      - [ ] Failure kinds are an enumerable, declared set, like v1's rejection codes
-      - [ ] Malformed tool call, prose-only, timeout and runaway are each handled and charged to the correct budget
-      - [ ] A runaway does not consume a redo; prose-only does not consume a redo either
-      - [ ] Every mock behaviour terminates, completed or abandoned
-    ```md
-    - **Cuts through:** agents, the mock provider, the log, results
-    - **Depends on:** K-024
-    - **PRD:** FR-7.6 to FR-7.11, SC-10, NFR-4
-    - **Why:** Charging every failure to the same budget would misreport why a game ended. A looping model never proposed an illegal move, so its record must not say it did.
-    ```
-
 ### K-026 · Context policy
 
   - tags: [slice-5, context, fr-8]
@@ -655,5 +638,24 @@
     - **Why:** A synthetic terminal record would make an abandoned game indistinguishable from a lost one, and the entire point is that they are different findings about a model.
     - **Evidence:** `play_game` no longer raises when a decision turn does not end in an action. It writes the failed turn's decision records, then one `abandonment` record and returns `GameResult(completed=False)`; `facade.end_session` closes the god log without a terminal line, so no verdict is invented. `lgbg/core/contracts.py` declares the abandonment record closed (the failing `request_id`, `final_rejection`, `attempts`, `redo_budget`, `seat`, `player`, `model`, `provider`, `failure` and `actions`), and `DecisionSidecar.append_abandonment` redacts and validates it before it reaches disk. `VerificationReport` gained `completed`, and `lgbg verify` prints `incomplete` with no terminal record while still exiting zero; `--strict` keeps its old meaning. `lgbg/agents/results.py` adds `summarise`: completed games count for every model in them, a win is the model whose seat the winner names, and an abandoned game is counted once for the responsible model and never as a loss. `tests/agents/test_abandonment.py` plays the fixture game with a model that always tries to spend without tokens: the result is incomplete, two refusals and one abandonment are recorded, the abandonment names the same request id and final refusal as the decision, the god log holds the two rejected actions and no terminal line, `verify` reports incomplete and the CLI exits zero, and a completed win plus an abandonment yields one completed game, one win, no loss and one abandonment for the same model. A deliberate mutation calling the abandoned result complete failed both the result assertion and the aggregate test, and was reverted. Gate: 1148 passed, 1 skipped.
     ```
+
+### K-025 · Failure kinds and the no-hang guarantee
+
+  - tags: [slice-5, policy, fr-7, sc-10]
+  - priority: high
+  - workload: Normal
+  - steps:
+      - [x] Failure kinds are an enumerable, declared set, like v1's rejection codes
+      - [x] Malformed tool call, prose-only, timeout and runaway are each handled and charged to the correct budget
+      - [x] A runaway does not consume a redo; prose-only does not consume a redo either
+      - [x] Every mock behaviour terminates, completed or abandoned
+    ```md
+    - **Cuts through:** agents, the mock provider, the log, results
+    - **Depends on:** K-024
+    - **PRD:** FR-7.6 to FR-7.11, SC-10, NFR-4
+    - **Why:** Charging every failure to the same budget would misreport why a game ended. A looping model never proposed an illegal move, so its record must not say it did.
+    - **Evidence:** `lgbg/core/contracts.py` declares `FAILURE_KINDS` - `malformed_arguments`, `no_action`, `redo_exhausted`, `runaway`, `timeout` - and both the decision record and the abandonment record are closed over that set, so a failure kind results cannot count is a schema violation. A malformed tool call reaches `FacadeSurface.act` as raw text and comes back as `MALFORMED_ARGUMENTS` with the declared failure kind, and the loop charges it to the redo budget; prose-only and a runaway are recorded as `no_action` and `runaway` without touching that budget; a timeout is recorded as a failed call with no completion, its exact exchange when the adapter attached one, unknown usage and, in the end, an abandoned game. `Abandonment` gained `calls`, so the redo attempts and the provider calls are both visible. `tests/agents/test_failures.py` drives every mock behaviour through the fixture game: always-illegal and malformed abandon with two redo attempts, prose-only and runaway abandon with none, timeout abandons with usage and cost unknown and its wire intact, correct play still completes, and the five behaviours are the declared set. A deliberate mutation that stopped charging malformed calls to the redo budget failed the malformed test, and one that charged a runaway to the redo budget failed the runaway test; both were reverted. Gate: 1159 passed, 1 skipped.
+    ```
+
 
 

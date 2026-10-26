@@ -41,6 +41,17 @@ def tool_definitions(game: Game) -> list[dict[str, JsonValue]]:
     return definitions
 
 
+def describe_read(game: Game, read: str, *, game_id: str, player: int | None = None) -> str:
+    """One resource's display name, derived from the plugin and the session, never hand-written.
+
+    A resource's URI is a protocol shape; its name is prompt surface, and FR-9.5 requires that
+    surface to have one generator. The game's own name comes from its declaration, and the read and
+    seat are protocol facts, so adding a game adds no line here.
+    """
+    seat = "" if player is None else f" for seat {player}"
+    return f"{game.name} {read} in {game_id}{seat}"
+
+
 def parameters(declared: JsonValue) -> dict[str, JsonSchema]:
     """The parameters a declared action takes, by name, across every alternative shape.
 

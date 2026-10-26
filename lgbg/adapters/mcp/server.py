@@ -47,7 +47,13 @@ from lgbg.core.canonical import to_canonical_json
 from lgbg.core.config import DEFAULT_DETAIL_FOR_ASSIST, AssistLevel, GameConfig, RunConfig
 from lgbg.core.game import Applied, Game, get_game
 from lgbg.core.run import AmbiguousRequestError
-from lgbg.core.tools import DESCRIPTION, INPUT_SCHEMA, NAME, tool_definitions
+from lgbg.core.tools import (
+    DESCRIPTION,
+    INPUT_SCHEMA,
+    NAME,
+    describe_read,
+    tool_definitions,
+)
 from lgbg.core.types import Action, GameId, JsonValue, PlayerId
 from lgbg.host.facade import SessionError, SessionFacade, SessionNotFoundError
 
@@ -208,7 +214,9 @@ class McpSurface:
             for player in self._known_players[game_id]:
                 resources.append(
                     types.Resource(
-                        name=f"{game_id} state for seat {player}",
+                        name=describe_read(
+                            self._plugin, STATE_RESOURCE, game_id=game_id, player=player
+                        ),
                         uri=cast("Any", _uri(self.game, game_id, STATE_RESOURCE, player=player)),
                         mimeType="text/plain",
                     )
@@ -217,7 +225,7 @@ class McpSurface:
                 continue
             resources.append(
                 types.Resource(
-                    name=f"{game_id} pending decisions",
+                    name=describe_read(self._plugin, DECISIONS_RESOURCE, game_id=game_id),
                     uri=cast("Any", _uri(self.game, game_id, DECISIONS_RESOURCE)),
                     mimeType="application/json",
                 )
@@ -225,7 +233,9 @@ class McpSurface:
             for player in self._known_players[game_id]:
                 resources.append(
                     types.Resource(
-                        name=f"{game_id} decision surface for seat {player}",
+                        name=describe_read(
+                            self._plugin, SURFACE_RESOURCE, game_id=game_id, player=player
+                        ),
                         uri=cast("Any", _uri(self.game, game_id, SURFACE_RESOURCE, player=player)),
                         mimeType="text/plain",
                     )

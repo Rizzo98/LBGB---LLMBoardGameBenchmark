@@ -13,23 +13,6 @@
 
 
 
-### K-020 · Prompt assembly and hash enforcement
-
-  - tags: [slice-4, agents, fr-9, sc-5]
-  - priority: high
-  - workload: Normal
-  - steps:
-      - [ ] Separable layers: the game's game.md, a role system.md, a policy policy.md, and the shared redo prompt (the fourth arrives in slice 5)
-      - [ ] Every artefact used in a run is hashed into the manifest, not only the game prompt
-      - [ ] Hashes are recomputed before every game, and a mismatch aborts the run
-      - [ ] Tool and resource descriptions derive from the plugin rather than being hand-written
-    ```md
-    - **Cuts through:** agents, core/prompts, the manifest, the MCP surface
-    - **Depends on:** K-019
-    - **PRD:** FR-9.1 to FR-9.6, SC-5
-    - **Why:** A prompt edited mid-run turns one experiment into two, and nothing in the results would show it. Rehashing before every game is cheap and makes that failure impossible.
-    ```
-
 ### K-021 · Cost and token accounting
 
   - tags: [slice-4, accounting, fr-13]
@@ -654,5 +637,21 @@
     - **Depends on:** K-018, K-009
     - **PRD:** FR-6.1 to FR-6.6
     - **Why:** The single place where a convenience would become a confound. Every line of help added here is invisible in the results and permanent in the comparison.
-    - **Evidence:** `lgbg/agents/loop.py` is `DecisionTurn`: one conversation, one provider call at a time, ending in exactly one of `ACCEPTED`, `REDO_EXHAUSTED`, `STEP_BUDGET` or `TIMEOUT` (plus a recorded `NO_ACTION` for prose, which slice 5 turns into a named failure). The step budget counts provider calls; the redo budget counts refused actions, so reads do not consume retries. A rejection appends the engine's own answer as a tool message and continues the same conversation; an accepted action ends it. Every appended message is the provider's answer or a tool result - no system or user message is ever added after the caller's initial list. Reads are executed only when the model calls one and only if the surface offers it; otherwise the call is answered as an error without touching the facade. The loop imports only the Provider protocol and the AgentSurface protocol, and a source scan rejects any adapter, HTTP or MCP name in it. `lgbg/agents/surface.py` implements `FacadeSurface`: action tools come from the same `tool_definitions` generator as the MCP server, reads map onto the facade's projection, pending decisions and decision surface, and actions go through `submit_action`. The refusal view is injected rather than named, so the assist tier cannot enter the agent layer; a deliberate mutation that let a read through when reads were not configured failed the unconfigured-read test, and an off-by-one step budget failed the runaway test; both were reverted. `tests/agents/test_loop.py` (12 tests) and `tests/agents/test_surface.py` (11 tests) cover every ending, a read before acting, the no-unconfigured-help rule, purity, the generated tool list and a mock model playing one decision through the real facade. Gate: 1115 passed, 1 skipped.
+
+### K-020 · Prompt assembly and hash enforcement
+
+  - tags: [slice-4, agents, fr-9, sc-5]
+  - priority: high
+  - workload: Normal
+  - steps:
+      - [x] Separable layers: the game's game.md, a role system.md, a policy policy.md, and the shared redo prompt (the fourth arrives in slice 5)
+      - [x] Every artefact used in a run is hashed into the manifest, not only the game prompt
+      - [x] Hashes are recomputed before every game, and a mismatch aborts the run
+      - [x] Tool and resource descriptions derive from the plugin rather than being hand-written
+    ```md
+    - **Cuts through:** agents, core/prompts, the manifest, the MCP surface
+    - **Depends on:** K-019
+    - **PRD:** FR-9.1 to FR-9.6, SC-5
+    - **Why:** A prompt edited mid-run turns one experiment into two, and nothing in the results would show it. Rehashing before every game is cheap and makes that failure impossible.
+    - **Evidence:** `lgbg/agents/prompting.py` declares `PromptSet`: four separable layers read from `lgbg/games/<game>/prompts/game.md` and the shared `lgbg/agents/prompts/{system,policy,redo}.md`, each hashed through v1's `core.prompts.digest`. `hashes()` produces the manifest's four hashes and the fixture manifest validates with them; `verify(expected)` re-reads every source file before a game and raises `PromptHashError` naming the changed, missing or unexpected layer. `initial_messages(state)` keeps each layer in its own system message and the position in the user message, rather than blending them. `redo_text(rejection)` performs the one substitution the shared redo artefact permits, so slice 5 has one wording to use. The fourth layer exists as an artefact now; its loop behaviour arrives with K-023. Tool descriptions already came from `core.tools.tool_definitions`; resource names now come from `core.tools.describe_read`, which the MCP server uses instead of its own f-strings, so both surfaces have one generator. `tests/agents/test_prompting.py` (12 tests) covers separability, the catan artefacts, all four manifest hashes, rehash-after-edit, expected-hash mismatch, a missing layer, initial message order, the shared redo text, the game-prompt convention, and the tool and resource generators. A deliberate mutation making `verify` compare against the in-memory hashes instead of re-reading the files failed the edit test and was reverted. Gate: 1127 passed, 1 skipped.
     ```

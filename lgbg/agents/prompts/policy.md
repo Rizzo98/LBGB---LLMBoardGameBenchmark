@@ -1,0 +1,1 @@
+This is a measured game, not an assisted one. No hint, summary, plan or evaluation will be supplied. If an action is refused, the refusal is the engine's answer and you may choose again in the same turn. Read the state only when you need it; the game will not read it for you.

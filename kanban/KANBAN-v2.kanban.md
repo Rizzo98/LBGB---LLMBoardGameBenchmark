@@ -13,24 +13,6 @@
 
 
 
-### K-019 · The tool loop and the decision turn
-
-  - tags: [slice-4, loop, fr-6]
-  - priority: high
-  - workload: Hard
-  - defaultExpanded: true
-  - steps:
-      - [ ] One decision turn is one conversation, ending on an accepted action, redo exhaustion, step budget exhaustion, or timeout
-      - [ ] Bounded read tool calls are allowed before acting
-      - [ ] The loop is provider-agnostic and contains no provider branching
-      - [ ] It offers the model no help that was not configured: no hints, no summarisation, no re-reading state on its behalf
-    ```md
-    - **Cuts through:** agents, the provider protocol, the MCP surface, the facade
-    - **Depends on:** K-018, K-009
-    - **PRD:** FR-6.1 to FR-6.6
-    - **Why:** The single place where a convenience would become a confound. Every line of help added here is invisible in the results and permanent in the comparison.
-    ```
-
 ### K-020 · Prompt assembly and hash enforcement
 
   - tags: [slice-4, agents, fr-9, sc-5]
@@ -654,4 +636,23 @@
     - **Depends on:** K-017
     - **PRD:** FR-15.2, SC-9
     - **Evidence:** `lgbg/agents/providers/conformance.py` is the shared suite: `failures(...)` drives one `complete` call and returns every way the adapter breaks the seam - structural `Provider`, exactly one attempt, offered tool names, known-or-unknown usage, metadata model and native-tool flag, a parseable verbatim exchange whose request names the model, no supplied secret in the record, and a response mapping of exactly `{text, tool_calls}`. It belongs to the package rather than to a test file, so an adapter author can run it without pytest. `tests/agents/providers/test_provider_conformance.py` runs the same function over four scenarios: the mock with known usage, the mock with unknown usage, OpenRouter with native tools, and OpenRouter through the text protocol - the model without native tool calling. Two negative controls prove the suite has teeth: a completion with no exchange and an adapter that performs two attempts each fail the same assertions, so a new adapter cannot pass by returning a plausible answer. A deliberate mutation making the mock drop its exchange failed both mock scenarios and was reverted. Gate: 1092 passed, 1 skipped.
+    ```
+
+### K-019 · The tool loop and the decision turn
+
+  - tags: [slice-4, loop, fr-6]
+  - priority: high
+  - workload: Hard
+  - defaultExpanded: true
+  - steps:
+      - [x] One decision turn is one conversation, ending on an accepted action, redo exhaustion, step budget exhaustion, or timeout
+      - [x] Bounded read tool calls are allowed before acting
+      - [x] The loop is provider-agnostic and contains no provider branching
+      - [x] It offers the model no help that was not configured: no hints, no summarisation, no re-reading state on its behalf
+    ```md
+    - **Cuts through:** agents, the provider protocol, the MCP surface, the facade
+    - **Depends on:** K-018, K-009
+    - **PRD:** FR-6.1 to FR-6.6
+    - **Why:** The single place where a convenience would become a confound. Every line of help added here is invisible in the results and permanent in the comparison.
+    - **Evidence:** `lgbg/agents/loop.py` is `DecisionTurn`: one conversation, one provider call at a time, ending in exactly one of `ACCEPTED`, `REDO_EXHAUSTED`, `STEP_BUDGET` or `TIMEOUT` (plus a recorded `NO_ACTION` for prose, which slice 5 turns into a named failure). The step budget counts provider calls; the redo budget counts refused actions, so reads do not consume retries. A rejection appends the engine's own answer as a tool message and continues the same conversation; an accepted action ends it. Every appended message is the provider's answer or a tool result - no system or user message is ever added after the caller's initial list. Reads are executed only when the model calls one and only if the surface offers it; otherwise the call is answered as an error without touching the facade. The loop imports only the Provider protocol and the AgentSurface protocol, and a source scan rejects any adapter, HTTP or MCP name in it. `lgbg/agents/surface.py` implements `FacadeSurface`: action tools come from the same `tool_definitions` generator as the MCP server, reads map onto the facade's projection, pending decisions and decision surface, and actions go through `submit_action`. The refusal view is injected rather than named, so the assist tier cannot enter the agent layer; a deliberate mutation that let a read through when reads were not configured failed the unconfigured-read test, and an off-by-one step budget failed the runaway test; both were reverted. `tests/agents/test_loop.py` (12 tests) and `tests/agents/test_surface.py` (11 tests) cover every ending, a read before acting, the no-unconfigured-help rule, purity, the generated tool list and a mock model playing one decision through the real facade. Gate: 1115 passed, 1 skipped.
     ```

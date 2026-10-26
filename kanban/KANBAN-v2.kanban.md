@@ -13,21 +13,6 @@
 
 
 
-### K-018 · Provider conformance suite
-
-  - tags: [slice-3, test, fr-5, sc-9]
-  - priority: medium
-  - workload: Normal
-  - steps:
-      - [ ] One shared suite that both the mock and OpenRouter pass
-      - [ ] It covers a model without native tool calling
-      - [ ] A new adapter can be added by making the suite pass, with no change to the loop
-    ```md
-    - **Cuts through:** every adapter, the tool loop, the test suite
-    - **Depends on:** K-017
-    - **PRD:** FR-15.2, SC-9
-    ```
-
 ### K-019 · The tool loop and the decision turn
 
   - tags: [slice-4, loop, fr-6]
@@ -653,4 +638,20 @@
     - **PRD:** FR-5.4, FR-5.5, FR-10.4, FR-10.5, NFR-7
     - **Why:** A record that cannot answer what the model was shown is not evidence. The redaction requirement is what makes recording the raw payload safe.
     - **Evidence:** `lgbg/agents/wire.py` declares `WireExchange`: the exact request and response bodies as text, the status, and both header maps. `WireExchange.capture` removes a credential before the value exists - sensitive header names become `[redacted]`, any known secret is replaced wherever it appears, and a body is otherwise untouched. `lgbg/core/canonical.py` gains `to_wire_json`, the one serializer that may emit the provider's float-valued JSON, kept beside the canonical serializer so the layering rule still holds. Both adapters attach the exchange to every answer: OpenRouter serializes the body itself and sends those bytes, records the gateway's exact response text, and carries the exchange on `ProviderError` for a failed call; the mock records the request it was given and the response it would have returned, so no behavior is unrecorded. `lgbg/agents/sidecar.py` is the writer: it redacts the whole record with the run's secrets, validates it against K-002's closed decision schema, and only then appends one canonical line under a lock. The schema gains a required `wire` object, and the fixture carries one. `tests/agents/test_wire.py` (7 tests) and `tests/agents/test_sidecar.py` (7 tests) cover exact bodies, redaction by header name and by secret, nested credential fields, round-tripping, the schema gate, and the no-write-on-refusal guarantee; `test_openrouter.py` adds the exact-request/exact-response and failed-call cases, and `test_mock.py` proves every mock answer has an exchange. A deliberate mutation that stopped redacting sensitive header names failed the redaction test and was reverted. Gate: 1085 passed, 1 skipped.
+    ```
+
+### K-018 · Provider conformance suite
+
+  - tags: [slice-3, test, fr-5, sc-9]
+  - priority: medium
+  - workload: Normal
+  - steps:
+      - [x] One shared suite that both the mock and OpenRouter pass
+      - [x] It covers a model without native tool calling
+      - [x] A new adapter can be added by making the suite pass, with no change to the loop
+    ```md
+    - **Cuts through:** every adapter, the tool loop, the test suite
+    - **Depends on:** K-017
+    - **PRD:** FR-15.2, SC-9
+    - **Evidence:** `lgbg/agents/providers/conformance.py` is the shared suite: `failures(...)` drives one `complete` call and returns every way the adapter breaks the seam - structural `Provider`, exactly one attempt, offered tool names, known-or-unknown usage, metadata model and native-tool flag, a parseable verbatim exchange whose request names the model, no supplied secret in the record, and a response mapping of exactly `{text, tool_calls}`. It belongs to the package rather than to a test file, so an adapter author can run it without pytest. `tests/agents/providers/test_provider_conformance.py` runs the same function over four scenarios: the mock with known usage, the mock with unknown usage, OpenRouter with native tools, and OpenRouter through the text protocol - the model without native tool calling. Two negative controls prove the suite has teeth: a completion with no exchange and an adapter that performs two attempts each fail the same assertions, so a new adapter cannot pass by returning a plausible answer. A deliberate mutation making the mock drop its exchange failed both mock scenarios and was reverted. Gate: 1092 passed, 1 skipped.
     ```

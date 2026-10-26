@@ -431,7 +431,10 @@ class SidecarWriter:
     def __init__(self, path: Path, *, clock: Callable[[], str] | None = None) -> None:
         self._path = path
         path.parent.mkdir(parents=True, exist_ok=True)
-        self._handle: IO[str] = path.open("w", encoding="utf-8", newline="\n")
+        # Append, not truncate: the v2 decision records are appended to the same companion while
+        # the game runs, and this writer adds the game-level record when it finishes. A truncating
+        # handle opened first would overwrite the decisions at offset zero (K-022).
+        self._handle: IO[str] = path.open("a", encoding="utf-8", newline="\n")
         self._clock = _utc_now if clock is None else clock
 
     def write(self, kind: str, payload: Mapping[str, JsonValue]) -> None:

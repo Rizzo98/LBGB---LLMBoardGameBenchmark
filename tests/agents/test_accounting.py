@@ -150,11 +150,13 @@ def test_a_decision_turn_records_every_attempt_with_its_latency() -> None:
             usage=Usage(prompt_tokens=1_000, completion_tokens=1_000, total_tokens=2_000),
         ),
         latency_ms=42,
+        messages=(),
     )
     second = Attempt(
         index=2,
         completion=Completion(text=None, tool_calls=None, usage=None),
         latency_ms=7,
+        messages=(),
     )
     result = TurnResult(
         outcome=TurnOutcome.ACCEPTED,

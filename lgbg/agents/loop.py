@@ -76,11 +76,12 @@ class TurnPolicy:
 
 @dataclass(frozen=True, slots=True)
 class Attempt:
-    """One provider call: its answer and how long the provider took to produce it (FR-13.1)."""
+    """One provider call: what it was sent, what it answered and how long it took (FR-10.4)."""
 
     index: int
     completion: Completion
     latency_ms: int
+    messages: tuple[Message, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -167,7 +168,12 @@ class DecisionTurn:
             latency = max(0, self._clock() - started)
             state.calls += 1
             state.attempts.append(
-                Attempt(index=state.calls, completion=completion, latency_ms=latency)
+                Attempt(
+                    index=state.calls,
+                    completion=completion,
+                    latency_ms=latency,
+                    messages=tuple(state.messages),
+                )
             )
             state.messages.append(
                 Message(

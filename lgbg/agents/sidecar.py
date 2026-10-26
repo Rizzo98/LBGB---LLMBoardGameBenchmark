@@ -25,6 +25,8 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from threading import Lock
 
+from lgbg.agents.accounting import DecisionUsage
+from lgbg.agents.loop import Attempt
 from lgbg.agents.providers.base import CallMetadata, Completion
 from lgbg.agents.wire import redact
 from lgbg.core.canonical import to_canonical_json
@@ -53,6 +55,85 @@ def wire_of(completion: Completion) -> dict[str, JsonValue]:
     if metadata is None or metadata.wire is None:
         raise SidecarError("the completion carries no recorded request/response exchange")
     return metadata.wire.to_mapping()
+
+
+def build_decision_record(
+    *,
+    game_id: GameId,
+    seat: int,
+    model: str,
+    provider: str,
+    request_id: str,
+    attempt: Attempt,
+    outcome: Mapping[str, JsonValue],
+    accounting: DecisionUsage,
+    redo_budget: int,
+    at: str,
+    host: str,
+    pid: int,
+    seq: int | None,
+    rejection: Mapping[str, JsonValue] | None = None,
+    failure: str | None = None,
+) -> dict[str, JsonValue]:
+    """One sidecar line: the exact request, the exact response, and what came of it (FR-10.3).
+
+    The messages come from the attempt, not from the final conversation, because a redo turn's
+    later messages are not what the earlier request was shown. A turn with no captured messages is
+    refused rather than written as an empty list, which would make the record silently useless.
+    """
+    if not attempt.messages:
+        raise SidecarError("the attempt carries no request messages")
+    if accounting.model != model:
+        raise SidecarError(f"the accounting entry is for {accounting.model!r}, not {model!r}")
+    completion = attempt.completion
+    metadata = completion.metadata
+    return {
+        "t": "decision",
+        "at": at,
+        "host": host,
+        "pid": pid,
+        "game_id": game_id,
+        "seq": seq,
+        "request_id": request_id,
+        "player": seat,
+        "seat": seat,
+        "model": model,
+        "provider": provider,
+        "route": None if metadata is None else metadata.route,
+        "native_tools": False if metadata is None else metadata.native_tools,
+        "attempt": attempt.index,
+        "redo_budget": redo_budget,
+        "messages": [message.to_mapping() for message in attempt.messages],
+        "response": completion.to_mapping(),
+        "wire": wire_of(completion),
+        "outcome": dict(outcome),
+        "rejection": None if rejection is None else dict(rejection),
+        "usage": None if completion.usage is None else completion.usage.to_mapping(),
+        "cost_micro_usd": accounting.cost_micro_usd,
+        "latency_ms": attempt.latency_ms,
+        "failure": failure,
+    }
+
+
+def messages_from_run(
+    run_directory: Path, game_id: GameId, request_id: str
+) -> list[dict[str, JsonValue]]:
+    """The exact messages one decision was sent, read from the run directory and nothing else.
+
+    This is the reader SC-4 asks for: it needs no provider, no prompt file and no live game. A
+    decision with a redo has several records; the last one is the conversation that produced the
+    final answer, which is the one a reader reconstructs.
+    """
+    found: dict[str, JsonValue] | None = None
+    for record in DecisionSidecar(decision_path(run_directory, game_id)).records():
+        if record.get("request_id") == request_id:
+            found = record
+    if found is None:
+        raise SidecarError(f"no decision record for {request_id!r}")
+    messages = found.get("messages")
+    if not isinstance(messages, list):
+        raise SidecarError(f"decision {request_id!r} carries no message list")
+    return [dict(message) for message in messages if isinstance(message, dict)]
 
 
 class DecisionSidecar:
@@ -110,6 +191,8 @@ def _load(line: str, number: int) -> dict[str, JsonValue]:
 __all__: list[str] = [
     "DecisionSidecar",
     "SidecarError",
+    "build_decision_record",
     "decision_path",
+    "messages_from_run",
     "wire_of",
 ]

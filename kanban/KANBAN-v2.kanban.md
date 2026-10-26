@@ -13,25 +13,6 @@
 
 
 
-### K-023 · The redo loop
-
-  - tags: [slice-5, policy, fr-7, sc-15]
-  - priority: high
-  - workload: Normal
-  - defaultExpanded: true
-  - steps:
-      - [ ] A rejected action returns to the model inside the same decision turn, not as a fresh turn
-      - [ ] The redo prompt is one shared artefact, hashed like any other prompt
-      - [ ] The redo budget is a config value, identical for every model and every seat
-      - [ ] The attempt index and the rejection that prompted each retry are recorded per attempt
-    ```md
-    - **Cuts through:** agents, the facade, the sidecar, the manifest, core/assist
-    - **Depends on:** K-022
-    - **PRD:** FR-7.1 to FR-7.4, FR-9.6, SC-15
-    - **Why:** The table blocking an illegal move and asking the player to redo it, not a forfeit and not a substitute. It works because it never supplies a choice the model failed to make.
-    - **Leak risk:** the redo turn is a channel through which L2 enumeration could reach an L0 model. FR-7.4 governs what it reveals, and K-012 is where that is proved.
-    ```
-
 ### K-024 · Exhaustion abandons the game
 
   - tags: [slice-5, policy, records, fr-7, sc-15]
@@ -653,3 +634,24 @@
     - **Slice exit:** the first record in this project that contains a model's actual play, and is still verifiable.
     - **Evidence:** `lgbg/agents/game.py` drives one game through the facade and the loop. A `ModelSeat` owns a Provider; a `ScriptedSeat` submits recorded `Action`s directly, with no provider and no sidecar. `play_game` verifies the prompt hashes, writes a manifest that validates against K-002, creates the session in a run directory, and for every model decision builds the initial conversation from `PromptSet.initial_messages(facade.decision_surface(...))`, runs one `DecisionTurn`, records the accounting, and appends a decision record. `Attempt` now carries the exact messages it was sent, so `build_decision_record` writes the request that was actually made rather than the final conversation. `messages_from_run` reads a decision's message list from the sidecar alone. K-022 also exposed a real collision: the v1 `SidecarWriter` opened the companion with `w` and wrote its game record at offset zero when the game ended, overwriting the decision lines; it now opens in append mode, so the one `.meta.jsonl` carries both record types. `tests/agents/test_play_game.py` plays the committed 743-action Catan fixture with seat 0 as the model seat and seats 1-3 as scripts: 187 model decisions land in the sidecar, each `seq` names the matching god-log action, the manifest validates as one LLM plus three scripted seats, v1's `verify` reports 743 actions and no rejections, `replay` yields all 744 states, and a copied run directory reconstructs every decision's exact messages. Two deliberate mutations - an off-by-one sidecar `seq`, and skipping the decision write - each failed the integration test and were reverted. Gate: 1139 passed, 1 skipped.
     ```
+
+### K-023 · The redo loop
+
+  - tags: [slice-5, policy, fr-7, sc-15]
+  - priority: high
+  - workload: Normal
+  - defaultExpanded: true
+  - steps:
+      - [x] A rejected action returns to the model inside the same decision turn, not as a fresh turn
+      - [x] The redo prompt is one shared artefact, hashed like any other prompt
+      - [x] The redo budget is a config value, identical for every model and every seat
+      - [x] The attempt index and the rejection that prompted each retry are recorded per attempt
+    ```md
+    - **Cuts through:** agents, the facade, the sidecar, the manifest, core/assist
+    - **Depends on:** K-022
+    - **PRD:** FR-7.1 to FR-7.4, FR-9.6, SC-15
+    - **Why:** The table blocking an illegal move and asking the player to redo it, not a forfeit and not a substitute. It works because it never supplies a choice the model failed to make.
+    - **Leak risk:** the redo turn is a channel through which L2 enumeration could reach an L0 model. FR-7.4 governs what it reveals, and K-012 is where that is proved.
+    - **Evidence:** `lgbg/agents/loop.py` appends the engine's refusal as the tool result and then `PromptSet.redo_text(code)` as a user message, and calls the provider again in the same `TurnResult`; the redo callable is injected, so the loop still names no prompt file. `Attempt` now carries the provider-call index, the redo attempt it belongs to, the outcome (action, read, rejection or failure), the refusal it produced and the refusal that prompted it. `play_game` writes one decision record per provider call, each with the turn's `request_id`, so a retry shows what it superseded; the engine's `d<phase>.<seat>` ids repeat across phases, which is why the sidecar keeps its own per-decision id. `messages_from_run` gained an `attempt` selector, so any call of a decision turn is reconstructible from the run directory rather than only the last. `tests/agents/test_redo.py` plays the fixture game with seat 0 first spending without tokens and then taking legally: the two records share a request id, carry attempts 1 and 2, the second carries attempt 1's refusal at the run's detail tier, the retry's messages continue the first conversation, the redo sentence is present, and two model seats with two model ids receive the same budget and the same words. A deliberate mutation dropping the redo user message failed the prompt test, and an off-by-one in the recorded attempt failed the redo test; both were reverted. Gate: 1144 passed, 1 skipped.
+    ```
+

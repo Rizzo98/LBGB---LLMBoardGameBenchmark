@@ -101,7 +101,7 @@ def build_decision_record(
         "provider": provider,
         "route": None if metadata is None else metadata.route,
         "native_tools": False if metadata is None else metadata.native_tools,
-        "attempt": attempt.index,
+        "attempt": attempt.attempt,
         "redo_budget": redo_budget,
         "messages": [message.to_mapping() for message in attempt.messages],
         "response": completion.to_mapping(),
@@ -111,25 +111,35 @@ def build_decision_record(
         "usage": None if completion.usage is None else completion.usage.to_mapping(),
         "cost_micro_usd": accounting.cost_micro_usd,
         "latency_ms": attempt.latency_ms,
-        "failure": failure,
+        "failure": attempt.failure if failure is None else failure,
     }
 
 
 def messages_from_run(
-    run_directory: Path, game_id: GameId, request_id: str
+    run_directory: Path,
+    game_id: GameId,
+    request_id: str,
+    *,
+    attempt: int | None = None,
 ) -> list[dict[str, JsonValue]]:
-    """The exact messages one decision was sent, read from the run directory and nothing else.
+    """The exact messages one call was sent, read from the run directory and nothing else.
 
     This is the reader SC-4 asks for: it needs no provider, no prompt file and no live game. A
-    decision with a redo has several records; the last one is the conversation that produced the
-    final answer, which is the one a reader reconstructs.
+    decision with a redo has several records sharing one request id; without an attempt number the
+    last one is returned, which is the call that produced the final answer. Naming an attempt
+    returns the call that belonged to it, so every retry can be reconstructed, not only the last
+    (FR-7.3, FR-10.4).
     """
     found: dict[str, JsonValue] | None = None
     for record in DecisionSidecar(decision_path(run_directory, game_id)).records():
-        if record.get("request_id") == request_id:
-            found = record
+        if record.get("request_id") != request_id:
+            continue
+        if attempt is not None and record.get("attempt") != attempt:
+            continue
+        found = record
     if found is None:
-        raise SidecarError(f"no decision record for {request_id!r}")
+        wanted = "" if attempt is None else f" attempt {attempt}"
+        raise SidecarError(f"no decision record for {request_id!r}{wanted}")
     messages = found.get("messages")
     if not isinstance(messages, list):
         raise SidecarError(f"decision {request_id!r} carries no message list")

@@ -21,6 +21,12 @@ or a model: a new adapter passes the conformance suite (K-018) and the loop does
 reading is stopped. The redo budget counts refused actions, so a model that reads more does not lose
 retries. The distinction matters because the two failures mean different things (FR-7.9).
 
+**A refusal is answered in the same conversation (FR-7.1).** The engine's refusal is appended as the
+tool result, then the one shared redo prompt is appended as a user message, and the provider is
+called again. There is no new turn and no substituted action: the model keeps the transcript it
+built and chooses again. The redo callable is injected rather than imported, so the loop still knows
+no prompt file and no provider (FR-7.2, FR-9.6).
+
 **Reads are data.** A read tool call is executed only when the model makes it, through the surface,
 and its result is appended as a tool message. When reads are not configured they are not offered and
 a call to one is answered as an error, not served.
@@ -31,7 +37,7 @@ from __future__ import annotations
 import asyncio
 import time
 from collections.abc import Callable, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from enum import StrEnum
 from typing import Final
 
@@ -74,14 +80,38 @@ class TurnPolicy:
             raise ValueError("decision_timeout_s must be positive")
 
 
+class AttemptOutcome(StrEnum):
+    """What one provider call produced: an action, a read, a refusal or a failure.
+
+    A call is the unit recorded in the sidecar, because a call is the unit of model interaction
+    (FR-10.3). 'attempt' is narrower: it counts the submissions against the redo budget, so a read
+    made before acting belongs to the same attempt as the action that follows it.
+    """
+
+    ACTION = "action"
+    READ = "read"
+    REJECTION = "rejection"
+    FAILURE = "failure"
+
+
 @dataclass(frozen=True, slots=True)
 class Attempt:
-    """One provider call: what it was sent, what it answered and how long it took (FR-10.4)."""
+    """One provider call: what it was sent, what it answered and how long it took (FR-10.4).
+
+    The call carries the attempt it belongs to and the refusal that prompted it, so a redo can be
+    reconstructed attempt by attempt rather than inferred from the final record (FR-7.3, FR-10.3).
+    """
 
     index: int
     completion: Completion
     latency_ms: int
     messages: tuple[Message, ...] = ()
+    attempt: int = 1
+    outcome: AttemptOutcome = AttemptOutcome.ACTION
+    rejection: str | None = None
+    prompted_by: str | None = None
+    prompted_by_attempt: int | None = None
+    failure: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -111,6 +141,8 @@ class _State:
     redo_attempts: int = 0
     action: ToolCall | None = None
     rejection: str | None = None
+    prompted_by: str | None = None
+    prompted_by_attempt: int | None = None
 
     def result(self, outcome: TurnOutcome, *, failure: str | None = None) -> TurnResult:
         return TurnResult(
@@ -133,11 +165,13 @@ class DecisionTurn:
         surface: AgentSurface,
         *,
         policy: TurnPolicy | None = None,
+        redo: Callable[[str], str] | None = None,
         clock: Callable[[], int] | None = None,
     ) -> None:
         self._provider = provider
         self._surface = surface
         self._policy = policy or TurnPolicy()
+        self._redo = redo
         self._clock = _monotonic_millis if clock is None else clock
 
     async def run(
@@ -158,23 +192,17 @@ class DecisionTurn:
 
     async def _converse(self, state: _State, config: CompletionConfig) -> TurnResult:
         while state.calls < self._policy.step_budget:
+            attempt = state.redo_attempts + 1
             started = self._clock()
             try:
                 completion = await self._provider.complete(
                     state.messages, self._surface.tools, config
                 )
             except ProviderTimeoutError:
-                return state.result(TurnOutcome.TIMEOUT, failure="timeout")
+                return self._timed_out(state, started)
             latency = max(0, self._clock() - started)
             state.calls += 1
-            state.attempts.append(
-                Attempt(
-                    index=state.calls,
-                    completion=completion,
-                    latency_ms=latency,
-                    messages=tuple(state.messages),
-                )
-            )
+            sent = tuple(state.messages)
             state.messages.append(
                 Message(
                     role=Role.ASSISTANT,
@@ -184,25 +212,115 @@ class DecisionTurn:
             )
             calls = tuple(completion.tool_calls or ())
             if not calls:
+                state.attempts.append(
+                    _attempt(
+                        state,
+                        sent=sent,
+                        completion=completion,
+                        latency_ms=latency,
+                        attempt=attempt,
+                        outcome=AttemptOutcome.FAILURE,
+                        failure="no_action",
+                    )
+                )
                 return state.result(TurnOutcome.NO_ACTION, failure="no_action")
+
+            acted = False
             for position, call in enumerate(calls):
                 if call.name in self._surface.read_names:
                     answer = await self._surface.read(call)
                     state.messages.append(_tool_message(call, answer.payload))
                     continue
+                acted = True
                 answer = await self._surface.act(call)
                 state.messages.append(_tool_message(call, answer.payload))
                 if answer.accepted:
                     state.action = call
+                    state.attempts.append(
+                        _attempt(
+                            state,
+                            sent=sent,
+                            completion=completion,
+                            latency_ms=latency,
+                            attempt=attempt,
+                            outcome=AttemptOutcome.ACTION,
+                        )
+                    )
                     return state.result(TurnOutcome.ACCEPTED)
+
                 state.redo_attempts += 1
+                exhausted = state.redo_attempts >= self._policy.redo_budget
+                state.attempts.append(
+                    _attempt(
+                        state,
+                        sent=sent,
+                        completion=completion,
+                        latency_ms=latency,
+                        attempt=attempt,
+                        outcome=AttemptOutcome.REJECTION,
+                        rejection=answer.rejection,
+                        failure="redo_exhausted" if exhausted else None,
+                    )
+                )
                 state.rejection = answer.rejection
-                if state.redo_attempts >= self._policy.redo_budget:
-                    _unanswered(state, calls[position + 1 :])
-                    return state.result(TurnOutcome.REDO_EXHAUSTED, failure="redo_exhausted")
+                state.prompted_by = answer.rejection
+                state.prompted_by_attempt = attempt
                 _unanswered(state, calls[position + 1 :])
+                if exhausted:
+                    return state.result(TurnOutcome.REDO_EXHAUSTED, failure="redo_exhausted")
+                if self._redo is not None and answer.rejection is not None:
+                    state.messages.append(
+                        Message(role=Role.USER, content=self._redo(answer.rejection))
+                    )
                 break
-        return state.result(TurnOutcome.STEP_BUDGET, failure="step_budget")
+
+            if not acted:
+                state.attempts.append(
+                    _attempt(
+                        state,
+                        sent=sent,
+                        completion=completion,
+                        latency_ms=latency,
+                        attempt=attempt,
+                        outcome=AttemptOutcome.READ,
+                    )
+                )
+
+        if state.attempts:
+            last = state.attempts[-1]
+            state.attempts[-1] = replace(last, outcome=AttemptOutcome.FAILURE, failure="runaway")
+        return state.result(TurnOutcome.STEP_BUDGET, failure="runaway")
+
+    def _timed_out(self, state: _State, started: int) -> TurnResult:
+        """A provider timeout ends the turn; K-025 records the failed call itself."""
+        del started
+        return state.result(TurnOutcome.TIMEOUT, failure="timeout")
+
+
+def _attempt(
+    state: _State,
+    *,
+    sent: tuple[Message, ...],
+    completion: Completion,
+    latency_ms: int,
+    attempt: int,
+    outcome: AttemptOutcome,
+    rejection: str | None = None,
+    failure: str | None = None,
+) -> Attempt:
+    """One provider call, carrying the attempt it belongs to and what prompted it."""
+    return Attempt(
+        index=state.calls,
+        attempt=attempt,
+        completion=completion,
+        latency_ms=latency_ms,
+        messages=sent,
+        outcome=outcome,
+        rejection=rejection,
+        prompted_by=state.prompted_by,
+        prompted_by_attempt=state.prompted_by_attempt,
+        failure=failure,
+    )
 
 
 def _tool_message(call: ToolCall, payload: str) -> Message:
@@ -221,6 +339,7 @@ def _monotonic_millis() -> int:
 
 __all__: Final[list[str]] = [
     "Attempt",
+    "AttemptOutcome",
     "DecisionTurn",
     "TurnOutcome",
     "TurnPolicy",

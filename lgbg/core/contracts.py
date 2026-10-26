@@ -218,7 +218,7 @@ _OUTCOME: Final[JsonSchema] = {
         {
             "type": "object",
             "required": ["kind"],
-            "properties": {"kind": _values(("failure", "rejection"))},
+            "properties": {"kind": _values(("failure", "read", "rejection"))},
             "additionalProperties": False,
         },
     ]

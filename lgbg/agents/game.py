@@ -29,10 +29,10 @@ from typing import Final
 
 from lgbg import __version__
 from lgbg.agents.accounting import RunAccounting
-from lgbg.agents.loop import DecisionTurn, TurnPolicy
+from lgbg.agents.loop import Attempt, AttemptOutcome, DecisionTurn, TurnPolicy
 from lgbg.agents.pricing import PriceTable
 from lgbg.agents.prompting import PromptSet
-from lgbg.agents.providers.base import CompletionConfig, Provider, Sampling
+from lgbg.agents.providers.base import CompletionConfig, Provider, Sampling, ToolCall
 from lgbg.agents.sidecar import (
     DecisionSidecar,
     build_decision_record,
@@ -160,13 +160,19 @@ async def play_game(
         if isinstance(spec, ModelSeat)
     }
     turns = {
-        seat: DecisionTurn(spec.provider, surfaces[seat], policy=budgets)
+        seat: DecisionTurn(
+            spec.provider,
+            surfaces[seat],
+            policy=budgets,
+            redo=prompts.redo_text,
+        )
         for seat, spec in seats.items()
         if isinstance(spec, ModelSeat)
     }
     now = _utc_now if clock is None else clock
     actions = 0
     decisions = 0
+    attempted = 0
     try:
         while True:
             pending = facade.pending_decisions(game_id)
@@ -179,12 +185,13 @@ async def play_game(
                 raise GameAbortedError(f"seat {seat} has no agent")
             if isinstance(spec, ScriptedSeat):
                 action = scripts[seat].popleft()
-                result = facade.submit_action(game_id, action)
+                result = facade.submit_action(game_id, action, request_id=decision.request_id)
                 if not isinstance(result, Applied):
                     raise GameAbortedError(
                         f"scripted seat {seat} was refused: {result.rejection.code.code}"
                     )
                 actions += 1
+                attempted += 1
                 continue
             state = facade.decision_surface(game_id, seat)
             messages = prompts.initial_messages(state)
@@ -192,41 +199,41 @@ async def play_game(
                 messages,
                 CompletionConfig(model=spec.model, sampling=spec.sampling),
             )
+            entries = accounting.record_turn(turn, model=spec.model)
+            if len(entries) != len(turn.attempts):
+                raise GameError("the accounting and the attempts disagree about the call count")
+            for entry, attempt in zip(entries, turn.attempts, strict=True):
+                outcome = _turn_attempt_outcome(attempt, turn.action)
+                seq = None
+                if attempt.outcome in {AttemptOutcome.ACTION, AttemptOutcome.REJECTION}:
+                    seq = attempted
+                    attempted += 1
+                sidecar.append(
+                    build_decision_record(
+                        game_id=game_id,
+                        seat=seat,
+                        model=spec.model,
+                        provider=spec.provider_id,
+                        request_id=f"{game_id}-d{decisions + 1:04d}",
+                        attempt=attempt,
+                        outcome=outcome,
+                        rejection=_rejection_of(attempt, config),
+                        accounting=entry,
+                        redo_budget=budgets.redo_budget,
+                        at=now(),
+                        host=socket.gethostname(),
+                        pid=os.getpid(),
+                        seq=seq,
+                    )
+                )
+            decisions += 1
             if not turn.accepted:
                 raise GameAbortedError(
                     f"seat {seat} ended its turn {turn.outcome.value}: "
                     f"{turn.failure or turn.rejection}"
                 )
-            entries = accounting.record_turn(turn, model=spec.model)
-            attempt = turn.attempts[-1]
-            accepted_call = turn.action
-            if accepted_call is None or not isinstance(accepted_call.arguments, Mapping):
+            if turn.action is None or not isinstance(turn.action.arguments, Mapping):
                 raise GameAbortedError(f"seat {seat} accepted no usable action")
-            outcome: dict[str, JsonValue] = {
-                "kind": "action",
-                "action": {
-                    "type": accepted_call.name,
-                    "params": dict(accepted_call.arguments),
-                },
-            }
-            sidecar.append(
-                build_decision_record(
-                    game_id=game_id,
-                    seat=seat,
-                    model=spec.model,
-                    provider=spec.provider_id,
-                    request_id=f"{game_id}-d{decisions + 1:04d}",
-                    attempt=attempt,
-                    outcome=outcome,
-                    accounting=entries[-1],
-                    redo_budget=budgets.redo_budget,
-                    at=now(),
-                    host=socket.gethostname(),
-                    pid=os.getpid(),
-                    seq=actions,
-                )
-            )
-            decisions += 1
             actions += 1
         completed = facade.outcome(game_id) is not None
         if not completed:
@@ -242,6 +249,35 @@ async def play_game(
         )
     finally:
         facade.end_session(game_id)
+
+
+def _turn_attempt_outcome(attempt: Attempt, action: object) -> dict[str, JsonValue]:
+    """What one recorded call produced, in the decision record's declared outcome shape."""
+    if attempt.outcome is not AttemptOutcome.ACTION:
+        return {"kind": attempt.outcome.value}
+    if not isinstance(action, ToolCall) or not isinstance(action.arguments, Mapping):
+        raise GameError("an accepted attempt carries no usable action")
+    return {
+        "kind": "action",
+        "action": {"type": action.name, "params": dict(action.arguments)},
+    }
+
+
+def _rejection_of(attempt: Attempt, config: RunConfig) -> dict[str, JsonValue] | None:
+    """The refusal this record carries: its own when refused, the prompting one when retried.
+
+    The tier is the run's, not the engine's: the record stores which tier the player was shown, so
+    an L0 redo and an L2 redo are distinguishable even though the engine's refusal is the same
+    (FR-7.4).
+    """
+    number: int | None
+    if attempt.outcome is AttemptOutcome.REJECTION:
+        code, number = attempt.rejection, attempt.attempt
+    else:
+        code, number = attempt.prompted_by, attempt.prompted_by_attempt
+    if code is None or number is None:
+        return None
+    return {"code": code, "detail": config.rejection_detail.value, "attempt": number}
 
 
 def build_manifest(

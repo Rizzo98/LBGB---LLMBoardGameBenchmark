@@ -130,6 +130,7 @@ def test_the_decision_shape_carries_what_the_card_names() -> None:
         "outcome",
         "messages",
         "response",
+        "wire",
     } <= required
 
 

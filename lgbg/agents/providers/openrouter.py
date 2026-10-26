@@ -53,6 +53,7 @@ from lgbg.agents.providers.base import (
     ToolSpec,
     Usage,
 )
+from lgbg.agents.wire import WireExchange, encode_request
 from lgbg.core.canonical import to_canonical_json
 from lgbg.core.contracts import PRICE_UNITS
 
@@ -196,8 +197,10 @@ class OpenRouterProvider:
             payload["tools"] = [_wire_tool(tool) for tool in tools]
             payload["tool_choice"] = "auto"
 
-        body = await self._request(self.chat_url, payload=payload)
-        return _completion(body, config=config, native=native, text_protocol=text_protocol)
+        body, wire = await self._request(self.chat_url, payload=payload)
+        return _completion(
+            body, config=config, native=native, text_protocol=text_protocol, wire=wire
+        )
 
     async def read_pricing(self, models: Sequence[str]) -> PriceTable:
         """The gateway's prices for these models, in the manifest's unit and stamped."""
@@ -232,7 +235,7 @@ class OpenRouterProvider:
         """The gateway's model listing, read once per adapter (FR-5.9)."""
         if self._models is not None:
             return self._models
-        body = await self._request(self.models_url)
+        body, _ = await self._request(self.models_url)
         data = body.get("data")
         if not isinstance(data, list):
             raise ProviderError("the gateway's model listing has no data array")
@@ -247,31 +250,78 @@ class OpenRouterProvider:
 
     async def _request(
         self, url: str, *, payload: Mapping[str, Any] | None = None
-    ) -> Mapping[str, Any]:
-        """One HTTP exchange. A transport failure is a provider failure, never a retry."""
-        headers = {"Authorization": f"Bearer {self._api_key}"}
+    ) -> tuple[Mapping[str, Any], WireExchange]:
+        """One HTTP exchange, recorded verbatim. A failure is a provider failure, never a retry.
+
+        The body is serialised here rather than by the client, because the recorded request has
+        to be the bytes that were sent, not a second rendering of the object that produced them
+        (FR-5.4). The response is recorded as the gateway wrote it, including a failed one.
+        """
+        request_text = None if payload is None else encode_request(payload)
+        headers = {
+            "Authorization": f"Bearer {self._api_key}",
+            "Accept": "application/json",
+        }
+        if request_text is not None:
+            headers["Content-Type"] = "application/json"
         try:
-            if payload is None:
+            if request_text is None:
                 response = await self._client.get(url, headers=headers)
             else:
-                response = await self._client.post(url, headers=headers, json=payload)
+                response = await self._client.post(url, headers=headers, content=request_text)
         except httpx.TimeoutException as error:
-            raise ProviderTimeoutError(f"the gateway timed out at {url}") from error
+            raise ProviderTimeoutError(
+                f"the gateway timed out at {url}",
+                wire=self._wire(request_text, None, None, headers, {}),
+            ) from error
         except httpx.HTTPError as error:
-            raise ProviderError(f"the gateway could not be reached: {error}") from error
+            raise ProviderError(
+                f"the gateway could not be reached: {error}",
+                wire=self._wire(request_text, None, None, headers, {}),
+            ) from error
+        wire = self._wire(
+            request_text,
+            response.text,
+            response.status_code,
+            headers,
+            dict(response.headers),
+        )
         if response.status_code >= 400:
             raise ProviderError(
-                f"the gateway answered {response.status_code}: {_error_message(response)}"
+                f"the gateway answered {response.status_code}: {_error_message(response)}",
+                wire=wire,
             )
         try:
             body: Any = response.json()
         except ValueError as error:
-            raise ProviderError("the gateway answered with something that is not JSON") from error
+            raise ProviderError(
+                "the gateway answered with something that is not JSON", wire=wire
+            ) from error
         if not isinstance(body, Mapping):
-            raise ProviderError("the gateway answered with a non-object JSON value")
+            raise ProviderError("the gateway answered with a non-object JSON value", wire=wire)
         if body.get("error") is not None:
-            raise ProviderError(f"the gateway reported an error: {_error_text(body['error'])}")
-        return body
+            raise ProviderError(
+                f"the gateway reported an error: {_error_text(body['error'])}", wire=wire
+            )
+        return body, wire
+
+    def _wire(
+        self,
+        request: str | None,
+        response: str | None,
+        status_code: int | None,
+        request_headers: Mapping[str, str],
+        response_headers: Mapping[str, str],
+    ) -> WireExchange:
+        """One exchange with the key removed before any record can see it (FR-5.4, NFR-7)."""
+        return WireExchange.capture(
+            request=request,
+            response=response,
+            status_code=status_code,
+            request_headers=request_headers,
+            response_headers=response_headers,
+            secrets=(self._api_key,),
+        )
 
 
 # --- wire translation ----------------------------------------------------------------------
@@ -322,6 +372,7 @@ def _completion(
     config: CompletionConfig,
     native: bool,
     text_protocol: bool,
+    wire: WireExchange,
 ) -> Completion:
     choices = body.get("choices")
     if not isinstance(choices, list) or not choices:
@@ -354,6 +405,7 @@ def _completion(
             model=config.model,
             route=route if isinstance(route, str) else None,
             native_tools=native,
+            wire=wire,
         ),
     )
 

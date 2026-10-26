@@ -32,7 +32,6 @@ import httpx
 import pytest
 
 from lgbg.agents.providers.base import (
-    CallMetadata,
     CompletionConfig,
     Message,
     Provider,
@@ -179,7 +178,11 @@ def test_a_native_tool_call_is_parsed_and_recorded() -> None:
     completion = run(gateway, lambda provider: provider.complete(MESSAGES, TOOLS, CONFIG))
 
     assert completion.tool_calls == (ToolCall(id="call-1", name="take", arguments={}),)
-    assert completion.metadata == CallMetadata(model=MODEL, route="upstream-a", native_tools=True)
+    assert completion.metadata is not None
+    assert completion.metadata.model == MODEL
+    assert completion.metadata.route == "upstream-a"
+    assert completion.metadata.native_tools is True
+    assert completion.metadata.wire is not None
     payload = json.loads(gateway.chat_requests[0].content)
     assert payload["model"] == MODEL
     assert payload["messages"] == [{"role": "user", "content": "It is your turn."}]
@@ -202,6 +205,46 @@ def test_a_native_tool_call_is_parsed_and_recorded() -> None:
     assert gateway.model_requests[0].headers["authorization"] == "Bearer test-key"
 
 
+def test_the_completion_carries_the_exact_exchange() -> None:
+    body = completion_payload(tool_calls=[native_call()])
+    gateway = Gateway(models_payload(), [body])
+
+    completion = run(gateway, lambda provider: provider.complete(MESSAGES, TOOLS, CONFIG))
+
+    assert completion.metadata is not None
+    wire = completion.metadata.wire
+    assert wire is not None
+    sent = gateway.chat_requests[0]
+    assert wire.request == sent.content.decode("utf-8")
+    assert json.loads(wire.response or "") == body
+    assert wire.status_code == 200
+    assert wire.request_headers["Authorization"] == "[redacted]"
+    assert sent.headers["authorization"] == "Bearer test-key"
+    assert "test-key" not in json.dumps(wire.to_mapping())
+
+
+def test_a_gateway_error_still_carries_the_exchange() -> None:
+    response_text = '{"error": {"message": "upstream exploded"}}'
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path.endswith("/models"):
+            return httpx.Response(200, json=models_payload())
+        return httpx.Response(
+            500,
+            content=response_text,
+            headers={"content-type": "application/json"},
+        )
+
+    with pytest.raises(ProviderError) as raised:
+        run(handler, lambda provider: provider.complete(MESSAGES, TOOLS, CONFIG))
+
+    wire = raised.value.wire
+    assert wire is not None
+    assert wire.status_code == 500
+    assert wire.response == response_text
+    assert json.loads(wire.request or "")["model"] == MODEL
+
+
 def test_a_model_without_native_tools_gets_the_text_protocol() -> None:
     body = '{"tool": "take", "arguments": {}}'
     gateway = Gateway(models_payload(tools=False), [completion_payload(content=body)])
@@ -212,6 +255,7 @@ def test_a_model_without_native_tools_gets_the_text_protocol() -> None:
     assert completion.tool_calls == (ToolCall(id="gen-1-text", name="take", arguments={}),)
     assert completion.metadata is not None
     assert completion.metadata.native_tools is False
+    assert completion.metadata.wire is not None
     payload = json.loads(gateway.chat_requests[0].content)
     assert "tools" not in payload
     assert payload["messages"][0] == {"role": "system", "content": TEXT_PROTOCOL}

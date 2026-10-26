@@ -145,6 +145,23 @@ def test_runaway_keeps_making_calls_and_never_stops() -> None:
     assert provider.calls == 20, "the behaviour is a runaway, not one long call"
 
 
+def test_every_mock_answer_carries_its_exchange() -> None:
+    completion = complete(
+        MockProvider(
+            Behaviour.CORRECT_PLAY, action=ToolCall(id="call-1", name="take", arguments={})
+        )
+    )
+
+    assert completion.metadata is not None
+    wire = completion.metadata.wire
+    assert wire is not None
+    assert wire.request is not None
+    assert json.loads(wire.request)["model"] == CONFIG.model
+    assert wire.response is not None
+    assert json.loads(wire.response)["tool_calls"][0]["name"] == "take"
+    assert wire.status_code == 200
+
+
 def test_usage_is_known_by_default_and_can_be_omitted() -> None:
     action = ToolCall(id="call-1", name="take", arguments={})
     known = complete(MockProvider(Behaviour.CORRECT_PLAY, action=action))

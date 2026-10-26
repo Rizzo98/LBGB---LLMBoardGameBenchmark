@@ -171,6 +171,29 @@ _USAGE: Final[JsonSchema] = _nullable(
     }
 )
 
+_WIRE: Final[JsonSchema] = _nullable(
+    {
+        "type": "object",
+        "required": [
+            "request",
+            "request_headers",
+            "response",
+            "response_headers",
+            "status_code",
+        ],
+        "properties": {
+            "request": _ANY_TEXT,
+            "response": _ANY_TEXT,
+            "status_code": _ANY_INT,
+            "request_headers": {"type": "object", "additionalProperties": _TEXT},
+            "response_headers": {"type": "object", "additionalProperties": _TEXT},
+        },
+        "additionalProperties": False,
+        "$comment": "the exact bodies sent and received, as text; credentials already redacted "
+        "(FR-5.4, FR-10.5, NFR-7)",
+    }
+)
+
 _REJECTION: Final[JsonSchema] = _nullable(
     {
         "type": "object",
@@ -400,6 +423,7 @@ DECISION_SCHEMA: Final[JsonSchema] = {
         "response",
         "route",
         "seat",
+        "wire",
         "seq",
         "t",
         "usage",
@@ -422,6 +446,7 @@ DECISION_SCHEMA: Final[JsonSchema] = {
         "redo_budget": _COUNT,
         "messages": {"type": "array", "items": _MESSAGE, "minItems": 1},
         "response": _RESPONSE,
+        "wire": _WIRE,
         "outcome": _OUTCOME,
         "rejection": _REJECTION,
         "usage": _USAGE,

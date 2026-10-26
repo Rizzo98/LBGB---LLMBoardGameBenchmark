@@ -32,6 +32,7 @@ from lgbg.agents.providers.base import (
     ToolSpec,
     Usage,
 )
+from lgbg.agents.wire import WireExchange, encode_request
 
 NAME: Final[str] = "mock"
 VERSION: Final[str] = "1"
@@ -107,43 +108,55 @@ class MockProvider:
         tools: Sequence[ToolSpec],
         config: CompletionConfig,
     ) -> Completion:
-        del messages
         self._calls += 1
-        metadata = CallMetadata(model=config.model, route=None, native_tools=True)
+        request = encode_request(_wire_request(messages, tools, config))
         if self._behaviour is Behaviour.TIMEOUT:
-            raise ProviderTimeoutError("the mock timed out")
+            raise ProviderTimeoutError(
+                "the mock timed out",
+                wire=_wire(request, None, None),
+            )
         if self._behaviour is Behaviour.PROSE_ONLY:
-            return Completion(text=PROSE, tool_calls=None, usage=self._usage, metadata=metadata)
+            return _answer(
+                request, config.model, Completion(text=PROSE, tool_calls=None, usage=self._usage)
+            )
         if self._behaviour is Behaviour.MALFORMED_ARGUMENTS:
             name = tools[0].name if tools else DEFAULT_TOOL
-            return Completion(
-                text=None,
-                tool_calls=(
-                    ToolCall(
-                        id=f"mock-malformed-{self._calls}",
-                        name=name,
-                        arguments=MALFORMED_ARGUMENTS,
+            return _answer(
+                request,
+                config.model,
+                Completion(
+                    text=None,
+                    tool_calls=(
+                        ToolCall(
+                            id=f"mock-malformed-{self._calls}",
+                            name=name,
+                            arguments=MALFORMED_ARGUMENTS,
+                        ),
                     ),
+                    usage=self._usage,
                 ),
-                usage=self._usage,
-                metadata=metadata,
             )
         if self._behaviour is Behaviour.RUNAWAY:
-            return Completion(
-                text=None,
-                tool_calls=(
-                    ToolCall(
-                        id=f"mock-runaway-{self._calls}",
-                        name=RUNAWAY_TOOL,
-                        arguments={},
+            return _answer(
+                request,
+                config.model,
+                Completion(
+                    text=None,
+                    tool_calls=(
+                        ToolCall(
+                            id=f"mock-runaway-{self._calls}",
+                            name=RUNAWAY_TOOL,
+                            arguments={},
+                        ),
                     ),
+                    usage=self._usage,
                 ),
-                usage=self._usage,
-                metadata=metadata,
             )
         if self._behaviour is Behaviour.ALWAYS_ILLEGAL:
-            return Completion(
-                text=None, tool_calls=(self._actions[0],), usage=self._usage, metadata=metadata
+            return _answer(
+                request,
+                config.model,
+                Completion(text=None, tool_calls=(self._actions[0],), usage=self._usage),
             )
         if self._next_action >= len(self._actions):
             raise MockScriptError(
@@ -151,7 +164,59 @@ class MockProvider:
             )
         action = self._actions[self._next_action]
         self._next_action += 1
-        return Completion(text=None, tool_calls=(action,), usage=self._usage, metadata=metadata)
+        return _answer(
+            request,
+            config.model,
+            Completion(text=None, tool_calls=(action,), usage=self._usage),
+        )
+
+
+def _wire_request(
+    messages: Sequence[Message],
+    tools: Sequence[ToolSpec],
+    config: CompletionConfig,
+) -> dict[str, object]:
+    """What this provider was asked, in the shape a record can read without knowing it is mock."""
+    return {
+        "max_tokens": config.max_tokens,
+        "messages": [message.to_mapping() for message in messages],
+        "model": config.model,
+        "sampling": config.sampling.to_mapping(),
+        "tools": [
+            {
+                "description": tool.description,
+                "input_schema": dict(tool.input_schema),
+                "name": tool.name,
+            }
+            for tool in tools
+        ],
+    }
+
+
+def _wire(request: str, response: str | None, status_code: int | None) -> WireExchange:
+    return WireExchange.capture(
+        request=request,
+        response=response,
+        status_code=status_code,
+        request_headers={"protocol": "mock"},
+        response_headers={"protocol": "mock"},
+    )
+
+
+def _answer(request: str, model: str, completion: Completion) -> Completion:
+    """Attach the exchange to an answer, so no mock call is unrecorded (FR-5.4)."""
+    response = encode_request(completion.to_mapping())
+    return Completion(
+        text=completion.text,
+        tool_calls=completion.tool_calls,
+        usage=completion.usage,
+        metadata=CallMetadata(
+            model=model,
+            route=None,
+            native_tools=True,
+            wire=_wire(request, response, 200),
+        ),
+    )
 
 
 __all__: list[str] = [

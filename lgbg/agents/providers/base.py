@@ -29,6 +29,7 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Final, Protocol, runtime_checkable
 
+from lgbg.agents.wire import WireExchange
 from lgbg.core.types import JsonValue
 
 SAMPLING_MAX: Final[int] = 1000
@@ -45,7 +46,16 @@ class Role(StrEnum):
 
 
 class ProviderError(Exception):
-    """A provider could not answer: a transport failure, not a game decision."""
+    """A provider could not answer: a transport failure, not a game decision.
+
+    A failed call still has an exchange, and it is recorded here rather than discarded: a record
+    of a run that omits the requests that failed would answer "what did the model see?" only for
+    the calls that happened to work (FR-5.4, FR-10.4).
+    """
+
+    def __init__(self, message: str, *, wire: WireExchange | None = None) -> None:
+        super().__init__(message)
+        self.wire = wire
 
 
 class ProviderTimeoutError(ProviderError):
@@ -207,6 +217,7 @@ class CallMetadata:
     model: str
     route: str | None
     native_tools: bool
+    wire: WireExchange | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -215,7 +226,7 @@ class Completion:
 
     'metadata' is about the request rather than the answer, so it is deliberately not part of
     'to_mapping': the frozen response shape stays text and tool calls, while the sidecar takes the
-    model, route and native-tool flag from here (FR-5.8).
+    model, route, native-tool flag and verbatim exchange from here (FR-5.8, FR-5.4).
     """
 
     text: str | None

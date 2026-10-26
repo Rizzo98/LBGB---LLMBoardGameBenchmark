@@ -89,6 +89,24 @@ def to_canonical_json(value: object) -> str:
     )
 
 
+def to_wire_json(value: object) -> str:
+    """Serialise an HTTP request body, exactly as the adapter sends it.
+
+    This is deliberately not the canonical form. A provider's wire format uses JSON numbers -
+    temperature and top-p are floats - while a record may not: the canonical serialiser refuses
+    floats because their formatting is not stable, and a record has to be. A request body is not a
+    record; it is evidence of the bytes that were sent, so the only rule here is that the bytes
+    this function returns are the bytes the adapter puts on the wire (FR-5.4).
+    """
+    return json.dumps(
+        value,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+        allow_nan=False,
+    )
+
+
 def canonical_bytes(value: object) -> bytes:
     """The canonical bytes hashed by 'hash_state'; the same bytes replay consumes."""
     return to_canonical_json(value).encode("utf-8")

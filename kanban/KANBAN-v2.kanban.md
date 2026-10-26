@@ -13,22 +13,6 @@
 
 
 
-### K-017 · Verbatim payload recording
-
-  - tags: [slice-3, provider, records, fr-5, sc-4]
-  - priority: high
-  - workload: Normal
-  - steps:
-      - [ ] The exact request payload and the exact response are recorded for every call
-      - [ ] Credentials are redacted before anything is written
-      - [ ] The adapter never retries, summarises, repairs or otherwise alters a request; policy belongs above it where it is visible
-    ```md
-    - **Cuts through:** the adapter, the sidecar writer, the artefact contracts
-    - **Depends on:** K-016
-    - **PRD:** FR-5.4, FR-5.5, FR-10.4, FR-10.5, NFR-7
-    - **Why:** A record that cannot answer what the model was shown is not evidence. The redaction requirement is what makes recording the raw payload safe.
-    ```
-
 ### K-018 · Provider conformance suite
 
   - tags: [slice-3, test, fr-5, sc-9]
@@ -652,4 +636,21 @@
     - **PRD:** FR-5.2, FR-5.3, FR-5.8, FR-5.9
     - **Why:** One gateway is a benchmark decision: every model is then driven through the same request path, so a difference between models is not a difference between two client libraries.
     - **Evidence:** `lgbg/agents/providers/openrouter.py` is `OpenRouterProvider`: one OpenAI-compatible request path for every model. `complete` reads the gateway's listing once, decides native versus text from `supported_parameters`, sends function definitions or the one `TEXT_PROTOCOL` system instruction, and returns `CallMetadata` with the configured model, the response's `provider` route and whether native tools were used; the metadata rides on `Completion` and is deliberately outside the frozen response mapping. Native calls parse JSON-string arguments and keep the raw text when they do not parse; the text protocol parses one JSON object, optionally fenced, into the same `ToolCall`, while anything else stays prose. `read_pricing` reads the same listing, converts per-token decimal prices to integer micro-dollars per million tokens with `Decimal`, refuses negative or sub-micro prices, and stamps the table with an injected clock; the table validates against K-002's frozen manifest. `tests/agents/providers/test_openrouter.py` (20 tests) drives `httpx.MockTransport` only: native request and response, both text-protocol shapes, prose, malformed arguments, usage, route changes, pricing, unknown models, unrepresentable prices, a 500 that is not retried, a timeout, wire history and the structural seam. Two deliberate mutations - treating every model as native, and using 10^6 instead of 10^12 for the price scale - each failed and were reverted. Gate: 1068 passed, 1 skipped.
+    ```
+
+### K-017 · Verbatim payload recording
+
+  - tags: [slice-3, provider, records, fr-5, sc-4]
+  - priority: high
+  - workload: Normal
+  - steps:
+      - [x] The exact request payload and the exact response are recorded for every call
+      - [x] Credentials are redacted before anything is written
+      - [x] The adapter never retries, summarises, repairs or otherwise alters a request; policy belongs above it where it is visible
+    ```md
+    - **Cuts through:** the adapter, the sidecar writer, the artefact contracts
+    - **Depends on:** K-016
+    - **PRD:** FR-5.4, FR-5.5, FR-10.4, FR-10.5, NFR-7
+    - **Why:** A record that cannot answer what the model was shown is not evidence. The redaction requirement is what makes recording the raw payload safe.
+    - **Evidence:** `lgbg/agents/wire.py` declares `WireExchange`: the exact request and response bodies as text, the status, and both header maps. `WireExchange.capture` removes a credential before the value exists - sensitive header names become `[redacted]`, any known secret is replaced wherever it appears, and a body is otherwise untouched. `lgbg/core/canonical.py` gains `to_wire_json`, the one serializer that may emit the provider's float-valued JSON, kept beside the canonical serializer so the layering rule still holds. Both adapters attach the exchange to every answer: OpenRouter serializes the body itself and sends those bytes, records the gateway's exact response text, and carries the exchange on `ProviderError` for a failed call; the mock records the request it was given and the response it would have returned, so no behavior is unrecorded. `lgbg/agents/sidecar.py` is the writer: it redacts the whole record with the run's secrets, validates it against K-002's closed decision schema, and only then appends one canonical line under a lock. The schema gains a required `wire` object, and the fixture carries one. `tests/agents/test_wire.py` (7 tests) and `tests/agents/test_sidecar.py` (7 tests) cover exact bodies, redaction by header name and by secret, nested credential fields, round-tripping, the schema gate, and the no-write-on-refusal guarantee; `test_openrouter.py` adds the exact-request/exact-response and failed-call cases, and `test_mock.py` proves every mock answer has an exchange. A deliberate mutation that stopped redacting sensitive header names failed the redaction test and was reverted. Gate: 1085 passed, 1 skipped.
     ```

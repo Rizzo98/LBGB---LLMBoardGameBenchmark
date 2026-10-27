@@ -7,9 +7,11 @@ occupies a point in, and what the run declared before it began.
 The cut through this package is deliberate:
 
 - `agents` declares the three ways a seat is played and nothing about choosing one;
-- `design` carries the point in the experiment, without building the matrix that produces it;
+- `design` holds the design a run asks for and the point one game records;
+- `matrix` turns the first into the second: the games, their seat assignments and their seeds;
 - `manifest` records the run's declaration, and knows no game;
-- `game` drives one game through the facade and reports completed or abandoned.
+- `game` drives one game through the facade and reports completed or abandoned;
+- `experiment` plans a matrix and plays every game it declares.
 
 Everything here is game-agnostic. A game reaches the runner as a registered name and a set of
 declarations, never as an import (FR-11.7).
@@ -28,13 +30,19 @@ from lgbg.runner.agents import (
 )
 from lgbg.runner.design import (
     AXES,
+    AXIS_INITIAL_CONFIGURATION,
+    AXIS_SEATING,
     CONFIGURATION_SCOPES,
     DERIVATION_RULE,
+    RANDOM_CONFIGURATION,
+    ROTATED_SEATING,
     SEATING,
     DesignError,
+    ExperimentDesign,
     GameDesign,
     declared_seating,
 )
+from lgbg.runner.experiment import ExperimentResult, run_experiment
 from lgbg.runner.game import (
     Abandonment,
     GameAbortedError,
@@ -43,28 +51,38 @@ from lgbg.runner.game import (
     run_game,
 )
 from lgbg.runner.manifest import DEFAULT_GAME_TIMEOUT_S, ManifestError, build_manifest
+from lgbg.runner.matrix import PlannedGame, plan
 
 __all__: list[str] = [
     "AXES",
+    "AXIS_INITIAL_CONFIGURATION",
+    "AXIS_SEATING",
     "CONFIGURATION_SCOPES",
     "DEFAULT_GAME_TIMEOUT_S",
     "DERIVATION_RULE",
+    "RANDOM_CONFIGURATION",
+    "ROTATED_SEATING",
     "SEATING",
     "Abandonment",
     "Agent",
     "AgentKind",
     "DesignError",
+    "ExperimentDesign",
+    "ExperimentResult",
     "GameAbortedError",
     "GameDesign",
     "GameError",
     "GameResult",
     "LlmAgent",
     "ManifestError",
+    "PlannedGame",
     "ReferenceAgent",
     "ReferencePlayer",
     "ReferenceView",
     "ScriptedAgent",
     "build_manifest",
     "declared_seating",
+    "plan",
+    "run_experiment",
     "run_game",
 ]

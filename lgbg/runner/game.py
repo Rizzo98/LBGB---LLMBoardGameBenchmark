@@ -130,6 +130,7 @@ async def run_game(
     config: RunConfig,
     directory: Path,
     run_id: str,
+    requested_id: GameId | None = None,
     seats: Mapping[PlayerId, Agent],
     prompts: PromptSet,
     price_table: PriceTable,
@@ -139,7 +140,11 @@ async def run_game(
     render_detail: str = "full",
     clock: Callable[[], str] | None = None,
 ) -> GameResult:
-    """Play one game to a verdict or an abandonment, and write its run directory."""
+    """Play one game to a verdict or an abandonment, and write its run directory.
+
+    'requested_id' is the identity the *runner* wants the game to have; left out, the facade assigns
+    one. An experiment names its games so that a directory, a record and a plan entry agree.
+    """
     prompts.verify()
     plugin = get_game(game)
     budgets = policy or TurnPolicy()
@@ -163,7 +168,7 @@ async def run_game(
     manifest_path.write_text(to_canonical_json(manifest) + "\n", encoding="utf-8")
 
     facade = SessionFacade()
-    game_id = facade.create_session(game, config, directory=directory)
+    game_id = facade.create_session(game, config, game_id=requested_id, directory=directory)
     sidecar = DecisionSidecar(decision_path(directory, game_id))
     accounting = RunAccounting(price_table)
     model_seats = {seat: spec.model for seat, spec in seats.items() if isinstance(spec, LlmAgent)}

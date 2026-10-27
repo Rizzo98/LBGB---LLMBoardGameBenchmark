@@ -306,7 +306,9 @@ _DESIGN: Final[JsonSchema] = {
         "configuration_scope",
         "derivation",
         "initial_configuration",
+        "replicate",
         "replicates",
+        "rotation",
         "seating",
         "uncontrolled",
     ],
@@ -315,6 +317,8 @@ _DESIGN: Final[JsonSchema] = {
         "initial_configuration": _TEXT,
         "configuration_scope": _values(("per_experiment", "per_game")),
         "replicates": _POSITIVE,
+        "replicate": _COUNT,
+        "rotation": _COUNT,
         "uncontrolled": {"type": "array", "items": _TEXT},
         "derivation": {
             "type": "object",
@@ -331,6 +335,9 @@ _DESIGN: Final[JsonSchema] = {
         },
     },
     "additionalProperties": False,
+    "$comment": "replicate and rotation are this game's point in the design: every game can be "
+    "attributed to a replicate and a seating, which is what makes two results comparable "
+    "(FR-11.10)",
 }
 
 _POLICIES: Final[JsonSchema] = {

@@ -62,6 +62,8 @@
     "initial_configuration": "fixed:standard_a",
     "configuration_scope": "per_experiment",
     "replicates": 5,
+    "replicate": 0,
+    "rotation": 0,
     "uncontrolled": [],
     "derivation": {
       "rule": "games = replicates x seatings",

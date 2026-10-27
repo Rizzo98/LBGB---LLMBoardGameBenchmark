@@ -13,24 +13,6 @@
 
 
 
-### K-028 · The experiment-design matrix
-
-  - tags: [slice-6, design, fr-11, sc-7]
-  - priority: high
-  - workload: Hard
-  - defaultExpanded: true
-  - steps:
-      - [ ] seating (fixed, rotated, random) × initial_configuration (fixed, random, drawn per experiment or per game) × replicates
-      - [ ] The game count is derived as replicates × (rotated ? seats : 1), and the derivation is recorded, not only the product
-      - [ ] A rotated design is N cyclic shifts, so every agent occupies every seat index equally often, repeated agents included
-      - [ ] Each game records its replicate index, rotation index, seat assignment, seed and configuration
-    ```md
-    - **Cuts through:** runner, the plugin's benchmark profile, the manifest, results
-    - **Depends on:** K-027
-    - **PRD:** FR-11.3, FR-11.4, FR-11.9, FR-11.10, SC-7
-    - **Why:** Randomness is fought by declaring which axes vary and recording where each game sits in the design, not by mandating one rotation. The cyclic-shift rule handles a table mixing distinct and repeated agents without a special case.
-    ```
-
 ### K-029 · Axes a game does not have
 
   - tags: [slice-6, design, fr-11]
@@ -662,4 +644,23 @@
     - **PRD:** FR-11.1, FR-11.2, FR-11.7, FR-10.1, FR-10.2
     - **Why:** The layer below knows how to run a game and talk to a model; the runner is the first thing that knows what an experiment is. Cutting here is what makes the design matrix, the reference players and results.json possible without each of them inventing its own seat model.
     - **Evidence:** `lgbg/runner/agents.py` declares the three agent kinds - `llm`, `reference`, `scripted` - as one closed union, so a seat is an agent and a fourth kind is a reviewed change to the manifest vocabulary rather than a branch in a loop. `lgbg/runner/design.py` carries the point in the experiment (seating, configuration, scope, replicates, uncontrolled axes and their derivation) without building the matrix that produces it, which is K-028's; the derivation is checked to add up before it is recorded. `lgbg/runner/manifest.py` writes run.json with the config, the seats, every policy, the four prompt hashes, the provider identities and the price table, and it no longer reads the `board` option out of the game's config: a K-022 leftover that made the manifest game-specific. `lgbg/runner/game.py` drives one game through the facade in the game's own resolution order: an LLM seat through the loop and the sidecar, a reference seat through `SessionFacade.snapshot` and the plugin's own `legal_actions`, a scripted seat through its recorded list; completion returns the verdict and exhaustion returns `completed=False` with the abandonment record and no terminal line. `SessionFacade.snapshot` is the one read added to the closed operation set: it is the operator's view of the position, it enumerates nothing, and no HTTP route or MCP tool serves it, so the assist ladder is untouched. A reference player's chooser is seeded from the run's seed, the seat and the decision ordinal, so a drawing policy is reproducible. `results.summarise` moved into the runner, where the arithmetic belongs, now that there is a runner. `tests/runner/test_runner.py` declares all three kinds in one manifest, plays a mixed LLM-and-reference table to a model win with 19 actions and ten sidecar records, proves the reference seat reads the game's enumeration and never the sidecar, plays the same drawing reference seat twice to byte-identical god logs, keeps an always-illegal model's game incomplete with no synthetic verdict, and refuses a missing or an extra seat. Two deliberate mutations - reading `board` back out of the game config, and recording a reference seat as `llm` - each failed and were reverted. `tests/tooling/test_layering.py` adds that the runner never imports a game and never names one. Gate: 1181 passed, 1 skipped.
+    ```
+
+### K-028 · The experiment-design matrix
+
+  - tags: [slice-6, design, fr-11, sc-7]
+  - priority: high
+  - workload: Hard
+  - defaultExpanded: true
+  - steps:
+      - [x] seating (fixed, rotated, random) × initial_configuration (fixed, random, drawn per experiment or per game) × replicates
+      - [x] The game count is derived as replicates × (rotated ? seats : 1), and the derivation is recorded, not only the product
+      - [x] A rotated design is N cyclic shifts, so every agent occupies every seat index equally often, repeated agents included
+      - [x] Each game records its replicate index, rotation index, seat assignment, seed and configuration
+    ```md
+    - **Cuts through:** runner, the plugin's benchmark profile, the manifest, results
+    - **Depends on:** K-027
+    - **PRD:** FR-11.3, FR-11.4, FR-11.9, FR-11.10, SC-7
+    - **Why:** Randomness is fought by declaring which axes vary and recording where each game sits in the design, not by mandating one rotation. The cyclic-shift rule handles a table mixing distinct and repeated agents without a special case.
+    - **Evidence:** `lgbg/runner/design.py` splits the design in two: `ExperimentDesign` is what a run asks for - seating, initial configuration, configuration scope and replicate count - and `GameDesign` is what one game records, now carrying `replicate` and `rotation` beside the derivation, which must add up before it can be recorded. `lgbg/runner/matrix.py` turns the request into the games: fixed keeps the declared order, rotated is the N cyclic shifts (`seat i is played by table[(i + k) mod N]`), random is one drawn permutation per replicate from a source seeded by the run, and every seed is derived from the run's - replicate 0 keeps the run's own seed and the rotations of a replicate share it, so a replicate is a mirrored pairing, except where a random configuration is drawn per game, which is the declared exception. The game count is `replicates x seatings` and the derivation travels with every game (FR-11.4); the plugin's benchmark profile is consulted for `positional_asymmetry`, so a pinned seat order in a game that rewards moving first is marked `uncontrolled` rather than silently flattering seat 0 (ARCHITECTURE 7.10, FR-11.12) - whether a fixed *configuration* is a caveat depends on K-029's declaration and is not guessed at here. `lgbg/runner/experiment.py` plans first and then plays every game, each in its own directory and under its own requested id, so a directory, a record and a plan entry agree; its result reports completed and abandoned counts. The manifest's design shape now requires `replicate` and `rotation` (the fixture carries them), so every `run.json` answers where its game sits in the experiment. `tests/runner/test_matrix.py` (12 tests) holds the SC-7 case - five replicates of a four-seat rotation is twenty games, each table position occupying each seat five times - the repeated-agent balance (each agent holding two seats occupies every seat index twice), the cyclic-shift identity, deterministic random seating, the three scope cases (mirrored, per-experiment and per-game seeds, and a fixed configuration ignoring the scope), the positional-asymmetry marking, the derivation on all three seating rules, and a played fixture experiment whose four `run.json` files record replicate, rotation, seat names and a mirrored seed. Two deliberate mutations - dropping the seatings factor from the game count, and giving every rotation its own seed regardless of scope - each failed and were reverted. A real collision surfaced while writing the matrix: a per-game rotation seed was hashed exactly like a replicate seed and repeated a seed from the previous replicate, which is why the two derivations now carry different labels. Gate: 1193 passed, 1 skipped.
     ```

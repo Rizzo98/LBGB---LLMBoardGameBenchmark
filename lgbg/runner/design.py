@@ -5,11 +5,12 @@ manifest writes and the record can be read back from: which seats were varied, w
 configuration was used, how many replicates the experiment declared, and the derivation that turns
 those decisions into a game count rather than a number somebody stated.
 
-That distinction is the point. K-028 builds the design matrix - it is what turns `replicates` and
-a seating rule into the games a run contains - and K-029 decides what happens when a game cannot
-vary an axis. The runner core only has to record the point each game occupies, which is why this
-value exists here and the matrix does not: a game that cannot say which design produced it cannot be
-compared with any other run (FR-11.10), and that is true even for a single exploration game.
+Two values live here, and the split is the whole point. `ExperimentDesign` is what a run *asks
+for*: three independent axes and a replicate count. `GameDesign` is what one game *records*: those
+axes, the derivation they produced, and the game's own replicate and rotation index. K-028's matrix
+turns the first into the second; K-029 decides what happens when a game cannot vary an axis. A game
+that cannot say which design produced it cannot be compared with any other run (FR-11.10), and that
+is true even for a single exploration game.
 
 Nothing in this module names a game. A configuration is a label the caller declares - the game's own
 options travel opaquely in the run config - so a game with one fixed starting position, and a game
@@ -23,15 +24,28 @@ from dataclasses import dataclass, field
 from types import MappingProxyType
 from typing import Final
 
+from lgbg.core.game import BenchmarkProfile
 from lgbg.core.types import JsonValue
 
 SEATING: Final[tuple[str, ...]] = ("fixed", "random", "rotated")
 """How seat assignment varies (FR-11.3). Rotation is N cyclic shifts, K-028's matrix."""
 
+ROTATED_SEATING: Final[str] = "rotated"
+"""The seating rule that makes the game count one per seat (FR-11.9)."""
+
+RANDOM_CONFIGURATION: Final[str] = "random"
+"""The configuration axis value that asks for a draw rather than a named position (FR-11.3)."""
+
 CONFIGURATION_SCOPES: Final[tuple[str, ...]] = ("per_experiment", "per_game")
 """Whether a random configuration is drawn once for the experiment or once per game (FR-11.3)."""
 
-AXES: Final[tuple[str, ...]] = ("initial_configuration", "seating")
+AXIS_SEATING: Final[str] = "seating"
+"""The seat-assignment axis. It varies in every game with more than one seat (FR-11.11)."""
+
+AXIS_INITIAL_CONFIGURATION: Final[str] = "initial_configuration"
+"""The starting-position axis. It varies only where the game can vary it (K-029, FR-11.11)."""
+
+AXES: Final[tuple[str, ...]] = (AXIS_INITIAL_CONFIGURATION, AXIS_SEATING)
 """The two independent axes a design either controls or marks as uncontrolled (FR-11.12)."""
 
 DERIVATION_RULE: Final[str] = "games = replicates x seatings"
@@ -40,6 +54,96 @@ DERIVATION_RULE: Final[str] = "games = replicates x seatings"
 
 class DesignError(ValueError):
     """The declared design cannot be recorded as a point in an experiment."""
+
+
+def _check_axes(
+    *,
+    seating: str,
+    initial_configuration: str,
+    configuration_scope: str,
+    replicates: int,
+) -> None:
+    """The three axes and the replicate count, validated once for the request and for the record."""
+    if seating not in SEATING:
+        raise DesignError(f"seating {seating!r} is not one of {SEATING}")
+    if configuration_scope not in CONFIGURATION_SCOPES:
+        raise DesignError(
+            f"configuration_scope {configuration_scope!r} is not one of {CONFIGURATION_SCOPES}"
+        )
+    if not initial_configuration:
+        raise DesignError("a design must name the initial configuration it used")
+    if not isinstance(replicates, int) or isinstance(replicates, bool):
+        raise DesignError(f"replicates must be an integer, got {replicates!r}")
+    if replicates < 1:
+        raise DesignError("replicates must be at least 1")
+
+
+@dataclass(frozen=True, slots=True)
+class ExperimentDesign:
+    """What a run asks for: the three axes, and how many independent experiments to play (FR-11.3).
+
+    Exactly what the PRD calls the design: `seating`, `initial_configuration` and `replicates`.
+    The initial configuration's scope is the second half of the configuration axis - *where* a
+    random draw happens - and it is meaningless for a fixed configuration, which draws nothing.
+    """
+
+    seating: str = SEATING[0]
+    initial_configuration: str = "fixed"
+    configuration_scope: str = CONFIGURATION_SCOPES[0]
+    replicates: int = 1
+
+    def __post_init__(self) -> None:
+        _check_axes(
+            seating=self.seating,
+            initial_configuration=self.initial_configuration,
+            configuration_scope=self.configuration_scope,
+            replicates=self.replicates,
+        )
+
+    @property
+    def draws_per_game(self) -> bool:
+        """Whether a random starting position is drawn for every game rather than per replicate."""
+        return (
+            self.initial_configuration == RANDOM_CONFIGURATION
+            and self.configuration_scope == CONFIGURATION_SCOPES[1]
+        )
+
+    def seatings(self, seats: int) -> int:
+        """How many seat assignments one replicate contains (FR-11.4, FR-11.9).
+
+        A rotated design is exactly one game per seat; every other rule is one game per replicate.
+        """
+        if self.seating != ROTATED_SEATING:
+            return 1
+        if seats < 2:
+            raise DesignError("a rotated design needs at least two seats")
+        return seats
+
+    def game_count(self, seats: int) -> int:
+        """The product the manifest records, never a number stated separately (FR-11.4)."""
+        return self.replicates * self.seatings(seats)
+
+    def derivation(self, seats: int) -> dict[str, JsonValue]:
+        """The derivation itself, so a game count can be traced to a decision."""
+        return {
+            "rule": DERIVATION_RULE,
+            "replicates": self.replicates,
+            "seatings": self.seatings(seats),
+            "games": self.game_count(seats),
+        }
+
+    def uncontrolled(self, profile: BenchmarkProfile, seats: int) -> tuple[str, ...]:
+        """The axes this design does not vary, as far as the game's declaration lets us know.
+
+        A pinned seat order is a caveat only when the game says seat order matters, which is what
+        the plugin's profile declares (ARCHITECTURE 7.10). Randomised seating controls the axis in
+        expectation and rotation controls it exactly, so neither is marked. Whether a *fixed*
+        starting configuration is a caveat depends on whether the game could have varied it, which
+        is K-029's declaration; this slice does not guess at it.
+        """
+        if self.seating == SEATING[0] and seats > 1 and profile.positional_asymmetry:
+            return (AXIS_SEATING,)
+        return ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -52,27 +156,28 @@ class GameDesign:
     replicates: int = 1
     uncontrolled: tuple[str, ...] = ()
     derivation: Mapping[str, JsonValue] = field(default_factory=dict)
+    replicate: int = 0
+    rotation: int = 0
 
     def __post_init__(self) -> None:
-        if self.seating not in SEATING:
-            raise DesignError(f"seating {self.seating!r} is not one of {SEATING}")
-        if self.configuration_scope not in CONFIGURATION_SCOPES:
-            raise DesignError(
-                f"configuration_scope {self.configuration_scope!r} is not one of "
-                f"{CONFIGURATION_SCOPES}"
-            )
-        if not self.initial_configuration:
-            raise DesignError("a design must name the initial configuration it used")
-        if not isinstance(self.replicates, int) or isinstance(self.replicates, bool):
-            raise DesignError(f"replicates must be an integer, got {self.replicates!r}")
-        if self.replicates < 1:
-            raise DesignError("replicates must be at least 1")
+        _check_axes(
+            seating=self.seating,
+            initial_configuration=self.initial_configuration,
+            configuration_scope=self.configuration_scope,
+            replicates=self.replicates,
+        )
         axes = tuple(self.uncontrolled)
         unknown = sorted(set(axes) - set(AXES))
         if unknown:
             raise DesignError(f"uncontrolled axis(es) {unknown} are not one of {AXES}")
         derivation = dict(self.derivation) if self.derivation else self._derived()
-        _check_derivation(derivation, replicates=self.replicates)
+        replicates, seatings = _check_derivation(derivation, replicates=self.replicates)
+        _check_point(
+            replicate=self.replicate,
+            rotation=self.rotation,
+            replicates=replicates,
+            seatings=seatings,
+        )
         object.__setattr__(self, "uncontrolled", axes)
         object.__setattr__(self, "derivation", MappingProxyType(derivation))
 
@@ -90,13 +195,15 @@ class GameDesign:
             "replicates": self.replicates,
             "uncontrolled": list(self.uncontrolled),
             "derivation": dict(self.derivation),
+            "replicate": self.replicate,
+            "rotation": self.rotation,
         }
 
     def _derived(self) -> dict[str, JsonValue]:
         """A derivation consistent with the declared replicate count, for a caller with one game.
 
         The seating factor is the matrix's business: a rotated design is one game per seat, which
-        only K-028 can compute, so a caller that declares one supplies the derivation it used.
+        the matrix computes, so a caller that declares one supplies the derivation it used.
         """
         return {
             "rule": DERIVATION_RULE,
@@ -106,8 +213,11 @@ class GameDesign:
         }
 
 
-def _check_derivation(derivation: Mapping[str, JsonValue], *, replicates: int) -> None:
-    """The recorded derivation must add up; a product nobody can reconstruct is not a derivation."""
+def _check_derivation(derivation: Mapping[str, JsonValue], *, replicates: int) -> tuple[int, int]:
+    """The recorded derivation must add up; a product nobody can reconstruct is not a derivation.
+
+    Returns the two factors, so a caller checking a game's point does not read untyped JSON twice.
+    """
     required = ("rule", "replicates", "seatings", "games")
     missing = [key for key in required if key not in derivation]
     unexpected = sorted(set(derivation) - set(required))
@@ -130,11 +240,25 @@ def _check_derivation(derivation: Mapping[str, JsonValue], *, replicates: int) -
             f"the derivation says {numbers['replicates']} replicate(s) but the design declares "
             f"{replicates}"
         )
+    if numbers["seatings"] < 1:
+        raise DesignError("the derivation needs at least one seating")
     if numbers["games"] != numbers["replicates"] * numbers["seatings"]:
         raise DesignError(
             f"the derivation does not add up: {numbers['replicates']} x {numbers['seatings']} "
             f"is not {numbers['games']}"
         )
+    return numbers["replicates"], numbers["seatings"]
+
+
+def _check_point(*, replicate: int, rotation: int, replicates: int, seatings: int) -> None:
+    """A game cannot claim a point outside the experiment that produced it (FR-11.10)."""
+    for name, value in (("replicate", replicate), ("rotation", rotation)):
+        if not isinstance(value, int) or isinstance(value, bool) or value < 0:
+            raise DesignError(f"{name} must be a non-negative integer, got {value!r}")
+    if replicate >= replicates:
+        raise DesignError(f"replicate {replicate} is outside a design of {replicates} replicate(s)")
+    if rotation >= seatings:
+        raise DesignError(f"rotation {rotation} is outside a design of {seatings} seating(s)")
 
 
 def declared_seating() -> Sequence[str]:
@@ -144,10 +268,15 @@ def declared_seating() -> Sequence[str]:
 
 __all__: list[str] = [
     "AXES",
+    "AXIS_INITIAL_CONFIGURATION",
+    "AXIS_SEATING",
     "CONFIGURATION_SCOPES",
     "DERIVATION_RULE",
+    "RANDOM_CONFIGURATION",
+    "ROTATED_SEATING",
     "SEATING",
     "DesignError",
+    "ExperimentDesign",
     "GameDesign",
     "declared_seating",
 ]

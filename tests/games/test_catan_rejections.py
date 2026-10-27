@@ -69,12 +69,16 @@ def _imported(path: Path) -> dict[str, str]:
     return origins
 
 
+PLUGIN_GAME: Final[Path] = PACKAGE / "games" / "catan" / "game.py"
+"""The plugin's own module. Named by path, not by basename: other layers have a game.py too."""
+
+
 def test_the_engine_raises_codes_and_this_scan_can_see_them() -> None:
     """The control: a scan that finds nothing would pass every assertion below."""
-    raised = {path.name: _raised(path) for path in _modules()}
+    raised = {path: _raised(path) for path in _modules()}
 
-    assert raised["game.py"], "the plugin refuses refused actions with declared codes"
-    assert "GAME_OVER" in raised["game.py"]
+    assert raised[PLUGIN_GAME], "the plugin refuses refused actions with declared codes"
+    assert "GAME_OVER" in raised[PLUGIN_GAME]
     assert sum(len(codes) for codes in raised.values()) >= 15
 
 

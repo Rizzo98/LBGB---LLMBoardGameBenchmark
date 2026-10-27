@@ -17,7 +17,6 @@ from typing import Any
 import pytest
 
 import tests.games.fixture_game  # noqa: F401 - importing registers the game
-from lgbg.agents.game import ModelSeat, ScriptedSeat, play_game
 from lgbg.agents.loop import TurnPolicy
 from lgbg.agents.pricing import PRICE_UNIT, ModelPrice, PriceTable
 from lgbg.agents.prompting import PromptSet
@@ -26,6 +25,7 @@ from lgbg.agents.providers.mock import Behaviour, MockProvider
 from lgbg.core.config import RunConfig
 from lgbg.core.contracts import FAILURE_KINDS, validate_decision
 from lgbg.core.types import Action
+from lgbg.runner import LlmAgent, ScriptedAgent, run_game
 
 MODEL = "mock-model"
 AT = "2026-02-11T09:30:00+00:00"
@@ -71,19 +71,19 @@ def play(tmp_path: Path, provider: MockProvider, policy: TurnPolicy) -> Any:
     game_prompt = tmp_path / "game.md"
     game_prompt.write_text("The fixture game: take, gamble or spend.\n", encoding="utf-8")
     return asyncio.run(
-        play_game(
+        run_game(
             game="fixture",
             config=RunConfig(seed=7, players=2, interaction_protocol="decline_only"),
             directory=tmp_path / "run",
             run_id="r-failure",
             seats={
-                0: ModelSeat(
+                0: LlmAgent(
                     provider=provider,
                     model=MODEL,
                     provider_id="mock",
                     provider_version="1",
                 ),
-                1: ScriptedSeat(
+                1: ScriptedAgent(
                     actions=[
                         Action(player=1, type=name, params=params) for name, params in LEGAL_ONE
                     ]

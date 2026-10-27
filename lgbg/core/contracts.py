@@ -420,7 +420,12 @@ MANIFEST_SCHEMA: Final[JsonSchema] = {
             "properties": dict.fromkeys(PROMPT_LAYERS, _DIGEST),
             "additionalProperties": False,
         },
-        "providers": {"type": "array", "items": _PROVIDER, "minItems": 1},
+        "providers": {
+            "type": "array",
+            "items": _PROVIDER,
+            "$comment": "empty for a table of reference players and scripts: a run with no model "
+            "seat used no provider, and an invented identity would be a lie (FR-11.1, FR-12.3)",
+        },
         "price_table": _PRICE_TABLE,
     },
     "additionalProperties": False,

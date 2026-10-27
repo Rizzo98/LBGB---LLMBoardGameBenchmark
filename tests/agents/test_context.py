@@ -17,7 +17,6 @@ from typing import Any
 
 import tests.games.fixture_game  # noqa: F401 - importing registers the game
 from lgbg.agents.context import ContextBuilder, ContextPolicy, ContextStrategy
-from lgbg.agents.game import ModelSeat, ScriptedSeat, play_game
 from lgbg.agents.loop import TurnPolicy
 from lgbg.agents.pricing import PRICE_UNIT, ModelPrice, PriceTable
 from lgbg.agents.prompting import PromptSet
@@ -30,6 +29,7 @@ from lgbg.core.contracts import validate_manifest
 from lgbg.core.game import Applied, Game, get_game
 from lgbg.core.rng import SeededRandomSource
 from lgbg.core.types import Action, Observation
+from lgbg.runner import LlmAgent, ScriptedAgent, run_game
 
 MODEL = "mock-model"
 AT = "2026-02-11T09:30:00+00:00"
@@ -94,19 +94,19 @@ def provider() -> MockProvider:
 
 def play(tmp_path: Path, context: ContextPolicy, run_id: str = "r-context") -> Any:
     return asyncio.run(
-        play_game(
+        run_game(
             game="fixture",
             config=RunConfig(seed=7, players=2, interaction_protocol="decline_only"),
             directory=tmp_path / run_id,
             run_id=run_id,
             seats={
-                0: ModelSeat(
+                0: LlmAgent(
                     provider=provider(),
                     model=MODEL,
                     provider_id="mock",
                     provider_version="1",
                 ),
-                1: ScriptedSeat(
+                1: ScriptedAgent(
                     actions=[
                         Action(player=1, type=name, params=params) for name, params in LEGAL_ONE
                     ]
@@ -280,10 +280,10 @@ def test_the_default_is_delta_with_refresh_end_to_end(tmp_path: Path) -> None:
 
 
 def test_one_context_policy_is_recorded_for_every_model_in_the_run(tmp_path: Path) -> None:
-    from lgbg.agents.game import ModelSeat, build_manifest
+    from lgbg.runner import LlmAgent, build_manifest
 
     seats = {
-        seat: ModelSeat(
+        seat: LlmAgent(
             provider=MockProvider(Behaviour.CORRECT_PLAY, action=calls(LEGAL_ZERO, "x")[0]),
             model=f"model-{seat}",
             provider_id="mock",
@@ -341,19 +341,19 @@ def test_each_strategy_plays_the_same_record_and_reconstructs_its_messages(
         directory = tmp_path / strategy.value
         provider = RecordingMock(Behaviour.CORRECT_PLAY, actions=calls(LEGAL_ZERO, "zero"))
         result = asyncio.run(
-            play_game(
+            run_game(
                 game="fixture",
                 config=RunConfig(seed=7, players=2, interaction_protocol="decline_only"),
                 directory=directory,
                 run_id=f"r-{strategy.value}",
                 seats={
-                    0: ModelSeat(
+                    0: LlmAgent(
                         provider=provider,
                         model=MODEL,
                         provider_id="mock",
                         provider_version="1",
                     ),
-                    1: ScriptedSeat(
+                    1: ScriptedAgent(
                         actions=[
                             Action(player=1, type=name, params=params) for name, params in LEGAL_ONE
                         ]

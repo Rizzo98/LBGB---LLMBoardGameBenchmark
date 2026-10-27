@@ -11,7 +11,9 @@ outcome, and end the session. Nothing here enumerates legal actions or asks a ga
 about itself: enumeration is an assist-level property of a *surface* (FR-3.3, FR-4), and a facade
 that could enumerate would quietly make the assist level a suggestion. The set is closed and
 declared in `PUBLIC_OPERATIONS`, and a test compares it against the class, so an operation is a
-decision rather than an accident.
+decision rather than an accident. `snapshot` is the one read that is not a player surface: it is
+how an in-process driver hands a reference player the position (K-027), it still enumerates
+nothing, and no transport serves it.
 
 **Concurrency, stated rather than hoped for (FR-1.5, NFR-6).** There is one lock per session, held
 for the duration of one operation, and one lock around the registry held only while the dictionary
@@ -45,7 +47,15 @@ from lgbg.core.assist import render_decision
 from lgbg.core.config import RunConfig
 from lgbg.core.game import ApplyResult, Game, get_game
 from lgbg.core.run import GameRun
-from lgbg.core.types import Action, DecisionRequest, GameId, Observation, Outcome, PlayerId
+from lgbg.core.types import (
+    Action,
+    DecisionRequest,
+    GameId,
+    Observation,
+    Outcome,
+    PlayerId,
+    State,
+)
 
 PUBLIC_OPERATIONS: Final[frozenset[str]] = frozenset(
     {
@@ -56,6 +66,7 @@ PUBLIC_OPERATIONS: Final[frozenset[str]] = frozenset(
         "outcome",
         "pending_decisions",
         "projection",
+        "snapshot",
         "submit_action",
     }
 )
@@ -91,6 +102,29 @@ class SessionState(StrEnum):
     OPEN = "open"
     COMPLETED = "completed"
     ENDED = "ended"
+
+
+@dataclass(frozen=True, slots=True)
+class SessionSnapshot:
+    """One read of a session as it stands: a value, not a handle (K-027).
+
+    This is the *operator's* read, not a player's surface. A driver that has to choose an action
+    without a model - a reference player - needs the position and the decisions that are open, and
+    the game's own enumeration is the only thing that can turn those into a legal action. The
+    snapshot therefore carries what the facade already owns rather than adding an enumeration to
+    the facade: enumeration stays a property of the game and of the assist level, which is what
+    keeps an L0 surface from becoming a disguised L2 one.
+
+    It is not served by any transport. There is no HTTP route and no MCP tool or resource over it,
+    so a player can never read another player's god view through it (FR-2.6); only in-process code
+    the runner itself builds gets that far.
+    """
+
+    game: Game
+    config: RunConfig
+    state: State
+    pending: tuple[DecisionRequest, ...]
+    outcome: Outcome | None
 
 
 @dataclass(slots=True)
@@ -205,6 +239,22 @@ class SessionFacade:
         """The verdict, once the game has one. None while it is in progress or abandoned."""
         with self._readable(session_id) as session:
             return session.outcome
+
+    def snapshot(self, session_id: GameId) -> SessionSnapshot:
+        """The session's own position, for an in-process driver that is not a player (K-027).
+
+        Read under the session's lock, so the state, the open decisions and the verdict agree with
+        one another: a snapshot cannot mix a position before an action with the verdict after it.
+        The copies are values, so the next accepted action cannot change a snapshot a caller holds.
+        """
+        with self._readable(session_id) as session:
+            return SessionSnapshot(
+                game=session.game,
+                config=session.config,
+                state=session.run.state,
+                pending=tuple(session.run.pending),
+                outcome=session.outcome,
+            )
 
     # --- writing ----------------------------------------------------------------------------
 

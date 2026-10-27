@@ -1,7 +1,7 @@
 """Outcome aggregates over played games (PRD-v2 FR-7.5, FR-11.8).
 
-This is the arithmetic the runner and results.json will use, kept here while there is no runner
-yet. It has one rule: an abandoned game is not an outcome. It is counted in its own column, per
+This is the arithmetic the runner and results.json will use (K-032 writes the artefact). It has
+one rule: an abandoned game is not an outcome. It is counted in its own column, per
 model, and it never enters a win or a loss. Folding it in would reward a model that plays badly
 but legally over one that fails decisively, which is the opposite of what the benchmark is for
 (PRD-v2 section 10.2).
@@ -15,8 +15,8 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Final
 
-from lgbg.agents.game import GameResult
 from lgbg.core.types import JsonValue
+from lgbg.runner.game import GameResult
 
 
 @dataclass(frozen=True, slots=True)

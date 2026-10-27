@@ -1,33 +1,44 @@
-"""One game driven through the facade, the loop and the sidecar (K-022).
+"""One game played by the runner: every seat an agent, every action through the facade (K-027).
 
-This is the smallest complete path from a model to a verifiable record: a game, a set of seats, the
-generated surface, and one decision turn at a time. It is deliberately not the runner (K-027): there
-is no experiment design, no concurrency and no results.json. What it does have is the property the
-rest of the release depends on - every model decision is in the sidecar, with the exact messages it
-was sent, and the god log remains the v1 record.
+This is the smallest complete path from a table of agents to a verifiable record. The runner owns
+the seat-to-agent mapping (FR-11.1) and the run manifest (FR-10.1); it owns no game fact. It asks
+the plugin registry for the game by name, drives the facade, and writes down what happened.
 
-A seat is either a model or a script. A model seat owns a Provider and goes through the loop; a
-scripted seat submits the next recorded action directly through the facade, through no model at all.
-The manifest records which is which, so a scripted seat can never be mistaken for a scored one.
+The three kinds of seat play differently and are recorded the same way:
 
-The sidecar is written after an action is accepted. The record's 'seq' is the number of accepted
-actions before this one; in a clean game with no rejections that is the god-log seq, and the test
-asserts it. Rejections and abandonment are K-023 and K-024's business, not a shape this driver
-invents here.
+- an **LLM agent** goes through the provider-agnostic loop. Every provider call becomes a decision
+  record in the sidecar, with the exact messages it was sent, and the run's price table accounts
+  for it (FR-10.3, FR-13.1).
+- a **reference player** is asked for one of the game's own legal actions. It costs a decision, not
+  a call, so it is counted in the god log and nowhere in the sidecar (FR-12.3).
+- a **scripted agent** submits its recorded actions directly. It is how a fixture plays a seat with
+  no agent at all, and the manifest says so.
+
+**That the game runs entirely through the facade** is the property this slice adds. Reading the
+position for a reference player is the facade's `snapshot` and submitting an action is its
+`submit_action`; the runner never applies a rule itself and never keeps a second copy of the game.
+
+**A game ends one of two ways, and the record says which.** A completed game has a terminal record
+in the god log and a verdict. An abandoned game has no terminal record and one `abandonment` line
+in the sidecar naming the decision, the seat and the model that failed (FR-7.5, FR-11.6). No
+synthetic winner is ever written, so an abandoned game stays distinguishable from a loss.
+
+Concurrency is K-031's, and this module is deliberately serial: decisions are answered in the
+game's own resolution order, one at a time, which is the order the record must hold anyway.
 """
 
 from __future__ import annotations
 
+import hashlib
 import os
 import socket
 from collections import deque
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Final
 
-from lgbg import __version__
 from lgbg.agents.accounting import RunAccounting
 from lgbg.agents.context import ContextBuilder, ContextPolicy
 from lgbg.agents.loop import (
@@ -39,7 +50,7 @@ from lgbg.agents.loop import (
 )
 from lgbg.agents.pricing import PriceTable
 from lgbg.agents.prompting import PromptSet
-from lgbg.agents.providers.base import CompletionConfig, Provider, Sampling, ToolCall
+from lgbg.agents.providers.base import CompletionConfig, ToolCall
 from lgbg.agents.sidecar import (
     DecisionSidecar,
     build_abandonment_record,
@@ -50,12 +61,23 @@ from lgbg.agents.surface import FacadeSurface
 from lgbg.core.assist import rejection_view
 from lgbg.core.canonical import to_canonical_json
 from lgbg.core.config import RunConfig
-from lgbg.core.contracts import MANIFEST_SCHEMA_NAME, validate_manifest
-from lgbg.core.game import Applied, Game, get_game
-from lgbg.core.types import Action, GameId, JsonValue, PlayerId
+from lgbg.core.contracts import validate_manifest
+from lgbg.core.game import Applied, get_game
+from lgbg.core.rng import SeededRandomSource
+from lgbg.core.types import Action, DecisionRequest, GameId, JsonValue, PlayerId
 from lgbg.host.facade import SessionFacade
+from lgbg.runner.agents import (
+    Agent,
+    LlmAgent,
+    ReferenceAgent,
+    ReferenceView,
+    ScriptedAgent,
+)
+from lgbg.runner.design import GameDesign
+from lgbg.runner.manifest import DEFAULT_GAME_TIMEOUT_S, ManifestError, build_manifest
 
-DEFAULT_GAME_TIMEOUT_S: Final[int] = 7200
+REFERENCE_SEED_LABEL: Final[str] = "lgbg.reference"
+"""The label the reference player's own chooser is seeded from, so its draws are reproducible."""
 
 
 class GameError(RuntimeError):
@@ -64,41 +86,6 @@ class GameError(RuntimeError):
 
 class GameAbortedError(GameError):
     """The driver could not continue for a reason that is not the model's failure."""
-
-
-class ManifestError(GameError):
-    """The manifest this driver would write does not fit the frozen shape."""
-
-
-@dataclass(frozen=True, slots=True)
-class ModelSeat:
-    """One seat played by a provider, with the identity the manifest records."""
-
-    provider: Provider
-    model: str
-    provider_id: str
-    provider_version: str
-    sampling: Sampling = field(default_factory=Sampling)
-
-    def __post_init__(self) -> None:
-        if not self.model:
-            raise ValueError("a model seat needs a model")
-        if not self.provider_id or not self.provider_version:
-            raise ValueError("a model seat needs a provider identity and version")
-
-
-@dataclass(frozen=True, slots=True)
-class ScriptedSeat:
-    """One seat played from a recorded action list, never through a provider."""
-
-    actions: Sequence[Action]
-
-    def __post_init__(self) -> None:
-        if not self.actions:
-            raise ValueError("a scripted seat needs at least one action")
-
-
-type Seat = ModelSeat | ScriptedSeat
 
 
 @dataclass(frozen=True, slots=True)
@@ -137,21 +124,22 @@ class GameResult:
     model_seats: Mapping[PlayerId, str] = field(default_factory=dict)
 
 
-async def play_game(
+async def run_game(
     *,
     game: str,
     config: RunConfig,
     directory: Path,
     run_id: str,
-    seats: Mapping[PlayerId, Seat],
+    seats: Mapping[PlayerId, Agent],
     prompts: PromptSet,
     price_table: PriceTable,
+    design: GameDesign | None = None,
     policy: TurnPolicy | None = None,
     context: ContextPolicy | None = None,
     render_detail: str = "full",
     clock: Callable[[], str] | None = None,
 ) -> GameResult:
-    """Play one game to completion, one decision at a time, and write its run directory."""
+    """Play one game to a verdict or an abandonment, and write its run directory."""
     prompts.verify()
     plugin = get_game(game)
     budgets = policy or TurnPolicy()
@@ -165,6 +153,7 @@ async def play_game(
         price_table=price_table,
         policy=budgets,
         context=context_policy,
+        design=design,
     )
     problems = validate_manifest(manifest)
     if problems:
@@ -177,9 +166,9 @@ async def play_game(
     game_id = facade.create_session(game, config, directory=directory)
     sidecar = DecisionSidecar(decision_path(directory, game_id))
     accounting = RunAccounting(price_table)
-    model_seats = {seat: spec.model for seat, spec in seats.items() if isinstance(spec, ModelSeat)}
+    model_seats = {seat: spec.model for seat, spec in seats.items() if isinstance(spec, LlmAgent)}
     scripts = {
-        seat: deque(spec.actions) for seat, spec in seats.items() if isinstance(spec, ScriptedSeat)
+        seat: deque(spec.actions) for seat, spec in seats.items() if isinstance(spec, ScriptedAgent)
     }
     surfaces = {
         seat: FacadeSurface(
@@ -192,7 +181,7 @@ async def play_game(
             ),
         )
         for seat, spec in seats.items()
-        if isinstance(spec, ModelSeat)
+        if isinstance(spec, LlmAgent)
     }
     turns = {
         seat: DecisionTurn(
@@ -202,10 +191,11 @@ async def play_game(
             redo=prompts.redo_text,
         )
         for seat, spec in seats.items()
-        if isinstance(spec, ModelSeat)
+        if isinstance(spec, LlmAgent)
     }
     context_builder = ContextBuilder(context_policy, game=plugin)
     seat_decisions: dict[PlayerId, int] = {}
+    reference_decisions: dict[PlayerId, int] = {}
     now = _utc_now if clock is None else clock
     actions = 0
     decisions = 0
@@ -220,16 +210,34 @@ async def play_game(
             spec = seats.get(seat)
             if spec is None:
                 raise GameAbortedError(f"seat {seat} has no agent")
-            if isinstance(spec, ScriptedSeat):
-                action = scripts[seat].popleft()
-                result = facade.submit_action(game_id, action, request_id=decision.request_id)
-                if not isinstance(result, Applied):
-                    raise GameAbortedError(
-                        f"scripted seat {seat} was refused: {result.rejection.code.code}"
-                    )
-                actions += 1
-                attempted += 1
+            if isinstance(spec, ScriptedAgent):
+                actions, attempted = _scripted(
+                    facade,
+                    game_id,
+                    seat,
+                    decision.request_id,
+                    spec,
+                    scripts[seat],
+                    actions,
+                    attempted,
+                )
                 continue
+            if isinstance(spec, ReferenceAgent):
+                actions, attempted = _reference(
+                    facade,
+                    game_id,
+                    seat,
+                    decision.request_id,
+                    decision,
+                    spec,
+                    reference_decisions,
+                    config.seed,
+                    actions,
+                    attempted,
+                )
+                continue
+            if not isinstance(spec, LlmAgent):
+                raise GameAbortedError(f"seat {seat} has an agent the runner cannot drive")
             state = facade.decision_surface(game_id, seat)
             observation = facade.projection(game_id, seat)
             messages = context_builder.messages(
@@ -312,6 +320,74 @@ async def play_game(
         facade.end_session(game_id)
 
 
+def _scripted(
+    facade: SessionFacade,
+    game_id: GameId,
+    seat: PlayerId,
+    request_id: str,
+    spec: ScriptedAgent,
+    script: deque[Action],
+    actions: int,
+    attempted: int,
+) -> tuple[int, int]:
+    """Answer one decision from a recorded list, refusing a script that ran out or was refused."""
+    if not script:
+        raise GameAbortedError(f"scripted seat {seat} ran out of actions")
+    result = facade.submit_action(game_id, script.popleft(), request_id=request_id)
+    if not isinstance(result, Applied):
+        raise GameAbortedError(f"scripted seat {seat} was refused: {result.rejection.code.code}")
+    return actions + 1, attempted + 1
+
+
+def _reference(
+    facade: SessionFacade,
+    game_id: GameId,
+    seat: PlayerId,
+    request_id: str,
+    decision: DecisionRequest,
+    spec: ReferenceAgent,
+    seen: dict[PlayerId, int],
+    seed: int,
+    actions: int,
+    attempted: int,
+) -> tuple[int, int]:
+    """Ask a reference player for one of the game's own legal actions and submit it.
+
+    The chooser is derived from the run's seed, the seat and the decision's ordinal, so a policy
+    that draws is reproducible without the policy having to know anything about the run.
+
+    A refusal aborts rather than abandons. Abandonment is what a *model* failure the redo budget
+    could not rescue produces (FR-7.5); a reference player returning an illegal action is a defect
+    in the harness, and recording it as a model's abandonment would blame the wrong thing.
+    """
+    ordinal = seen.get(seat, 0)
+    seen[seat] = ordinal + 1
+    snapshot = facade.snapshot(game_id)
+    view = ReferenceView(
+        game=snapshot.game,
+        state=snapshot.state,
+        seat=seat,
+        request=decision,
+        chooser=SeededRandomSource(
+            _reference_seed(name=spec.name, run_seed=seed, seat=seat, ordinal=ordinal)
+        ),
+    )
+    action = spec.player.choose(view)
+    result = facade.submit_action(game_id, action, request_id=request_id)
+    if not isinstance(result, Applied):
+        raise GameAbortedError(
+            f"reference seat {seat} ({spec.name}) chose an action the engine refused: "
+            f"{result.rejection.code.code}"
+        )
+    return actions + 1, attempted + 1
+
+
+def _reference_seed(*, name: str, run_seed: int, seat: PlayerId, ordinal: int) -> int:
+    """A seed of its own, derived from the run's, so two runs of one design drive the same way."""
+    text = f"{REFERENCE_SEED_LABEL}:{name}:{run_seed}:{seat}:{ordinal}".encode()
+    return int(hashlib.sha256(text).hexdigest()[:12], 16)
+
+
 def _abandoned(
     *,
     game_id: GameId,
@@ -320,7 +396,7 @@ def _abandoned(
     sidecar: DecisionSidecar,
     seat: PlayerId,
     request_id: str,
-    spec: ModelSeat,
+    spec: LlmAgent,
     turn: TurnResult,
     config: RunConfig,
     policy: TurnPolicy,
@@ -410,110 +486,16 @@ def _rejection_of(attempt: Attempt, config: RunConfig) -> dict[str, JsonValue] |
     return {"code": code, "detail": config.rejection_detail.value, "attempt": number}
 
 
-def build_manifest(
-    *,
-    game: Game,
-    config: RunConfig,
-    run_id: str,
-    seats: Mapping[PlayerId, Seat],
-    prompts: PromptSet,
-    price_table: PriceTable,
-    policy: TurnPolicy,
-    context: ContextPolicy,
-) -> dict[str, JsonValue]:
-    """The run.json this single-game driver writes, checked against K-002's shape."""
-    game_config = dict(config.to_mapping().items())
-    game_config.pop("prompt_hashes", None)
-    initial = config.game_config.options.get("board")
-    initial_configuration = initial if isinstance(initial, str) else "fixed:default"
-    timeout = int(policy.decision_timeout_s)
-    if timeout != policy.decision_timeout_s or timeout < 1:
-        raise ManifestError("the manifest records decision_timeout_s as whole seconds, at least 1")
-    seat_rows: list[JsonValue] = []
-    for seat in range(config.players):
-        spec = seats.get(seat)
-        if spec is None:
-            raise ManifestError(f"seat {seat} has no agent")
-        if isinstance(spec, ModelSeat):
-            seat_rows.append(
-                {
-                    "seat": seat,
-                    "agent": "llm",
-                    "player": None,
-                    "model": spec.model,
-                    "provider": spec.provider_id,
-                    "sampling": spec.sampling.to_mapping(),
-                }
-            )
-        else:
-            seat_rows.append(
-                {
-                    "seat": seat,
-                    "agent": "scripted",
-                    "player": "scripted",
-                    "model": None,
-                    "provider": None,
-                    "sampling": None,
-                }
-            )
-    providers: list[JsonValue] = []
-    seen: set[tuple[str, str]] = set()
-    for spec in seats.values():
-        if isinstance(spec, ModelSeat) and (spec.provider_id, spec.provider_version) not in seen:
-            seen.add((spec.provider_id, spec.provider_version))
-            providers.append({"id": spec.provider_id, "version": spec.provider_version})
-    return {
-        "schema": MANIFEST_SCHEMA_NAME,
-        "run_id": run_id,
-        "engine_version": __version__,
-        "game": {
-            "name": game.name,
-            "rules_version": game.rules_version,
-            "schema_version": game.schema_version,
-        },
-        "config": game_config,
-        "seats": seat_rows,
-        "design": {
-            "seating": "fixed",
-            "initial_configuration": initial_configuration,
-            "configuration_scope": "per_experiment",
-            "replicates": 1,
-            "uncontrolled": [],
-            "derivation": {
-                "rule": "games = replicates x seatings",
-                "replicates": 1,
-                "seatings": 1,
-                "games": 1,
-            },
-        },
-        "policies": {
-            **context.to_mapping(),
-            "redo_budget": policy.redo_budget,
-            "on_exhausted": "abandon_game",
-            "step_budget": policy.step_budget,
-            "decision_timeout_s": timeout,
-            "game_timeout_s": DEFAULT_GAME_TIMEOUT_S,
-            "budget_micro_usd": None,
-        },
-        "prompts": prompts.hashes(),
-        "providers": providers,
-        "price_table": price_table.to_mapping(),
-    }
-
-
 def _utc_now() -> str:
     return datetime.now(UTC).isoformat()
 
 
 __all__: list[str] = [
     "DEFAULT_GAME_TIMEOUT_S",
+    "Abandonment",
     "GameAbortedError",
     "GameError",
     "GameResult",
     "ManifestError",
-    "ModelSeat",
-    "ScriptedSeat",
-    "Seat",
-    "build_manifest",
-    "play_game",
+    "run_game",
 ]

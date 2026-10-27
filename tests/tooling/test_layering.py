@@ -110,3 +110,39 @@ def test_the_host_layer_never_imports_a_game() -> None:
     )
 
     assert offenders == [], "a game reaches the host as a registered name, never as an import"
+
+
+def test_the_runner_layer_never_imports_a_game() -> None:
+    """PRD-v2 FR-11.7: a game reaches the runner as a registered name, never as an import.
+
+    The runner is the first layer that decides *which* games a run contains, which is exactly the
+    place a convenient `from lgbg.games import catan` would appear. It must not: the seat mapping
+    and the manifest are game-agnostic, and a game's facts reach them as declarations.
+    """
+    runner_sources = sorted((PACKAGE_ROOT / "runner").rglob("*.py"))
+
+    assert runner_sources, "control: a guard that scans nothing passes vacuously"
+
+    offenders = sorted(
+        f"{path.relative_to(REPO_ROOT)} imports {module}"
+        for path in runner_sources
+        for module in _imported_modules(path)
+        if module == "lgbg.games" or module.startswith("lgbg.games.")
+    )
+
+    assert offenders == [], "the runner must not name a game: " + ", ".join(offenders)
+
+
+def test_no_source_in_the_runner_names_a_game() -> None:
+    """The same rule, for the code a convenience edit would actually write: a literal game name."""
+    runner_sources = sorted((PACKAGE_ROOT / "runner").rglob("*.py"))
+
+    assert runner_sources, "control: the runner layer must have sources to scan"
+    offenders = [
+        f"{path.name}: {name}"
+        for path in runner_sources
+        for name in ("catan",)
+        if name in path.read_text(encoding="utf-8").lower()
+    ]
+
+    assert offenders == [], "a game name in the runner is a game-specific path: " + str(offenders)

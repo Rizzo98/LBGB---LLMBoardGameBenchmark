@@ -16,19 +16,19 @@ from typing import Any
 
 import tests.games.fixture_game  # noqa: F401 - importing registers the game
 from lgbg.adapters.cli.main import main
-from lgbg.agents.game import ModelSeat, ScriptedSeat, play_game
 from lgbg.agents.loop import TurnPolicy
 from lgbg.agents.pricing import PRICE_UNIT, ModelPrice, PriceTable
 from lgbg.agents.prompting import PromptSet
 from lgbg.agents.providers.base import ToolCall
 from lgbg.agents.providers.mock import Behaviour, MockProvider
-from lgbg.agents.results import summarise
 from lgbg.core.config import RunConfig
 from lgbg.core.contracts import validate_abandonment
 from lgbg.core.game import get_game
 from lgbg.core.log import GameLogReader, god_log_path
 from lgbg.core.replay import verify
 from lgbg.core.types import Action
+from lgbg.runner import LlmAgent, ScriptedAgent, run_game
+from lgbg.runner.results import summarise
 
 MODEL = "mock-model"
 AT = "2026-02-11T09:30:00+00:00"
@@ -93,19 +93,19 @@ def play(
     policy: TurnPolicy | None = None,
 ) -> Any:
     return asyncio.run(
-        play_game(
+        run_game(
             game="fixture",
             config=RunConfig(seed=7, players=2, interaction_protocol="decline_only"),
             directory=tmp_path / run_id,
             run_id=run_id,
             seats={
-                0: ModelSeat(
+                0: LlmAgent(
                     provider=provider,
                     model=MODEL,
                     provider_id="mock",
                     provider_version="1",
                 ),
-                1: ScriptedSeat(
+                1: ScriptedAgent(
                     actions=[
                         Action(player=1, type=name, params=params) for name, params in LEGAL_ONE
                     ]

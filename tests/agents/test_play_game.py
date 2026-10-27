@@ -17,7 +17,6 @@ from pathlib import Path
 from typing import Any
 
 import lgbg.games  # noqa: F401 - importing the package registers the in-repo plugins
-from lgbg.agents.game import ModelSeat, ScriptedSeat, play_game
 from lgbg.agents.pricing import PRICE_UNIT, ModelPrice, PriceTable
 from lgbg.agents.prompting import PromptSet
 from lgbg.agents.providers.base import (
@@ -35,6 +34,7 @@ from lgbg.core.game import get_game
 from lgbg.core.log import GameLogReader, god_log_path
 from lgbg.core.replay import replay, verify
 from lgbg.core.types import Action
+from lgbg.runner import LlmAgent, ScriptedAgent, run_game
 
 FIXTURE = Path(__file__).resolve().parents[1] / "fixtures" / "catan" / "full_game.json"
 RUN_ID = "r-k022"
@@ -86,15 +86,15 @@ def test_one_model_plays_a_complete_game_and_the_directory_reconstructs_it(
             for index, entry in enumerate(seat_zero)
         ],
     )
-    seats: dict[int, ModelSeat | ScriptedSeat] = {
-        0: ModelSeat(
+    seats: dict[int, LlmAgent | ScriptedAgent] = {
+        0: LlmAgent(
             provider=provider,
             model=MODEL,
             provider_id="mock",
             provider_version="1",
         ),
         **{
-            player: ScriptedSeat(
+            player: ScriptedAgent(
                 actions=[
                     Action(
                         player=player,
@@ -116,7 +116,7 @@ def test_one_model_plays_a_complete_game_and_the_directory_reconstructs_it(
     directory = tmp_path / "runs" / RUN_ID
 
     result = asyncio.run(
-        play_game(
+        run_game(
             game="catan",
             config=config,
             directory=directory,

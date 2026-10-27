@@ -104,6 +104,47 @@ def test_the_facade_offers_only_the_operations_the_engine_declares() -> None:
     assert offered == set(PUBLIC_OPERATIONS)
 
 
+def test_a_snapshot_reads_the_engine_state_without_advancing_it(tmp_path: Path) -> None:
+    """FR-11.1: an in-process driver needs the position to offer a reference player its actions.
+
+    The snapshot is a value, not a handle: the next accepted action moves the session and leaves the
+    copy the caller already holds alone. It is a read, so reading it twice writes nothing.
+    """
+    facade = SessionFacade()
+    game_id = facade.create_session("fixture", fixture_config(), directory=tmp_path)
+
+    before = facade.snapshot(game_id)
+
+    assert before.game.name == "fixture"
+    assert before.config == fixture_config()
+    assert [request.player for request in before.pending] == [0]
+    assert before.state.tokens == (0, 0)
+    assert before.outcome is None
+    assert read_log(tmp_path, game_id).actions == []
+
+    facade.submit_action(game_id, Action(player=0, type="take", params={}))
+    after = facade.snapshot(game_id)
+
+    assert before.state.tokens == (0, 0), "a snapshot is not a handle"
+    assert before.state.turn == 0
+    assert after.state.tokens == (1, 0)
+    assert after.state.turn == 1
+    assert len(read_log(tmp_path, game_id).actions) == 1, "the read itself recorded nothing"
+
+
+def test_a_snapshot_of_a_finished_game_carries_the_verdict(tmp_path: Path) -> None:
+    facade = SessionFacade()
+    game_id = facade.create_session("fixture", fixture_config(), directory=tmp_path)
+    play_to_a_win(facade, game_id)
+
+    finished = facade.snapshot(game_id)
+
+    assert finished.pending == ()
+    assert finished.outcome is not None
+    assert finished.outcome.winner == 0
+    assert finished.state.scores[0] >= 2
+
+
 def test_no_source_in_the_host_layer_names_a_game() -> None:
     """PRD-v2 FR-1.2, SC-6: the layer cannot grow a game-specific operation without naming one."""
     host_sources = sorted((TESTS.parent / "lgbg" / "host").rglob("*.py"))

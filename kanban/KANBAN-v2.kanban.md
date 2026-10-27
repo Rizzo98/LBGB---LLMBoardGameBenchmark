@@ -13,22 +13,6 @@
 
 
 
-### K-027 · The runner core
-
-  - tags: [slice-6, runner, fr-11, fr-10]
-  - priority: high
-  - workload: Hard
-  - steps:
-      - [ ] Seats map to agents: an LLM agent, a reference player, or a scripted agent
-      - [ ] A game runs to completion or abandonment entirely through the facade
-      - [ ] The run manifest is written with config, seats, policies, prompt hashes, provider identity and the price table
-      - [ ] The runner contains no game-specific logic; every game fact is a plugin declaration
-    ```md
-    - **Cuts through:** runner, the facade, agents, the manifest, results
-    - **Depends on:** K-025, K-026
-    - **PRD:** FR-11.1, FR-11.2, FR-11.7, FR-10.1, FR-10.2
-    ```
-
 ### K-028 · The experiment-design matrix
 
   - tags: [slice-6, design, fr-11, sc-7]
@@ -661,3 +645,21 @@
 
 
 
+
+### K-027 · The runner core
+
+  - tags: [slice-6, runner, fr-11, fr-10]
+  - priority: high
+  - workload: Hard
+  - steps:
+      - [x] Seats map to agents: an LLM agent, a reference player, or a scripted agent
+      - [x] A game runs to completion or abandonment entirely through the facade
+      - [x] The run manifest is written with config, seats, policies, prompt hashes, provider identity and the price table
+      - [x] The runner contains no game-specific logic; every game fact is a plugin declaration
+    ```md
+    - **Cuts through:** runner, the facade, agents, the manifest, results
+    - **Depends on:** K-025, K-026
+    - **PRD:** FR-11.1, FR-11.2, FR-11.7, FR-10.1, FR-10.2
+    - **Why:** The layer below knows how to run a game and talk to a model; the runner is the first thing that knows what an experiment is. Cutting here is what makes the design matrix, the reference players and results.json possible without each of them inventing its own seat model.
+    - **Evidence:** `lgbg/runner/agents.py` declares the three agent kinds - `llm`, `reference`, `scripted` - as one closed union, so a seat is an agent and a fourth kind is a reviewed change to the manifest vocabulary rather than a branch in a loop. `lgbg/runner/design.py` carries the point in the experiment (seating, configuration, scope, replicates, uncontrolled axes and their derivation) without building the matrix that produces it, which is K-028's; the derivation is checked to add up before it is recorded. `lgbg/runner/manifest.py` writes run.json with the config, the seats, every policy, the four prompt hashes, the provider identities and the price table, and it no longer reads the `board` option out of the game's config: a K-022 leftover that made the manifest game-specific. `lgbg/runner/game.py` drives one game through the facade in the game's own resolution order: an LLM seat through the loop and the sidecar, a reference seat through `SessionFacade.snapshot` and the plugin's own `legal_actions`, a scripted seat through its recorded list; completion returns the verdict and exhaustion returns `completed=False` with the abandonment record and no terminal line. `SessionFacade.snapshot` is the one read added to the closed operation set: it is the operator's view of the position, it enumerates nothing, and no HTTP route or MCP tool serves it, so the assist ladder is untouched. A reference player's chooser is seeded from the run's seed, the seat and the decision ordinal, so a drawing policy is reproducible. `results.summarise` moved into the runner, where the arithmetic belongs, now that there is a runner. `tests/runner/test_runner.py` declares all three kinds in one manifest, plays a mixed LLM-and-reference table to a model win with 19 actions and ten sidecar records, proves the reference seat reads the game's enumeration and never the sidecar, plays the same drawing reference seat twice to byte-identical god logs, keeps an always-illegal model's game incomplete with no synthetic verdict, and refuses a missing or an extra seat. Two deliberate mutations - reading `board` back out of the game config, and recording a reference seat as `llm` - each failed and were reverted. `tests/tooling/test_layering.py` adds that the runner never imports a game and never names one. Gate: 1181 passed, 1 skipped.
+    ```

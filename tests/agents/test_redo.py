@@ -16,7 +16,6 @@ from pathlib import Path
 from typing import Any
 
 import tests.games.fixture_game  # noqa: F401 - importing registers the game
-from lgbg.agents.game import ModelSeat, ScriptedSeat, play_game
 from lgbg.agents.loop import TurnPolicy
 from lgbg.agents.pricing import PRICE_UNIT, ModelPrice, PriceTable
 from lgbg.agents.prompting import PromptSet
@@ -25,6 +24,7 @@ from lgbg.agents.providers.mock import Behaviour, MockProvider
 from lgbg.core.config import RunConfig
 from lgbg.core.prompts import digest
 from lgbg.core.types import Action
+from lgbg.runner import LlmAgent, ScriptedAgent, run_game
 
 MODEL = "mock-model"
 AT = "2026-02-11T09:30:00+00:00"
@@ -72,14 +72,14 @@ def prompts(tmp_path: Path) -> PromptSet:
     return PromptSet.load("fixture", game_prompt=game_prompt)
 
 
-def scripted_one() -> ScriptedSeat:
-    return ScriptedSeat(
+def scripted_one() -> ScriptedAgent:
+    return ScriptedAgent(
         actions=[Action(player=1, type=name, params=params) for name, params in LEGAL_ONE]
     )
 
 
-def model_zero(provider: MockProvider) -> ModelSeat:
-    return ModelSeat(
+def model_zero(provider: MockProvider) -> LlmAgent:
+    return LlmAgent(
         provider=provider,
         model=MODEL,
         provider_id="mock",
@@ -101,7 +101,7 @@ def run(
         unit=PRICE_UNIT,
         models=(ModelPrice(model=MODEL, prompt=0, completion=0),),
     )
-    result = play_game_sync(
+    result = run_game_sync(
         game="fixture",
         config=RunConfig(seed=7, players=2, interaction_protocol="decline_only"),
         directory=directory,
@@ -120,10 +120,10 @@ def run(
     return {"result": result, "records": records, "directory": directory}
 
 
-def play_game_sync(**kwargs: Any) -> Any:
+def run_game_sync(**kwargs: Any) -> Any:
     import asyncio
 
-    return asyncio.run(play_game(**kwargs))
+    return asyncio.run(run_game(**kwargs))
 
 
 def decision_records(run_data: dict[str, Any]) -> list[dict[str, Any]]:
@@ -211,19 +211,19 @@ def test_two_models_and_two_seats_receive_the_same_budget_and_words(tmp_path: Pa
             ModelPrice(model="model-b", prompt=0, completion=0),
         ),
     )
-    result = play_game_sync(
+    result = run_game_sync(
         game="fixture",
         config=RunConfig(seed=7, players=2, interaction_protocol="decline_only"),
         directory=directory,
         run_id="r-uniform",
         seats={
-            0: ModelSeat(
+            0: LlmAgent(
                 provider=provider_a,
                 model="model-a",
                 provider_id="mock",
                 provider_version="1",
             ),
-            1: ModelSeat(
+            1: LlmAgent(
                 provider=provider_b,
                 model="model-b",
                 provider_id="mock",

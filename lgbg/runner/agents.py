@@ -4,10 +4,11 @@ The runner assigns an **agent** to every seat, and there are exactly three kinds
 because a record has to name one and results have to tell them apart:
 
 - an **LLM agent** owns a provider, a model identity and its sampling parameters. It is the only
-  kind that reaches a model, spends tokens, and is ever reported as scored (FR-12.3).
-- a **reference player** is a policy: it chooses one of the game's own legal actions and never a
-  model's. It receives the plugin, the position, the seat and the open decision, so the fuzz
-  harness's selectors can be reused rather than reimplemented (FR-12.1, K-030).
+  kind that reaches a model, spends tokens, and is ever reported as scored (FR-11.1).
+- a **reference player** is test infrastructure: it chooses one of the game's own legal actions and
+  never a model's, so the runner can be exercised without a provider. It is never scored and never
+  appears in a comparison. It receives the plugin, the position, the seat and the open decision, so
+  the fuzz harness's selectors can be reused rather than reimplemented.
 - a **scripted agent** replays a recorded action list. It is how a fixture, a golden record or a
   smoke test plays without an agent at all, and it must never be mistaken for one.
 
@@ -55,15 +56,15 @@ class ReferenceView:
     player that draws is still reproducible and two runs of the same design agree byte for byte.
 
     A draw records its value, so an action is chosen by index rather than passed to `choice`: the
-    fuzz harness's selectors already work that way, and a reference player reuses them (FR-12.1)."""
+    fuzz harness's selectors already work that way, and a reference player reuses them (FR-11.1)."""
 
 
 class ReferencePlayer(Protocol):
-    """A non-LLM policy, usable in any seat of any table (FR-12.4)."""
+    """A non-LLM policy, usable in any seat of any table; test infrastructure, never scored."""
 
     @property
     def name(self) -> str:
-        """How results identify this player. Never a model name (FR-12.3)."""
+        """How the manifest identifies this player. Never a model name (FR-11.1)."""
         ...
 
     def choose(self, view: ReferenceView) -> Action:

@@ -151,7 +151,7 @@ class SpendFirst:
 
 @dataclass(frozen=True, slots=True)
 class RandomLegal:
-    """A reference player in the shape K-030 will ship: one of the offered actions, drawn."""
+    """A reference seat for tests: one of the offered actions, drawn."""
 
     name: str = "random-legal"
 

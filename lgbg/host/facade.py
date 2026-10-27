@@ -12,7 +12,7 @@ about itself: enumeration is an assist-level property of a *surface* (FR-3.3, FR
 that could enumerate would quietly make the assist level a suggestion. The set is closed and
 declared in `PUBLIC_OPERATIONS`, and a test compares it against the class, so an operation is a
 decision rather than an accident. `snapshot` is the one read that is not a player surface: it is
-how an in-process driver hands a reference player the position (K-027), it still enumerates
+how an in-process driver hands a non-model seat the position (K-027), it still enumerates
 nothing, and no transport serves it.
 
 **Concurrency, stated rather than hoped for (FR-1.5, NFR-6).** There is one lock per session, held
@@ -109,10 +109,10 @@ class SessionSnapshot:
     """One read of a session as it stands: a value, not a handle (K-027).
 
     This is the *operator's* read, not a player's surface. A driver that has to choose an action
-    without a model - a reference player - needs the position and the decisions that are open, and
-    the game's own enumeration is the only thing that can turn those into a legal action. The
-    snapshot therefore carries what the facade already owns rather than adding an enumeration to
-    the facade: enumeration stays a property of the game and of the assist level, which is what
+    without a model - a test-only reference seat - needs the position and the decisions that are
+    open, and the game's own enumeration is the only thing that can turn those into a legal action.
+    The snapshot therefore carries what the facade already owns rather than adding an enumeration
+    to the facade: enumeration stays a property of the game and of the assist level, which is what
     keeps an L0 surface from becoming a disguised L2 one.
 
     It is not served by any transport. There is no HTTP route and no MCP tool or resource over it,

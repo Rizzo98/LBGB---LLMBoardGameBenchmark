@@ -39,7 +39,7 @@ on them:
 | Engine | 0.1.0, Catan base 4-player, 917 tests, gate green (ruff, ruff format, mypy --strict, pytest) |
 | Records | 7 golden games verified end to end, hash-chained, sidecar split |
 | Determinism | Proven across `PYTHONHASHSEED`; ambient randomness fails the lint gate |
-| Assist levels | L0/L1/L2 implemented, **byte-identical god logs** proven (SC-8) |
+| Assist levels | L0/L1/L2 implemented, **byte-identical god logs** proven (v1 SC-8) |
 | Tool definitions | `lgbg/core/tools.py` already emits MCP-shaped `{name, description, inputSchema}` |
 | Notation | `Game.render(observation, detail=...)` plus a delta renderer |
 | Decision surface | `pending_decisions`, `legal_actions`, `action_domains`, `render_decision` |
@@ -78,7 +78,7 @@ there is a framework.
 | G2 | The agent surface changes **nothing** about the game: the same actions produce the same god log whether they arrive from a model, a script, or a human. |
 | G3 | Any model can be plugged in behind one narrow interface, and models that behave badly are handled by declared, logged policy rather than by improvisation. |
 | G4 | A run is auditable from its directory alone: every prompt, response, token, cost, and failure is recoverable months later. |
-| G5 | Results are interpretable, which means a non-LLM reference player exists to compare against. |
+| G5 | Results are **comparable**: every controllable factor is declared, recorded and held constant across models, so a difference between two models is attributable to the models rather than to the harness. |
 | G6 | The whole thing is observable by a human before it is ever pointed at a model. |
 
 ---
@@ -90,6 +90,7 @@ there is a framework.
 | **Statistics**: Elo, Bradley-Terry, confidence intervals, sample-size planning | PRD-v3. v2 emits *facts* per run; v3 draws *inferences* across runs. |
 | **Leaderboards, dashboards, reports, a web UI** | PRD-v3. |
 | **A second game plugin** | PRD-v3, deliberately: it is the true test of the v1 plugin boundary, and it should not be confounded with the agent layer landing. |
+| **A non-LLM baseline opponent** | v2 compares models with each other under a recorded design. Absolute skill — including blunder rates against an oracle — belongs to v3. A reference seat remains test infrastructure and is never scored. |
 | Free-text negotiation between models | Permanently out of scope (`ARCHITECTURE.md` §3). Trading stays structured. |
 | Self-play optimisation, fine-tuning, model training | — |
 | Long-term agent memory across games | Each game starts clean. Memory is an experimental variable, not infrastructure. |
@@ -112,7 +113,7 @@ Each is binary and maps to an automated check in §12.
 | SC-5 | A prompt or policy file that changes without its hash changing the manifest is impossible: the run manifest's hashes are recomputed at the start of every game and a mismatch aborts the run. |
 | SC-6 | An MCP client with no knowledge of Catan — driving only from `tools/list` and the exposed resources — plays a legal opening placement. No game-specific code exists in that client. |
 | SC-7 | **Experiment design is declared and recorded.** Every game records its replicate index, rotation index, seat assignment and initial configuration; a four-seat rotated design with five replicates yields twenty games, in which each agent occupies every seat index equally often. |
-| SC-8 | Two non-LLM reference players (random-legal and greedy-heuristic) complete full games and are never reported as scored participants. |
+| SC-8 | **Model-to-model comparison is controlled.** A two-model run with rotated seating produces, from the same games, one result row per model; every game records its seat, seed, initial configuration, prompt hashes, assist level, context policy and budgets; and no non-model seat appears in a scored row. |
 | SC-9 | Provider conformance: the OpenRouter adapter and the mock pass one shared conformance suite, covering both a model with native tool calling and one without. |
 | SC-10 | Malformed behaviour is handled and logged, not fatal: a model that emits no action, an unparseable tool call, or a runaway loop is recorded with its failure kind and resolved by declared policy. No run can hang. |
 | SC-11 | The gate stays green, and `lgbg/core` and `lgbg/games` still have **zero** third-party runtime dependencies. |
@@ -143,7 +144,7 @@ Each is binary and maps to an automated check in §12.
 | D2 | `lgbg/adapters/mcp/` — MCP server: stdio and HTTP transports, generated tools, observation resources, benchmark and sandbox profiles. |
 | D3 | `lgbg/agents/` — provider abstraction, adapters, the tool loop, prompt assembly, failure policy, context policy, cost accounting. |
 | D4 | `lgbg/runner/` — seat assignment, the experiment-design matrix, concurrent decision dispatch, run manifest, `results.json`. |
-| D5 | Reference players: random-legal and greedy-heuristic. |
+| D5 | A **two-model comparison run** on the mock provider and its `results.json`, used as the evidence for SC-8. |
 | D6 | CLI additions: `serve`, `run`, `play-live`, `inspect-run`. |
 | D7 | A mock provider and a provider conformance suite. |
 | D8 | Test suite: surface equivalence, assist equivalence, failure policy, provider conformance. |
@@ -377,7 +378,12 @@ identically to every model in a comparison.
 ### 8.11 The runner and experiment design
 
 - **FR-11.1** The runner MUST assign an **agent** to each seat, from a declared set: an LLM agent, a
-  reference player, or a scripted agent.
+  scripted agent, or a reference policy used only for tests and exploration. Every scored seat MUST
+  be an LLM; a scripted or reference seat MUST NOT appear in a scored result row.
+
+  A reference seat exists so the runner can be exercised without a provider. It is test
+  infrastructure, not a baseline: it reuses the fuzz harness's selector, it is never scored, and it
+  never appears in a comparison.
 - **FR-11.2** The runner MUST dispatch **concurrent decisions in parallel** and apply results in the
   game's declared resolution order, so that wall-clock cost does not scale with concurrency while the
   record stays deterministic.
@@ -429,17 +435,6 @@ identically to every model in a comparison.
   Data that carries its own caveat is safe. A caveat that lives in someone's memory is not.
 - **FR-11.13** The single-game exploration case MUST be first-class: one game, randomly assigned seats,
   randomly drawn initial configuration, no replicates. It is the default when no design is declared.
-
-### 8.12 Reference players
-
-- **FR-12.1** A **random-legal** player MUST exist, reusing the v1 fuzz harness's action selector rather
-  than reimplementing one.
-- **FR-12.2** A **greedy-heuristic** player MUST exist: a documented, deterministic policy that expands,
-  builds toward production, and takes available positive trades. It MUST be good enough to beat
-  random comfortably, and it MUST be simple enough to explain in a paragraph.
-- **FR-12.3** Neither reference player is ever scored or reported as a model. They appear in results
-  only as reference rows.
-- **FR-12.4** A reference player MUST be usable in any seat, including mixed seats with LLM agents.
 
 ### 8.13 Cost and token accounting
 
@@ -554,17 +549,16 @@ runs/<run_id>/
 ```jsonc
 {
   "game": "catan",
-  "config": { "seed": 123456789, "board": "fixed:standard_a", "assist": "L1" },
+  "config": { "seed": 123456789, "assist": "L1" },
   "seats": [
-    { "seat": 0, "agent": "llm", "model": "<model-id>", "provider": "<provider-id>", "temperature": 0.0 },
-    { "seat": 1, "agent": "heuristic" },
-    { "seat": 2, "agent": "llm", "model": "<model-id>", "provider": "<provider-id>", "temperature": 0.0 },
-    { "seat": 3, "agent": "random" }
+    { "seat": 0, "agent": "llm", "model": "<model-a>", "provider": "<provider-id>", "temperature": 0.0 },
+    { "seat": 1, "agent": "llm", "model": "<model-b>", "provider": "<provider-id>", "temperature": 0.0 },
+    { "seat": 2, "agent": "llm", "model": "<model-a>", "provider": "<provider-id>", "temperature": 0.0 },
+    { "seat": 3, "agent": "llm", "model": "<model-b>", "provider": "<provider-id>", "temperature": 0.0 }
   ],
   "design": {
     "seating": "rotated",
-    "initial_configuration": "random",
-    "configuration_scope": "per_experiment",
+    "initial_configuration": "fixed:standard_a",
     "replicates": 5
   },
   "policies": {
@@ -622,7 +616,7 @@ its god log carries no terminal record.
 | `test_uncontrolled_design_marked` | FR-11.12 — the marking travels into `results.json` |
 | `test_one_game_default` | FR-11.13 — an undeclared design gives one game, random seats, random configuration |
 | `test_profile_absence` | FR-3.4b — the benchmark entry point serves no lifecycle tool |
-| `test_reference_players` | FR-12.1–FR-12.4, SC-8 |
+| `test_two_model_comparison` | SC-8 — two models, four seats, rotated: each model occupies every seat index equally often, every game records its design point, and `results.json` has one row per model and none for a non-model seat |
 | `test_redo_loop` | FR-7.1–FR-7.4, SC-15 — an illegal action gets a redo inside the same decision turn, under one shared prompt |
 | `test_redo_uniform` | FR-7.3, FR-9.6 — every model and seat receives the same redo budget and the same words |
 | `test_abandonment` | FR-7.5, FR-11.6, FR-11.6a, FR-11.8 — exhaustion abandons the game, writes no terminal record, and stays out of outcome aggregates |
@@ -649,7 +643,7 @@ its god log carries no terminal record.
 | **M4** | Provider abstraction and the OpenRouter adapter | The OpenRouter adapter, the mock, conformance suite, payload and routing recording, pricing capture. FR-5, FR-15.1–FR-15.2, SC-4, SC-9. |
 | **M5** | Tool loop and one model playing | One model plays a full game; sidecar records every decision turn. FR-6, SC-1. |
 | **M6** | Redo loop, failure and context policy | The redo loop with its shared prompt and budget; abandonment on exhaustion; failure kinds; context strategies. FR-7, FR-8, SC-10, SC-15. |
-| **M7** | Runner and experiment design | Seats, the design matrix (seating × configuration × replicates), rotation, per-game design records, reference players. FR-11, FR-12, SC-7, SC-8. |
+| **M7** | Runner and experiment design | Seats, the design matrix (seating × configuration × replicates), rotation, per-game design records, and a two-model comparison run. FR-11, SC-7, SC-8. |
 | **M8** | HTTP host and registry | FR-2, SC-2 complete (all three surfaces). |
 | **M9** | Accounting and unattended runs | FR-13, FR-14.2, `results.json`, the CI campaign on the mock, the budget-bounded demonstration run. SC-12, SC-16. |
 | **M10** | CLI completion, documentation, acceptance | FR-14, D9, SC-1…SC-16 evidenced in an acceptance record. |
@@ -693,13 +687,14 @@ in the surface and a bug in the agent look identical.
 | Q6 | Sandbox profile: a flag, or a separate entry point? | **Separate entry points over one implementation**, profile fixed at construction, with the lifecycle tools *absent* from the benchmark process rather than gated behind a value — and a test asserting the absence (FR-3.4–FR-3.4c). The rule underneath: **a model is a player, never an operator.** |
 | Q7 | How many games is "an unattended run"? | **Split into two criteria.** SC-12 is a CI campaign of ≥ 50 games on the mock provider, where unattended operation is the thing being proved and cost is zero. SC-16 is a real-provider demonstration bounded by **declared budget** rather than by a game count, because the same count costs roughly $4 on a cheap model and roughly $90 on a frontier one. |
 | Q8 | Is mirroring mandatory, or a default? | **Replaced by an experiment-design model.** Randomness is fought by declaring which axes vary and recording them per game, not by mandating a single rotation. Seating and initial configuration are independent axes — a game with a fixed start varies only the first — and the game count is derived from the design rather than stated (FR-11.3–FR-11.13). |
+| Q9 | Is a non-LLM baseline part of the benchmark? | **No.** v2 compares models with each other: the unit of analysis is a model in a recorded design point, not a model against an opponent. A reference seat remains test infrastructure — it exercises the runner without a provider — but it is never scored, never reported and never used to interpret a result. Absolute claims and oracle-based metrics are v3, and would arrive with the second game and a frozen benchmark version. |
 
 ### 15.2 Open
 
 None at the time of writing.
 
 New questions are appended here and answered explicitly rather than settled by assumption. That is not
-a formality: every one of Q5–Q8 above changed a requirement once it was asked out loud, and Q8 changed
+a formality: every one of Q5–Q9 above changed a requirement once it was asked out loud, and Q8 changed
 a whole section.
 
 ---
@@ -717,7 +712,6 @@ a whole section.
 | FR-8 | §12.4 (notation detail levels), §13 |
 | FR-9 | §11 (prompt layer) |
 | FR-10, FR-11 | §8 (logging and event sourcing), §7.10 (benchmark profile) |
-| FR-12 | §15 (measurement layer) |
 | FR-13 | §15 |
 | FR-16 | §4 (layering), §7.3 |
 

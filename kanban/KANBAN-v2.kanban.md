@@ -31,23 +31,6 @@
     - **Why:** Seating and starting configuration are independent axes. A game whose starting position is fixed still gives one seat the first move, so it varies the first and not the second. A design model that assumed every game can be randomised would be wrong about such a game the day it arrived.
     ```
 
-### K-030 · Reference players
-
-  - tags: [slice-6, agents, fr-12, sc-8]
-  - priority: medium
-  - workload: Normal
-  - steps:
-      - [ ] A random-legal player, reusing v1's fuzz action selector rather than reimplementing one
-      - [ ] A greedy-heuristic player: deterministic, and explainable in a paragraph
-      - [ ] Both usable in any seat, including a table mixed with LLM agents
-      - [ ] Neither is ever scored, and both appear only as reference rows
-    ```md
-    - **Cuts through:** agents, core/fuzzing, the runner, results
-    - **Depends on:** K-027
-    - **PRD:** FR-12.1 to FR-12.4, SC-8
-    - **Why:** Without a non-LLM reference, a win rate is a number with no scale. These are what make the first model result interpretable rather than merely reproducible.
-    ```
-
 ### K-031 · Concurrent decision dispatch
 
   - tags: [slice-6, runner, fr-11, nfr-2]

@@ -9,8 +9,9 @@ The three kinds of seat play differently and are recorded the same way:
 - an **LLM agent** goes through the provider-agnostic loop. Every provider call becomes a decision
   record in the sidecar, with the exact messages it was sent, and the run's price table accounts
   for it (FR-10.3, FR-13.1).
-- a **reference player** is asked for one of the game's own legal actions. It costs a decision, not
-  a call, so it is counted in the god log and nowhere in the sidecar (FR-12.3).
+- a **reference player** is test infrastructure, asked for one of the game's own legal actions. It
+  costs a decision, not a call, so it is counted in the god log and nowhere in the sidecar. It is
+  never scored and never part of a comparison (FR-11.1).
 - a **scripted agent** submits its recorded actions directly. It is how a fixture plays a seat with
   no agent at all, and the manifest says so.
 

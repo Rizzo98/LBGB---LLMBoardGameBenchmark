@@ -430,8 +430,8 @@ MANIFEST_SCHEMA: Final[JsonSchema] = {
         "providers": {
             "type": "array",
             "items": _PROVIDER,
-            "$comment": "empty for a table of reference players and scripts: a run with no model "
-            "seat used no provider, and an invented identity would be a lie (FR-11.1, FR-12.3)",
+            "$comment": "empty for a table of non-model seats: a run with no model "
+            "seat used no provider, and an invented identity would be a lie (FR-11.1)",
         },
         "price_table": _PRICE_TABLE,
     },

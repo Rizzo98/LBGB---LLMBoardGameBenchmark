@@ -13,23 +13,6 @@
 
 
 
-### K-026 · Context policy
-
-  - tags: [slice-5, context, fr-8]
-  - priority: medium
-  - workload: Normal
-  - steps:
-      - [ ] The context strategy is a declared config value, with delta-with-refresh as the default
-      - [ ] Three strategies supported: full every turn, delta with periodic refresh, bounded window
-      - [ ] The strategy is recorded in the manifest and identical across models
-      - [ ] The exact message list sent for any decision is reconstructible from the record
-    ```md
-    - **Cuts through:** agents, core/delta, notation, the manifest
-    - **Depends on:** K-022
-    - **PRD:** FR-8.1 to FR-8.4
-    - **Why:** Full projection every turn is less confounded but pays the whole board on every decision, and on a 743-action game that is the difference between an affordable experiment and an unaffordable one.
-    ```
-
 ### K-027 · The runner core
 
   - tags: [slice-6, runner, fr-11, fr-10]
@@ -656,6 +639,25 @@
     - **Why:** Charging every failure to the same budget would misreport why a game ended. A looping model never proposed an illegal move, so its record must not say it did.
     - **Evidence:** `lgbg/core/contracts.py` declares `FAILURE_KINDS` - `malformed_arguments`, `no_action`, `redo_exhausted`, `runaway`, `timeout` - and both the decision record and the abandonment record are closed over that set, so a failure kind results cannot count is a schema violation. A malformed tool call reaches `FacadeSurface.act` as raw text and comes back as `MALFORMED_ARGUMENTS` with the declared failure kind, and the loop charges it to the redo budget; prose-only and a runaway are recorded as `no_action` and `runaway` without touching that budget; a timeout is recorded as a failed call with no completion, its exact exchange when the adapter attached one, unknown usage and, in the end, an abandoned game. `Abandonment` gained `calls`, so the redo attempts and the provider calls are both visible. `tests/agents/test_failures.py` drives every mock behaviour through the fixture game: always-illegal and malformed abandon with two redo attempts, prose-only and runaway abandon with none, timeout abandons with usage and cost unknown and its wire intact, correct play still completes, and the five behaviours are the declared set. A deliberate mutation that stopped charging malformed calls to the redo budget failed the malformed test, and one that charged a runaway to the redo budget failed the runaway test; both were reverted. Gate: 1159 passed, 1 skipped.
     ```
+
+### K-026 · Context policy
+
+  - tags: [slice-5, context, fr-8]
+  - priority: medium
+  - workload: Normal
+  - steps:
+      - [x] The context strategy is a declared config value, with delta-with-refresh as the default
+      - [x] Three strategies supported: full every turn, delta with periodic refresh, bounded window
+      - [x] The strategy is recorded in the manifest and identical across models
+      - [x] The exact message list sent for any decision is reconstructible from the record
+    ```md
+    - **Cuts through:** agents, core/delta, notation, the manifest
+    - **Depends on:** K-022
+    - **PRD:** FR-8.1 to FR-8.4
+    - **Why:** Full projection every turn is less confounded but pays the whole board on every decision, and on a 743-action game that is the difference between an affordable experiment and an unaffordable one.
+    - **Evidence:** `lgbg/agents/context.py` declares `ContextStrategy` (`full`, `delta_with_refresh`, `bounded_window`) and a `ContextPolicy` whose default is delta with a refresh every ten decisions. The enum is checked against `core.contracts.CONTEXT_STRATEGIES` at import, so the vocabulary cannot drift. `ContextBuilder` keeps only the previous observation and the recent surfaces per seat: full sends the decision surface; delta sends `core.delta.render_delta` between that seat's previous and current observations plus the current decision surface, refreshing to a full projection on the first decision and every interval; bounded keeps the last N decision surfaces as user messages. The delta reaches the surface by removing the projection prefix the facade's renderer puts there, so the question still travels with the answer. `PromptSet` gained `system_messages`, and `play_game` builds one builder for the whole game from one policy object. The manifest records `context`, `context_refresh_every` and `context_window`; the policies shape now requires all three, and the fixture manifest carries them. `tests/agents/test_context.py` holds the three strategies at the builder seam, the default end to end, the bounded window's exact user messages, the manifest values, and a full fixture game played under each strategy with the same final hash and every decision's messages reconstructed from the run directory alone. A deliberate mutation making full the default failed the default test, and one that never sent a delta failed the delta test; both were reverted. Gate: 1167 passed, 1 skipped.
+    ```
+
 
 
 

@@ -122,18 +122,21 @@ class PromptSet:
                 parts.append(f"changed {changed}")
             raise PromptHashError("prompt hash mismatch: " + "; ".join(parts))
 
-    def initial_messages(self, state: str) -> tuple[Message, ...]:
-        """The conversation before the model's first answer: one message per layer, then state.
+    def system_messages(self) -> tuple[Message, ...]:
+        """The three prompt layers, in the order every strategy puts them.
 
-        The layers stay in separate messages rather than being concatenated, so a reader of the
-        sidecar can tell which artefact said what and a hash names one file rather than a blend.
+        Kept separate rather than concatenated, so a reader of the sidecar can tell which artefact
+        said what and a hash names one file rather than a blend.
         """
         return (
             Message(role=Role.SYSTEM, content=self.text("system")),
             Message(role=Role.SYSTEM, content=self.text("policy")),
             Message(role=Role.SYSTEM, content=self.text("game")),
-            Message(role=Role.USER, content=state),
         )
+
+    def initial_messages(self, state: str) -> tuple[Message, ...]:
+        """The conversation before the model's first answer: the layers, then the state."""
+        return (*self.system_messages(), Message(role=Role.USER, content=state))
 
     def redo_text(self, rejection: str) -> str:
         """The shared redo prompt with the engine's refusal substituted (FR-7.2, FR-9.6)."""

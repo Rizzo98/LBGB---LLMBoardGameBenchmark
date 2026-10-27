@@ -29,6 +29,7 @@ from typing import Final
 
 from lgbg import __version__
 from lgbg.agents.accounting import RunAccounting
+from lgbg.agents.context import ContextBuilder, ContextPolicy
 from lgbg.agents.loop import (
     Attempt,
     AttemptOutcome,
@@ -146,6 +147,7 @@ async def play_game(
     prompts: PromptSet,
     price_table: PriceTable,
     policy: TurnPolicy | None = None,
+    context: ContextPolicy | None = None,
     render_detail: str = "full",
     clock: Callable[[], str] | None = None,
 ) -> GameResult:
@@ -153,6 +155,7 @@ async def play_game(
     prompts.verify()
     plugin = get_game(game)
     budgets = policy or TurnPolicy()
+    context_policy = context or ContextPolicy()
     manifest = build_manifest(
         game=plugin,
         config=config,
@@ -161,6 +164,7 @@ async def play_game(
         prompts=prompts,
         price_table=price_table,
         policy=budgets,
+        context=context_policy,
     )
     problems = validate_manifest(manifest)
     if problems:
@@ -200,6 +204,8 @@ async def play_game(
         for seat, spec in seats.items()
         if isinstance(spec, ModelSeat)
     }
+    context_builder = ContextBuilder(context_policy, game=plugin)
+    seat_decisions: dict[PlayerId, int] = {}
     now = _utc_now if clock is None else clock
     actions = 0
     decisions = 0
@@ -225,7 +231,15 @@ async def play_game(
                 attempted += 1
                 continue
             state = facade.decision_surface(game_id, seat)
-            messages = prompts.initial_messages(state)
+            observation = facade.projection(game_id, seat)
+            messages = context_builder.messages(
+                prompts,
+                seat=seat,
+                decision=seat_decisions.get(seat, 0),
+                decision_surface=state,
+                observation=observation,
+            )
+            seat_decisions[seat] = seat_decisions.get(seat, 0) + 1
             turn = await turns[seat].run(
                 messages,
                 CompletionConfig(model=spec.model, sampling=spec.sampling),
@@ -405,6 +419,7 @@ def build_manifest(
     prompts: PromptSet,
     price_table: PriceTable,
     policy: TurnPolicy,
+    context: ContextPolicy,
 ) -> dict[str, JsonValue]:
     """The run.json this single-game driver writes, checked against K-002's shape."""
     game_config = dict(config.to_mapping().items())
@@ -472,7 +487,7 @@ def build_manifest(
             },
         },
         "policies": {
-            "context": "full",
+            **context.to_mapping(),
             "redo_budget": policy.redo_budget,
             "on_exhausted": "abandon_game",
             "step_budget": policy.step_budget,

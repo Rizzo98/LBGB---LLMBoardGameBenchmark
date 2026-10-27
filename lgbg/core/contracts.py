@@ -338,6 +338,8 @@ _POLICIES: Final[JsonSchema] = {
     "required": [
         "budget_micro_usd",
         "context",
+        "context_refresh_every",
+        "context_window",
         "decision_timeout_s",
         "game_timeout_s",
         "on_exhausted",
@@ -346,6 +348,8 @@ _POLICIES: Final[JsonSchema] = {
     ],
     "properties": {
         "context": _values(CONTEXT_STRATEGIES),
+        "context_refresh_every": _POSITIVE,
+        "context_window": _POSITIVE,
         "redo_budget": _COUNT,
         "on_exhausted": _values(ON_EXHAUSTED),
         "step_budget": _POSITIVE,

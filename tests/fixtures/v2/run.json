@@ -72,6 +72,8 @@
   },
   "policies": {
     "context": "delta_with_refresh",
+    "context_refresh_every": 10,
+    "context_window": 3,
     "redo_budget": 3,
     "on_exhausted": "abandon_game",
     "step_budget": 8,

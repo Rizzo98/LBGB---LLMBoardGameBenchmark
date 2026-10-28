@@ -14,39 +14,6 @@
 
 
 
-### K-031 · Concurrent decision dispatch
-
-  - tags: [slice-6, runner, fr-11, nfr-2]
-  - priority: high
-  - workload: Normal
-  - steps:
-      - [ ] Concurrent decisions are dispatched in parallel rather than serially
-      - [ ] Results are applied in the game's declared resolution order, so the record stays deterministic
-      - [ ] Wall-clock cost does not scale with the number of concurrent decisions
-      - [ ] A test asserts the record is identical whether the decisions are answered in parallel or serially
-    ```md
-    - **Cuts through:** runner, the facade's decision queue, the log
-    - **Depends on:** K-027
-    - **PRD:** FR-11.2, NFR-2
-    - **Why:** Discards after a 7 and trade responses are concurrent by rule. Answering them serially multiplies a model-driven game's wall clock for no gain; answering them out of order would break the record.
-    ```
-
-### K-032 · results.json
-
-  - tags: [slice-7, results, fr-10]
-  - priority: high
-  - workload: Normal
-  - steps:
-      - [ ] Per game: outcome, place, actions, rejections by code, failures by kind, tokens, cost, latency, abandonment
-      - [ ] Per seat and per model aggregates, with abandonment in its own row
-      - [ ] The experiment design and any uncontrolled-axis marking carried through from the manifest
-    ```md
-    - **Cuts through:** runner, the manifest, the sidecar, the log
-    - **Depends on:** K-029, K-031
-    - **PRD:** FR-10.6, FR-11.8, FR-11.12
-    - **Why:** v2 emits facts, not inferences. `results.json` is where a run states what happened; anything that would be a claim about models belongs to v3.
-    ```
-
 ### K-033 · CLI completion
 
   - tags: [slice-7, cli, fr-14]
@@ -648,4 +615,39 @@
     - **PRD:** FR-11.11, FR-11.12, FR-11.13
     - **Why:** Seating and starting configuration are independent axes. A game whose starting position is fixed still gives one seat the first move, so it varies the first and not the second. A design model that assumed every game can be randomised would be wrong about such a game the day it arrived.
     - **Evidence:** `BenchmarkProfile` now declares `configuration_is_variable` as a required fact, and both plugins answer it: Catan `True` because it deals a board per game, the fixture `False` because it has one opening position. `ExperimentDesign.check` refuses `initial_configuration="random"` when the profile says the start is fixed, and `GameDesign.check` repeats the refusal at the manifest seam, so neither the matrix nor a direct single-game write can silently ignore the request. `ExperimentDesign.exploration` is the first-class one-game default: random seats, a random configuration only where the game declares it can draw one, one replicate; `run_experiment(design=None)` and `build_manifest(design=None)` use it, so an undeclared run plays one exploration game and records it in `run.json`. `ExperimentDesign.uncontrolled` now marks `initial_configuration` when a variable game's design pins it - and still marks `seating` when a positional-asymmetric game pins the order - so a design that controls neither carries both marks, while a game that cannot vary its start carries none because there is no variance to caveat. `lgbg/runner/results.py` writes `results.json` at the experiment root with schema `lgbg.results.v1`, the design axes, the derivation, the completed and abandoned counts and the `uncontrolled` list, and `ExperimentResult.results_path` names the file (K-032 extends it with per-game and per-seat detail). `tests/runner/test_matrix.py` adds the config rejection and acceptance, the pinned-configuration, controlled-configuration, fixed-start and both-axes markings, the three exploration-default cases including a played run, and the results.json caveat path; `tests/runner/test_runner.py` adds the undeclared-manifest default and the refusal at that seam; the catan and fixture profile tests assert the new declaration. Four deliberate mutations - disabling the configuration check, dropping the configuration mark, pinning exploration seats to fixed, and emptying the results marking - each failed the tests above and was reverted. Gate: 1206 passed, 1 skipped.
+    ```
+
+### K-031 · Concurrent decision dispatch
+
+  - tags: [slice-6, runner, fr-11, nfr-2]
+  - priority: high
+  - workload: Normal
+  - steps:
+      - [x] Concurrent decisions are dispatched in parallel rather than serially
+      - [x] Results are applied in the game's declared resolution order, so the record stays deterministic
+      - [x] Wall-clock cost does not scale with the number of concurrent decisions
+      - [x] A test asserts the record is identical whether the decisions are answered in parallel or serially
+    ```md
+    - **Cuts through:** runner, the facade's decision queue, the log
+    - **Depends on:** K-027
+    - **PRD:** FR-11.2, NFR-2
+    - **Why:** Discards after a 7 and trade responses are concurrent by rule. Answering them serially multiplies a model-driven game's wall clock for no gain; answering them out of order would break the record.
+    - **Evidence:** `lgbg/runner/game.py` now treats the pending request set as a batch: `prepare` freezes each decision's reads at the batch boundary and creates a surface whose action path waits on a per-decision `asyncio.Event`; `run` starts every agent call before the first answer is applied; the main loop opens the gates in the game's resolution order, writes each decision's sidecar lines in that order, and cancels a speculative answer whose request an earlier action closed. `FacadeSurface` gained an optional `request_id`, an `act_gate` awaitable and a frozen `SurfaceView`, so a concurrent decision reads the position it opened in and its action is matched to the right request. `run_game` takes `concurrent: bool = True`; `False` keeps the one-decision-at-a-time path the equivalence test compares against. `tests/runner/test_concurrency.py` adds a test game and providers: a rendezvous provider that releases only when all four model calls are in flight (a serial dispatcher times out), a delayed provider that proves application follows seat order even when answers arrive in reverse, a serial-versus-parallel run whose god logs are byte-identical and whose sidecars agree once timestamps are removed, and a case where an earlier answer closes a later request and the speculative answer is discarded. A deliberate mutation that ignored the gate applied the answers in arrival order [3,2,1,0] and failed the order test; it was reverted. Gate: 1214 passed, 1 skipped.
+    ```
+
+### K-032 · results.json
+
+  - tags: [slice-7, results, fr-10]
+  - priority: high
+  - workload: Normal
+  - steps:
+      - [x] Per game: outcome, place, actions, rejections by code, failures by kind, tokens, cost, latency, abandonment
+      - [x] Per seat and per model aggregates, with abandonment in its own row
+      - [x] The experiment design and any uncontrolled-axis marking carried through from the manifest
+    ```md
+    - **Cuts through:** runner, the manifest, the sidecar, the log
+    - **Depends on:** K-029, K-031
+    - **PRD:** FR-10.6, FR-11.8, FR-11.12
+    - **Why:** v2 emits facts, not inferences. `results.json` is where a run states what happened; anything that would be a claim about models belongs to v3.
+    - **Evidence:** `lgbg/runner/results.py` now builds the whole artefact from the run directory: `_game_facts` reads `run.json`, the god log and the sidecar to record per game the design point, outcome, place, actions, rejection counts by code, failure counts by kind, tokens, cost, latency, partiality and the abandonment; `_model_rows` and `_seat_rows` aggregate per model and per seat, counting a game once for a model that holds several seats, keeping abandonment out of wins and losses, and leaving reference/scripted-only seats out of the scored aggregates. `experiment_results` keeps the K-029 design block and uncontrolled marking, adds the summary, games, per_model and per_seat arrays, and `run_experiment` validates the payload against the new `RESULTS_SCHEMA` in `lgbg/core/contracts.py` before writing `results.json`. `tests/runner/test_results.py` holds a two-model, four-seat rotated run on the concurrent game - four games, each model in every seat twice, two wins and two losses apiece, per-game place and tokens/cost for every seat, and per-model/per-seat totals - and an abandoned fixture game whose responsible model gets an abandonment row and no loss, with the fixture's seating caveat still in the design. A deliberate mutation counting a model's games per seat rather than per game failed the repeated-agent test and was reverted. Gate: 1214 passed, 1 skipped.
     ```

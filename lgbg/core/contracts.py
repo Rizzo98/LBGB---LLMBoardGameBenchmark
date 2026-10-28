@@ -35,9 +35,9 @@ differently:
   so one reader serves every model. The exact bytes are the adapter's business and are recorded as
   bytes (FR-5.4, FR-5.5).
 
-What is *not* here yet, on purpose: the declared set of failure kinds (FR-7.10, card K-025) and the
-penny-level accounting of `results.json` (FR-10.6, card K-032). Both are fields on these shapes when
-they arrive, which is the whole point of freezing the shapes first.
+The shapes are not frozen for their own sake: the failure kinds (FR-7.10) and the accounting of
+`results.json` (FR-10.6) were added here as their cards landed, rather than arriving as fields no
+reader was told about.
 """
 
 from __future__ import annotations
@@ -546,6 +546,331 @@ ABANDONMENT_SCHEMA: Final[JsonSchema] = {
 }
 
 
+RESULTS_SCHEMA_NAME: Final[str] = "lgbg.results.v1"
+"""The results file's format version, recorded in the artefact and understood by its reader."""
+
+
+_RESULT_OUTCOME: Final[JsonSchema] = {
+    "type": "object",
+    "required": ["rounds", "scores", "winner"],
+    "properties": {
+        "winner": _ANY_INT,
+        "scores": {"type": "object", "additionalProperties": _COUNT},
+        "rounds": _ANY_INT,
+    },
+    "additionalProperties": False,
+}
+
+_RESULT_ABANDONMENT: Final[JsonSchema] = {
+    "type": "object",
+    "required": [
+        "actions",
+        "attempts",
+        "calls",
+        "failure",
+        "final_rejection",
+        "model",
+        "provider",
+        "redo_budget",
+        "request_id",
+        "seat",
+    ],
+    "properties": {
+        "seat": _COUNT,
+        "model": _TEXT,
+        "provider": _TEXT,
+        "request_id": _TEXT,
+        "failure": _values(FAILURE_KINDS),
+        "attempts": _COUNT,
+        "calls": _COUNT,
+        "redo_budget": _COUNT,
+        "final_rejection": _REJECTION,
+        "actions": _COUNT,
+    },
+    "additionalProperties": False,
+}
+
+_RESULT_SEAT: Final[JsonSchema] = {
+    "type": "object",
+    "required": [
+        "abandoned",
+        "actions",
+        "agent",
+        "completion_tokens",
+        "cost_micro_usd",
+        "failures_by_kind",
+        "latency_ms",
+        "model",
+        "outcome",
+        "partial",
+        "place",
+        "player",
+        "prompt_tokens",
+        "rejections_by_code",
+        "seat",
+        "total_tokens",
+    ],
+    "properties": {
+        "seat": _COUNT,
+        "agent": _values(("llm", "reference", "scripted")),
+        "model": _ANY_TEXT,
+        "player": _ANY_TEXT,
+        "outcome": _nullable(_values(("win", "loss", "draw"))),
+        "place": _ANY_INT,
+        "abandoned": _FALSE,
+        "actions": _COUNT,
+        "rejections_by_code": {"type": "object", "additionalProperties": _COUNT},
+        "failures_by_kind": {"type": "object", "additionalProperties": _COUNT},
+        "prompt_tokens": _COUNT,
+        "completion_tokens": _COUNT,
+        "total_tokens": _COUNT,
+        "cost_micro_usd": _COUNT,
+        "latency_ms": _COUNT,
+        "partial": _FALSE,
+    },
+    "additionalProperties": False,
+}
+
+_RESULT_GAME: Final[JsonSchema] = {
+    "type": "object",
+    "required": [
+        "abandonment",
+        "actions",
+        "completed",
+        "completion_tokens",
+        "cost_micro_usd",
+        "design",
+        "failures_by_kind",
+        "game_id",
+        "latency_ms",
+        "outcome",
+        "partial",
+        "prompt_tokens",
+        "rejections_by_code",
+        "seats",
+        "total_tokens",
+    ],
+    "properties": {
+        "game_id": _TEXT,
+        "design": _DESIGN,
+        "completed": _FALSE,
+        "outcome": _nullable(_RESULT_OUTCOME),
+        "actions": _COUNT,
+        "rejections_by_code": {"type": "object", "additionalProperties": _COUNT},
+        "failures_by_kind": {"type": "object", "additionalProperties": _COUNT},
+        "prompt_tokens": _COUNT,
+        "completion_tokens": _COUNT,
+        "total_tokens": _COUNT,
+        "cost_micro_usd": _COUNT,
+        "latency_ms": _COUNT,
+        "partial": _FALSE,
+        "abandonment": _nullable(_RESULT_ABANDONMENT),
+        "seats": {"type": "array", "items": _RESULT_SEAT, "minItems": 1},
+    },
+    "additionalProperties": False,
+}
+
+_RESULT_PLACE_COUNT: Final[JsonSchema] = {
+    "type": "object",
+    "required": ["games", "place"],
+    "properties": {"place": _POSITIVE, "games": _COUNT},
+    "additionalProperties": False,
+}
+
+_RESULT_SEAT_COUNT: Final[JsonSchema] = {
+    "type": "object",
+    "required": ["games", "seat"],
+    "properties": {"seat": _COUNT, "games": _COUNT},
+    "additionalProperties": False,
+}
+
+_RESULT_MODEL: Final[JsonSchema] = {
+    "type": "object",
+    "required": [
+        "abandoned",
+        "actions",
+        "completed",
+        "completion_tokens",
+        "cost_micro_usd",
+        "draws",
+        "failures",
+        "failures_by_kind",
+        "games",
+        "latency_ms",
+        "losses",
+        "model",
+        "partial",
+        "place_counts",
+        "prompt_tokens",
+        "rejections",
+        "rejections_by_code",
+        "seat_counts",
+        "total_tokens",
+        "wins",
+    ],
+    "properties": {
+        "model": _TEXT,
+        "games": _COUNT,
+        "completed": _COUNT,
+        "wins": _COUNT,
+        "losses": _COUNT,
+        "draws": _COUNT,
+        "abandoned": _COUNT,
+        "actions": _COUNT,
+        "rejections": _COUNT,
+        "rejections_by_code": {"type": "object", "additionalProperties": _COUNT},
+        "failures": _COUNT,
+        "failures_by_kind": {"type": "object", "additionalProperties": _COUNT},
+        "prompt_tokens": _COUNT,
+        "completion_tokens": _COUNT,
+        "total_tokens": _COUNT,
+        "cost_micro_usd": _COUNT,
+        "latency_ms": _COUNT,
+        "partial": _FALSE,
+        "place_counts": {"type": "array", "items": _RESULT_PLACE_COUNT},
+        "seat_counts": {"type": "array", "items": _RESULT_SEAT_COUNT},
+    },
+    "additionalProperties": False,
+}
+
+_RESULT_SEAT_AGGREGATE: Final[JsonSchema] = {
+    "type": "object",
+    "required": [
+        "abandoned",
+        "actions",
+        "agents",
+        "completed",
+        "completion_tokens",
+        "cost_micro_usd",
+        "draws",
+        "failures",
+        "failures_by_kind",
+        "games",
+        "latency_ms",
+        "losses",
+        "models",
+        "partial",
+        "place_counts",
+        "prompt_tokens",
+        "rejections",
+        "rejections_by_code",
+        "seat",
+        "seat_counts",
+        "total_tokens",
+        "wins",
+    ],
+    "properties": {
+        "seat": _COUNT,
+        "agents": {"type": "array", "items": _TEXT},
+        "models": {"type": "array", "items": _TEXT},
+        "games": _COUNT,
+        "completed": _COUNT,
+        "wins": _COUNT,
+        "losses": _COUNT,
+        "draws": _COUNT,
+        "abandoned": _COUNT,
+        "actions": _COUNT,
+        "rejections": _COUNT,
+        "rejections_by_code": {"type": "object", "additionalProperties": _COUNT},
+        "failures": _COUNT,
+        "failures_by_kind": {"type": "object", "additionalProperties": _COUNT},
+        "prompt_tokens": _COUNT,
+        "completion_tokens": _COUNT,
+        "total_tokens": _COUNT,
+        "cost_micro_usd": _COUNT,
+        "latency_ms": _COUNT,
+        "partial": _FALSE,
+        "place_counts": {"type": "array", "items": _RESULT_PLACE_COUNT},
+        "seat_counts": {"type": "array", "items": _RESULT_SEAT_COUNT},
+    },
+    "additionalProperties": False,
+}
+
+_RESULT_RUN_DESIGN: Final[JsonSchema] = {
+    "type": "object",
+    "required": [
+        "configuration_scope",
+        "derivation",
+        "initial_configuration",
+        "replicates",
+        "seating",
+        "uncontrolled",
+    ],
+    "properties": {
+        "seating": _values(("fixed", "random", "rotated")),
+        "initial_configuration": _TEXT,
+        "configuration_scope": _values(("per_experiment", "per_game")),
+        "replicates": _POSITIVE,
+        "uncontrolled": {"type": "array", "items": _TEXT},
+        "derivation": {
+            "type": "object",
+            "required": ["games", "replicates", "rule", "seatings"],
+            "properties": {
+                "rule": _TEXT,
+                "replicates": _COUNT,
+                "seatings": _POSITIVE,
+                "games": _COUNT,
+            },
+            "additionalProperties": False,
+        },
+    },
+    "additionalProperties": False,
+}
+
+_RESULT_SUMMARY: Final[JsonSchema] = {
+    "type": "object",
+    "required": [
+        "abandoned",
+        "actions",
+        "completed",
+        "completion_tokens",
+        "cost_micro_usd",
+        "failures",
+        "failures_by_kind",
+        "games",
+        "latency_ms",
+        "partial",
+        "prompt_tokens",
+        "rejections",
+        "rejections_by_code",
+        "total_tokens",
+    ],
+    "properties": {
+        "games": _COUNT,
+        "completed": _COUNT,
+        "abandoned": _COUNT,
+        "actions": _COUNT,
+        "rejections": _COUNT,
+        "rejections_by_code": {"type": "object", "additionalProperties": _COUNT},
+        "failures": _COUNT,
+        "failures_by_kind": {"type": "object", "additionalProperties": _COUNT},
+        "prompt_tokens": _COUNT,
+        "completion_tokens": _COUNT,
+        "total_tokens": _COUNT,
+        "cost_micro_usd": _COUNT,
+        "latency_ms": _COUNT,
+        "partial": _FALSE,
+    },
+    "additionalProperties": False,
+}
+
+RESULTS_SCHEMA: Final[JsonSchema] = {
+    "type": "object",
+    "required": ["design", "games", "per_model", "per_seat", "run_id", "schema", "summary"],
+    "properties": {
+        "schema": {"const": RESULTS_SCHEMA_NAME},
+        "run_id": _TEXT,
+        "design": _RESULT_RUN_DESIGN,
+        "summary": _RESULT_SUMMARY,
+        "games": {"type": "array", "items": _RESULT_GAME},
+        "per_model": {"type": "array", "items": _RESULT_MODEL},
+        "per_seat": {"type": "array", "items": _RESULT_SEAT_AGGREGATE},
+    },
+    "additionalProperties": False,
+    "$comment": "results.json states what happened: per game and per seat, then per model and per "
+    "seat totals, with abandonment counted in its own row (FR-10.6, FR-11.8, FR-11.12)",
+}
+
 GOD_LOG_FIELDS: Final[Mapping[str, frozenset[str]]] = MappingProxyType(
     {
         KIND_HEADER: frozenset(
@@ -613,3 +938,8 @@ def validate_decision(record: Mapping[str, JsonValue]) -> list[str]:
 def validate_abandonment(record: Mapping[str, JsonValue]) -> list[str]:
     """Every way this abandonment record fails its declared shape, or an empty list when it fits."""
     return violations(dict(record), ABANDONMENT_SCHEMA, where="abandonment")
+
+
+def validate_results(record: Mapping[str, JsonValue]) -> list[str]:
+    """Every way this results file fails its declared shape, or an empty list when it fits."""
+    return violations(dict(record), RESULTS_SCHEMA, where="results.json")

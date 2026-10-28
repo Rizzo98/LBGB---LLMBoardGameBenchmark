@@ -24,17 +24,22 @@ in the god log and a verdict. An abandoned game has no terminal record and one `
 in the sidecar naming the decision, the seat and the model that failed (FR-7.5, FR-11.6). No
 synthetic winner is ever written, so an abandoned game stays distinguishable from a loss.
 
-Concurrency is K-031's, and this module is deliberately serial: decisions are answered in the
-game's own resolution order, one at a time, which is the order the record must hold anyway.
+**Concurrent decisions are dispatched together and applied in order.** The batch is the set
+of requests the game has open at one moment. Every model call starts before the first answer is
+applied, and each action waits on a gate that opens only when every earlier request in the game's
+declared resolution order has been recorded. A decision's reads are frozen at the batch boundary, so
+it sees the position it was opened in rather than the effects of the seat before it (FR-11.2,
+NFR-2).
 """
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import os
 import socket
 from collections import deque
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -51,14 +56,14 @@ from lgbg.agents.loop import (
 )
 from lgbg.agents.pricing import PriceTable
 from lgbg.agents.prompting import PromptSet
-from lgbg.agents.providers.base import CompletionConfig, ToolCall
+from lgbg.agents.providers.base import CompletionConfig, Message, ToolCall
 from lgbg.agents.sidecar import (
     DecisionSidecar,
     build_abandonment_record,
     build_decision_record,
     decision_path,
 )
-from lgbg.agents.surface import FacadeSurface
+from lgbg.agents.surface import FacadeSurface, SurfaceView, decisions_payload
 from lgbg.core.assist import rejection_view
 from lgbg.core.canonical import to_canonical_json
 from lgbg.core.config import RunConfig
@@ -108,6 +113,26 @@ class Abandonment:
     final_rejection: Mapping[str, JsonValue] | None
 
 
+@dataclass(slots=True)
+class _PreparedDecision:
+    """One open decision, ready to answer: its gate, its model turn, or its script.
+
+    The gate is what separates dispatch from application. The model call may start as soon as the
+    batch is prepared; the action it produces waits here until every earlier decision in the game's
+    resolution order has been applied (FR-11.2).
+    """
+
+    decision: DecisionRequest
+    seat: PlayerId
+    spec: Agent
+    gate: asyncio.Event = field(default_factory=asyncio.Event)
+    started: asyncio.Event = field(default_factory=asyncio.Event)
+    turn: DecisionTurn | None = None
+    messages: tuple[Message, ...] = ()
+    completion: CompletionConfig | None = None
+    script: deque[Action] | None = None
+
+
 @dataclass(frozen=True, slots=True)
 class GameResult:
     """What one played game produced on disk."""
@@ -140,6 +165,7 @@ async def run_game(
     context: ContextPolicy | None = None,
     render_detail: str = "full",
     clock: Callable[[], str] | None = None,
+    concurrent: bool = True,
 ) -> GameResult:
     """Play one game to a verdict or an abandonment, and write its run directory.
 
@@ -176,29 +202,6 @@ async def run_game(
     scripts = {
         seat: deque(spec.actions) for seat, spec in seats.items() if isinstance(spec, ScriptedAgent)
     }
-    surfaces = {
-        seat: FacadeSurface(
-            facade,
-            game,
-            game_id,
-            seat,
-            refusal_view=lambda rejection: rejection_view(
-                rejection, detail=config.rejection_detail
-            ),
-        )
-        for seat, spec in seats.items()
-        if isinstance(spec, LlmAgent)
-    }
-    turns = {
-        seat: DecisionTurn(
-            spec.provider,
-            surfaces[seat],
-            policy=budgets,
-            redo=prompts.redo_text,
-        )
-        for seat, spec in seats.items()
-        if isinstance(spec, LlmAgent)
-    }
     context_builder = ContextBuilder(context_policy, game=plugin)
     seat_decisions: dict[PlayerId, int] = {}
     reference_decisions: dict[PlayerId, int] = {}
@@ -206,107 +209,238 @@ async def run_game(
     actions = 0
     decisions = 0
     attempted = 0
+
+    def prepare(decision: DecisionRequest, pending: Sequence[DecisionRequest]) -> _PreparedDecision:
+        """Ready one open decision for dispatch, without applying anything yet.
+
+        An LLM decision gets the reads it may make frozen at this boundary and a surface whose
+        action path waits on the decision's gate. A reference player gets its snapshot here too,
+        before any of the batch has moved. A scripted seat only needs its list.
+        """
+        seat = decision.player
+        spec = seats.get(seat)
+        if spec is None:
+            raise GameAbortedError(f"seat {seat} has no agent")
+        prepared = _PreparedDecision(decision=decision, seat=seat, spec=spec)
+        if isinstance(spec, ScriptedAgent):
+            prepared.script = scripts[seat]
+            return prepared
+        if isinstance(spec, ReferenceAgent):
+            return prepared
+        if not isinstance(spec, LlmAgent):
+            raise GameAbortedError(f"seat {seat} has an agent the runner cannot drive")
+        observation = facade.projection(game_id, seat)
+        decision_surface = facade.decision_surface(game_id, seat)
+        view = SurfaceView(
+            observation=observation,
+            decision_surface=decision_surface,
+            decisions=decisions_payload(pending, seat),
+        )
+        messages = context_builder.messages(
+            prompts,
+            seat=seat,
+            decision=seat_decisions.get(seat, 0),
+            decision_surface=decision_surface,
+            observation=observation,
+        )
+        seat_decisions[seat] = seat_decisions.get(seat, 0) + 1
+        surface = FacadeSurface(
+            facade,
+            game,
+            game_id,
+            seat,
+            refusal_view=lambda rejection: rejection_view(
+                rejection, detail=config.rejection_detail
+            ),
+            request_id=decision.request_id,
+            act_gate=prepared.gate.wait,
+            view=view,
+        )
+        prepared.turn = DecisionTurn(
+            spec.provider,
+            surface,
+            policy=budgets,
+            redo=prompts.redo_text,
+        )
+        prepared.messages = tuple(messages)
+        prepared.completion = CompletionConfig(model=spec.model, sampling=spec.sampling)
+        return prepared
+
+    async def run(prepared: _PreparedDecision) -> TurnResult | None:
+        """Ask the decision's agent, and submit only when its gate opens.
+
+        The agent call runs before the gate: that is the whole point of the batch. The submission
+        waits, so the engine sees the batch in its declared resolution order rather than in the
+        order the models happened to answer (FR-11.2).
+        """
+        prepared.started.set()
+        if prepared.script is not None:
+            if not prepared.script:
+                raise GameAbortedError(f"scripted seat {prepared.seat} ran out of actions")
+            action = prepared.script.popleft()
+            await prepared.gate.wait()
+            result = facade.submit_action(game_id, action, request_id=prepared.decision.request_id)
+            if not isinstance(result, Applied):
+                raise GameAbortedError(
+                    f"scripted seat {prepared.seat} was refused: {result.rejection.code.code}"
+                )
+            return None
+        if prepared.turn is not None:
+            if prepared.completion is None:
+                raise GameError("an LLM decision was prepared without a completion config")
+            return await prepared.turn.run(prepared.messages, prepared.completion)
+        spec = prepared.spec
+        if not isinstance(spec, ReferenceAgent):
+            raise GameAbortedError(f"seat {prepared.seat} has an agent the runner cannot drive")
+        action = _reference_action(
+            facade,
+            game_id,
+            prepared.seat,
+            prepared.decision,
+            spec,
+            reference_decisions,
+            config.seed,
+        )
+        await prepared.gate.wait()
+        result = facade.submit_action(game_id, action, request_id=prepared.decision.request_id)
+        if not isinstance(result, Applied):
+            raise GameAbortedError(
+                f"reference seat {prepared.seat} ({spec.name}) chose an action the engine "
+                f"refused: {result.rejection.code.code}"
+            )
+        return None
+
+    def record(
+        prepared: _PreparedDecision, turn: TurnResult | None
+    ) -> tuple[LlmAgent, TurnResult, str] | None:
+        """Write what one decision produced, in resolution order, and count it.
+
+        Returns the failing turn when the model could not produce an action, so the caller can
+        stop the game after everything this decision wrote is on disk. Scripted and reference
+        decisions have no sidecar records: their action is already in the god log.
+        """
+        nonlocal actions, decisions, attempted
+        if turn is None:
+            actions += 1
+            attempted += 1
+            return None
+        spec = prepared.spec
+        if not isinstance(spec, LlmAgent):
+            raise GameError("a model turn belongs to a seat that is not an LLM agent")
+        request_id = f"{game_id}-d{decisions + 1:04d}"
+        entries = accounting.record_turn(turn, model=spec.model)
+        if len(entries) != len(turn.attempts):
+            raise GameError("the accounting and the attempts disagree about the call count")
+        for entry, attempt in zip(entries, turn.attempts, strict=True):
+            outcome = _turn_attempt_outcome(attempt, turn.action)
+            seq = None
+            if attempt.outcome in {AttemptOutcome.ACTION, AttemptOutcome.REJECTION}:
+                seq = attempted
+                attempted += 1
+            sidecar.append(
+                build_decision_record(
+                    game_id=game_id,
+                    seat=prepared.seat,
+                    model=spec.model,
+                    provider=spec.provider_id,
+                    request_id=request_id,
+                    attempt=attempt,
+                    outcome=outcome,
+                    rejection=_rejection_of(attempt, config),
+                    accounting=entry,
+                    redo_budget=budgets.redo_budget,
+                    at=now(),
+                    host=socket.gethostname(),
+                    pid=os.getpid(),
+                    seq=seq,
+                )
+            )
+        decisions += 1
+        if not turn.accepted:
+            return spec, turn, request_id
+        if turn.action is None or not isinstance(turn.action.arguments, Mapping):
+            raise GameAbortedError(f"seat {prepared.seat} accepted no usable action")
+        actions += 1
+        return None
+
     try:
         while True:
             pending = facade.pending_decisions(game_id)
             if not pending:
                 break
-            decision = pending[0]
-            seat = decision.player
-            spec = seats.get(seat)
-            if spec is None:
-                raise GameAbortedError(f"seat {seat} has no agent")
-            if isinstance(spec, ScriptedAgent):
-                actions, attempted = _scripted(
-                    facade,
-                    game_id,
-                    seat,
-                    decision.request_id,
-                    spec,
-                    scripts[seat],
-                    actions,
-                    attempted,
-                )
+            if concurrent and len(pending) > 1:
+                prepared = [prepare(decision, pending) for decision in pending]
+                tasks = [asyncio.create_task(run(item)) for item in prepared]
+                await asyncio.gather(*(item.started.wait() for item in prepared))
+                try:
+                    for index, item in enumerate(prepared):
+                        still_open = {
+                            request.request_id for request in facade.pending_decisions(game_id)
+                        }
+                        if item.decision.request_id not in still_open:
+                            # An earlier decision in this batch closed this request. A serial
+                            # runner would never have asked it, so the speculative answer is
+                            # discarded rather than submitted into a decision that is gone.
+                            await _cancel([tasks[index]])
+                            continue
+                        item.gate.set()
+                        try:
+                            turn = await tasks[index]
+                        except BaseException:
+                            await _cancel(tasks[index + 1 :])
+                            raise
+                        abandoned = record(item, turn)
+                        if abandoned is None:
+                            continue
+                        await _cancel(tasks[index + 1 :])
+                        spec, failed_turn, request_id = abandoned
+                        return _abandoned(
+                            game_id=game_id,
+                            directory=directory,
+                            manifest_path=manifest_path,
+                            sidecar=sidecar,
+                            seat=item.seat,
+                            request_id=request_id,
+                            spec=spec,
+                            turn=failed_turn,
+                            config=config,
+                            policy=budgets,
+                            actions=actions,
+                            decisions=decisions,
+                            model_seats=model_seats,
+                            at=now(),
+                        )
+                finally:
+                    await _cancel(tasks)
                 continue
-            if isinstance(spec, ReferenceAgent):
-                actions, attempted = _reference(
-                    facade,
-                    game_id,
-                    seat,
-                    decision.request_id,
-                    decision,
-                    spec,
-                    reference_decisions,
-                    config.seed,
-                    actions,
-                    attempted,
-                )
+            item = prepare(pending[0], pending)
+            item.gate.set()
+            task = asyncio.create_task(run(item))
+            try:
+                turn = await task
+            except BaseException:
+                task.cancel()
+                raise
+            abandoned = record(item, turn)
+            if abandoned is None:
                 continue
-            if not isinstance(spec, LlmAgent):
-                raise GameAbortedError(f"seat {seat} has an agent the runner cannot drive")
-            state = facade.decision_surface(game_id, seat)
-            observation = facade.projection(game_id, seat)
-            messages = context_builder.messages(
-                prompts,
-                seat=seat,
-                decision=seat_decisions.get(seat, 0),
-                decision_surface=state,
-                observation=observation,
+            spec, failed_turn, request_id = abandoned
+            return _abandoned(
+                game_id=game_id,
+                directory=directory,
+                manifest_path=manifest_path,
+                sidecar=sidecar,
+                seat=item.seat,
+                request_id=request_id,
+                spec=spec,
+                turn=failed_turn,
+                config=config,
+                policy=budgets,
+                actions=actions,
+                decisions=decisions,
+                model_seats=model_seats,
+                at=now(),
             )
-            seat_decisions[seat] = seat_decisions.get(seat, 0) + 1
-            turn = await turns[seat].run(
-                messages,
-                CompletionConfig(model=spec.model, sampling=spec.sampling),
-            )
-            request_id = f"{game_id}-d{decisions + 1:04d}"
-            entries = accounting.record_turn(turn, model=spec.model)
-            if len(entries) != len(turn.attempts):
-                raise GameError("the accounting and the attempts disagree about the call count")
-            for entry, attempt in zip(entries, turn.attempts, strict=True):
-                outcome = _turn_attempt_outcome(attempt, turn.action)
-                seq = None
-                if attempt.outcome in {AttemptOutcome.ACTION, AttemptOutcome.REJECTION}:
-                    seq = attempted
-                    attempted += 1
-                sidecar.append(
-                    build_decision_record(
-                        game_id=game_id,
-                        seat=seat,
-                        model=spec.model,
-                        provider=spec.provider_id,
-                        request_id=request_id,
-                        attempt=attempt,
-                        outcome=outcome,
-                        rejection=_rejection_of(attempt, config),
-                        accounting=entry,
-                        redo_budget=budgets.redo_budget,
-                        at=now(),
-                        host=socket.gethostname(),
-                        pid=os.getpid(),
-                        seq=seq,
-                    )
-                )
-            decisions += 1
-            if not turn.accepted:
-                return _abandoned(
-                    game_id=game_id,
-                    directory=directory,
-                    manifest_path=manifest_path,
-                    sidecar=sidecar,
-                    seat=seat,
-                    request_id=request_id,
-                    spec=spec,
-                    turn=turn,
-                    config=config,
-                    policy=budgets,
-                    actions=actions,
-                    decisions=decisions,
-                    model_seats=model_seats,
-                    at=now(),
-                )
-            if turn.action is None or not isinstance(turn.action.arguments, Mapping):
-                raise GameAbortedError(f"seat {seat} accepted no usable action")
-            actions += 1
         final = facade.outcome(game_id)
         if final is None:
             raise GameAbortedError("the game stopped without a verdict")
@@ -326,45 +460,21 @@ async def run_game(
         facade.end_session(game_id)
 
 
-def _scripted(
+def _reference_action(
     facade: SessionFacade,
     game_id: GameId,
     seat: PlayerId,
-    request_id: str,
-    spec: ScriptedAgent,
-    script: deque[Action],
-    actions: int,
-    attempted: int,
-) -> tuple[int, int]:
-    """Answer one decision from a recorded list, refusing a script that ran out or was refused."""
-    if not script:
-        raise GameAbortedError(f"scripted seat {seat} ran out of actions")
-    result = facade.submit_action(game_id, script.popleft(), request_id=request_id)
-    if not isinstance(result, Applied):
-        raise GameAbortedError(f"scripted seat {seat} was refused: {result.rejection.code.code}")
-    return actions + 1, attempted + 1
-
-
-def _reference(
-    facade: SessionFacade,
-    game_id: GameId,
-    seat: PlayerId,
-    request_id: str,
     decision: DecisionRequest,
     spec: ReferenceAgent,
     seen: dict[PlayerId, int],
     seed: int,
-    actions: int,
-    attempted: int,
-) -> tuple[int, int]:
-    """Ask a reference player for one of the game's own legal actions and submit it.
+) -> Action:
+    """Ask a reference player for one of the game's own legal actions, without submitting it.
 
     The chooser is derived from the run's seed, the seat and the decision's ordinal, so a policy
-    that draws is reproducible without the policy having to know anything about the run.
-
-    A refusal aborts rather than abandons. Abandonment is what a *model* failure the redo budget
-    could not rescue produces (FR-7.5); a reference player returning an illegal action is a defect
-    in the harness, and recording it as a model's abandonment would blame the wrong thing.
+    that draws is reproducible without the policy having to know anything about the run. Choosing
+    here, before the decision's gate opens, is what makes a concurrent reference seat see the
+    batch boundary rather than the answers of the seats before it.
     """
     ordinal = seen.get(seat, 0)
     seen[seat] = ordinal + 1
@@ -378,14 +488,15 @@ def _reference(
             _reference_seed(name=spec.name, run_seed=seed, seat=seat, ordinal=ordinal)
         ),
     )
-    action = spec.player.choose(view)
-    result = facade.submit_action(game_id, action, request_id=request_id)
-    if not isinstance(result, Applied):
-        raise GameAbortedError(
-            f"reference seat {seat} ({spec.name}) chose an action the engine refused: "
-            f"{result.rejection.code.code}"
-        )
-    return actions + 1, attempted + 1
+    return spec.player.choose(view)
+
+
+async def _cancel(tasks: list[asyncio.Task[TurnResult | None]]) -> None:
+    """Stop decisions that were dispatched but whose turn never came, and reap their errors."""
+    for task in tasks:
+        task.cancel()
+    if tasks:
+        await asyncio.gather(*tasks, return_exceptions=True)
 
 
 def _reference_seed(*, name: str, run_seed: int, seat: PlayerId, ordinal: int) -> int:

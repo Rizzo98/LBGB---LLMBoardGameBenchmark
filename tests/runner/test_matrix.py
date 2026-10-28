@@ -557,7 +557,9 @@ def test_uncontrolled_design_marked(tmp_path: Path) -> None:
     assert payload["schema"] == "lgbg.results.v1"
     assert payload["design"]["seating"] == "fixed"
     assert payload["design"]["uncontrolled"] == ["seating"]
-    assert payload["games"] == {"planned": 1, "completed": 1, "abandoned": 0}
+    assert payload["summary"]["games"] == 1
+    assert payload["summary"]["completed"] == 1
+    assert payload["summary"]["abandoned"] == 0
 
 
 def test_results_carry_a_configuration_caveat() -> None:

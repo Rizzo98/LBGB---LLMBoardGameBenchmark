@@ -21,7 +21,7 @@ the model cannot choose another seat or open another game.
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Final, Protocol
 
@@ -31,7 +31,7 @@ from lgbg.core.errors import Rejection
 from lgbg.core.game import Applied, Game, get_game
 from lgbg.core.run import AmbiguousRequestError
 from lgbg.core.tools import tool_definitions
-from lgbg.core.types import Action, GameId, JsonValue, PlayerId
+from lgbg.core.types import Action, DecisionRequest, GameId, JsonValue, Observation, PlayerId
 from lgbg.host.facade import SessionError, SessionFacade
 
 READ_STATE: Final[str] = "read_state"
@@ -45,6 +45,37 @@ _READ_SCHEMA: Final[Mapping[str, JsonValue]] = {
     "properties": {},
     "additionalProperties": False,
 }
+
+
+@dataclass(frozen=True, slots=True)
+class SurfaceView:
+    """What a seat may read, frozen at the moment its decision was opened.
+
+    A decision opened alongside another must not see the other one applied. Freezing the three
+    reads at the batch boundary is what makes a concurrent decision observe the same position a
+    serial runner would have shown it before any of the batch moved (ARCHITECTURE 7.7).
+    """
+
+    observation: Observation
+    decision_surface: str
+    decisions: str
+
+
+def decisions_payload(requests: Sequence[DecisionRequest], player: PlayerId) -> str:
+    """This seat's open decisions, in the shape the `read_decisions` tool returns."""
+    payload: list[JsonValue] = [
+        {
+            "request_id": request.request_id,
+            "player": request.player,
+            "kind": request.kind,
+            "schema_ref": request.schema_ref,
+            "context": dict(request.context),
+            "phase": request.phase,
+        }
+        for request in requests
+        if request.player == player
+    ]
+    return to_canonical_json(payload)
 
 
 @dataclass(frozen=True, slots=True)
@@ -97,6 +128,9 @@ class FacadeSurface:
         refusal_view: Callable[[Rejection], dict[str, JsonValue]],
         read_tools: bool = True,
         render_detail: str = "full",
+        request_id: str | None = None,
+        act_gate: Callable[[], Awaitable[object]] | None = None,
+        view: SurfaceView | None = None,
     ) -> None:
         self._facade = facade
         self._game = game
@@ -105,6 +139,9 @@ class FacadeSurface:
         self._player = player
         self._refusal_view = refusal_view
         self._render_detail = render_detail
+        self._request_id = request_id
+        self._act_gate = act_gate
+        self._view = view
         self._read_names = READ_TOOLS if read_tools else frozenset()
         actions = _action_tools(self._plugin)
         collision = self._read_names & {tool.name for tool in actions}
@@ -128,6 +165,15 @@ class FacadeSurface:
             return _error("UNKNOWN_READ", f"{call.name!r} is not a configured read")
         if not isinstance(call.arguments, Mapping):
             return _error("MALFORMED_ARGUMENTS", "read arguments must be an object")
+        if self._view is not None:
+            if call.name == READ_STATE:
+                return ToolAnswer(
+                    accepted=True,
+                    payload=self._plugin.render(self._view.observation, detail=self._render_detail),
+                )
+            if call.name == READ_DECISIONS:
+                return ToolAnswer(accepted=True, payload=self._view.decisions)
+            return ToolAnswer(accepted=True, payload=self._view.decision_surface)
         try:
             if call.name == READ_STATE:
                 observation = self._facade.projection(self._session_id, self._player)
@@ -145,7 +191,14 @@ class FacadeSurface:
             return _error("READ_FAILED", str(error))
 
     async def act(self, call: ToolCall) -> ToolAnswer:
-        """Submit one action attempt through the facade, rejection included (FR-1.6)."""
+        """Submit one action attempt through the facade, rejection included (FR-1.6).
+
+        An action gate is awaited first when the caller supplied one: the runner uses it to keep
+        submissions in the game's resolution order while the model calls themselves run in
+        parallel (FR-11.2).
+        """
+        if self._act_gate is not None:
+            await self._act_gate()
         if not isinstance(call.arguments, Mapping):
             return _error(
                 "MALFORMED_ARGUMENTS",
@@ -156,6 +209,7 @@ class FacadeSurface:
             result = self._facade.submit_action(
                 self._session_id,
                 Action(player=self._player, type=call.name, params=dict(call.arguments)),
+                request_id=self._request_id,
             )
         except (AmbiguousRequestError, SessionError) as error:
             return _error("ACTION_FAILED", str(error))
@@ -174,20 +228,7 @@ class FacadeSurface:
         )
 
     def _decisions(self) -> str:
-        requests = self._facade.pending_decisions(self._session_id)
-        payload: list[JsonValue] = [
-            {
-                "request_id": request.request_id,
-                "player": request.player,
-                "kind": request.kind,
-                "schema_ref": request.schema_ref,
-                "context": dict(request.context),
-                "phase": request.phase,
-            }
-            for request in requests
-            if request.player == self._player
-        ]
-        return to_canonical_json(payload)
+        return decisions_payload(self._facade.pending_decisions(self._session_id), self._player)
 
 
 def _action_tools(game: Game) -> list[ToolSpec]:
@@ -228,5 +269,7 @@ __all__: list[str] = [
     "READ_TOOLS",
     "AgentSurface",
     "FacadeSurface",
+    "SurfaceView",
     "ToolAnswer",
+    "decisions_payload",
 ]

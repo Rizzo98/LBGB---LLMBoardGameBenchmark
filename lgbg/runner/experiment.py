@@ -5,14 +5,14 @@ them in order, each in its own run directory with its own `run.json`, its own se
 its own seed. Planning first is not an optimisation: the set of games is part of what the run
 declares, and a run whose games are decided as it goes cannot say what it measured.
 
-The experiment's own record - the plan, the derivation and the games - is returned, and the
-experiment block of `results.json` is written at the run root. That block names the axes the design
-did not control, so the caveat travels with the data rather than living only in this object. K-032
-extends the artefact with the per-game and per-seat detail; this slice is what makes the caveat
-travel at all (FR-11.12).
+The experiment's own record - the plan, the derivation and the games - is returned, and
+`results.json` is written at the run root: the axes the design did not control, every game with
+its per-seat split, and the per-model totals. The caveat travels with the data rather than living
+only in this object, and the totals are facts about games that happened rather than a claim about
+models (FR-10.6, FR-11.8, FR-11.12).
 
-Unattended running, bounded concurrency and resuming are FR-11.5's, and deliberately not here: one
-game at a time, in the game's own resolution order, is the record that the rest builds on.
+Unattended running with bounded concurrency across games and resuming are FR-11.5's, and not here:
+one game at a time, each in its own resolution order, is the record the rest builds on.
 """
 
 from __future__ import annotations
@@ -27,13 +27,14 @@ from lgbg.agents.pricing import PriceTable
 from lgbg.agents.prompting import PromptSet
 from lgbg.core.canonical import to_canonical_json
 from lgbg.core.config import RunConfig
+from lgbg.core.contracts import validate_results
 from lgbg.core.game import get_game
 from lgbg.core.types import JsonValue
 from lgbg.runner.agents import Agent
 from lgbg.runner.design import DesignError, ExperimentDesign
 from lgbg.runner.game import GameResult, run_game
 from lgbg.runner.matrix import PlannedGame, plan
-from lgbg.runner.results import RESULTS_FILENAME, experiment_record
+from lgbg.runner.results import RESULTS_FILENAME, ResultsError, experiment_results
 
 GAME_DIRECTORY_PREFIX: str = "g-"
 """How one game's directory is named: the game id, so the directory and the record agree."""
@@ -60,7 +61,7 @@ class ExperimentResult:
 
     @property
     def results_path(self) -> Path:
-        """The run's results file: the design's axes, its uncontrolled marking and the counts."""
+        """The run's results file: the design caveat, every game, and the per-model totals."""
         return self.root / RESULTS_FILENAME
 
 
@@ -118,16 +119,17 @@ async def run_experiment(
         planned=planned,
         games=tuple(games),
     )
-    record = experiment_record(
+    record = experiment_results(
         run_id=run_id,
         design=chosen,
         profile=profile,
         seats=len(seats),
         derivation=result.derivation,
-        planned=len(planned),
-        completed=result.completed,
-        abandoned=result.abandoned,
+        games=result.games,
     )
+    problems = validate_results(record)
+    if problems:
+        raise ResultsError("; ".join(problems))
     result.results_path.write_text(to_canonical_json(record) + "\n", encoding="utf-8")
     return result
 

@@ -55,9 +55,13 @@ from lgbg.runner.matrix import PlannedGame, plan
 from lgbg.runner.results import (
     RESULTS_FILENAME,
     RESULTS_SCHEMA_NAME,
+    GameFacts,
     ModelTally,
     OutcomeSummary,
+    ResultsError,
+    SeatFacts,
     experiment_record,
+    experiment_results,
 )
 
 __all__: list[str] = [
@@ -81,6 +85,7 @@ __all__: list[str] = [
     "GameAbortedError",
     "GameDesign",
     "GameError",
+    "GameFacts",
     "GameResult",
     "LlmAgent",
     "ManifestError",
@@ -90,10 +95,13 @@ __all__: list[str] = [
     "ReferenceAgent",
     "ReferencePlayer",
     "ReferenceView",
+    "ResultsError",
     "ScriptedAgent",
+    "SeatFacts",
     "build_manifest",
     "declared_seating",
     "experiment_record",
+    "experiment_results",
     "plan",
     "run_experiment",
     "run_game",

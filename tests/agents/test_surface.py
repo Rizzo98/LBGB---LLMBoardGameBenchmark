@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 import json
 from collections.abc import Sequence
+from pathlib import Path
 from typing import Any
 
 import lgbg.games  # noqa: F401 - importing the package registers the in-repo plugins
@@ -27,10 +28,13 @@ from lgbg.agents.surface import (
     READ_SURFACE,
     READ_TOOLS,
     FacadeSurface,
+    SurfaceView,
+    decisions_payload,
 )
 from lgbg.core.assist import rejection_view
 from lgbg.core.config import RejectionDetail, RunConfig
 from lgbg.core.game import get_game
+from lgbg.core.log import GameLogReader, god_log_path
 from lgbg.core.tools import tool_definitions
 from lgbg.host.facade import SessionFacade
 from tests.games.fixture_game import FixtureGame  # noqa: F401 - importing registers the game
@@ -188,3 +192,76 @@ def test_a_mock_model_plays_one_decision_through_the_facade() -> None:
     assert result.action is not None
     assert result.action.name == "gamble"
     assert facade.projection(game_id, SEAT) != before
+
+
+def test_an_action_carries_its_request_and_waits_for_its_turn(tmp_path: Path) -> None:
+    """The runner can keep submissions in resolution order while the model calls run in parallel."""
+    facade = SessionFacade()
+    game_id = facade.create_session(
+        "fixture",
+        RunConfig(seed=1, players=2, interaction_protocol="decline_only"),
+        directory=tmp_path,
+    )
+
+    request_id = facade.pending_decisions(game_id)[0].request_id
+
+    async def play() -> Any:
+        gate = asyncio.Event()
+        surface = FacadeSurface(
+            facade,
+            "fixture",
+            game_id,
+            SEAT,
+            refusal_view=lambda rejection: rejection_view(
+                rejection, detail=RejectionDetail.STANDARD
+            ),
+            request_id=request_id,
+            act_gate=gate.wait,
+        )
+        task = asyncio.create_task(surface.act(ToolCall(id="a1", name="gamble", arguments={})))
+        await asyncio.sleep(0)
+        assert not task.done(), "the action must wait for its gate"
+        gate.set()
+        return await task
+
+    answer = asyncio.run(play())
+
+    assert answer.accepted is True
+    record = GameLogReader(god_log_path(tmp_path, game_id)).read().actions[-1]
+    assert record.request_id == request_id
+
+
+def test_a_frozen_view_shows_the_position_the_decision_opened_in() -> None:
+    """A concurrent decision reads the batch boundary, not whatever the seat before it changed."""
+    facade, game_id, live = session()
+    before = facade.projection(game_id, SEAT)
+    view = SurfaceView(
+        observation=before,
+        decision_surface=facade.decision_surface(game_id, SEAT),
+        decisions=decisions_payload(facade.pending_decisions(game_id), SEAT),
+    )
+    frozen = FacadeSurface(
+        facade,
+        "fixture",
+        game_id,
+        SEAT,
+        refusal_view=lambda rejection: rejection_view(rejection, detail=RejectionDetail.STANDARD),
+        view=view,
+    )
+
+    assert act(live, ToolCall(id="a1", name="gamble", arguments={})).accepted is True
+    game = get_game("fixture")
+
+    assert read(frozen, ToolCall(id="r1", name=READ_STATE, arguments={})).payload == game.render(
+        before, detail="full"
+    )
+    assert (
+        read(frozen, ToolCall(id="r2", name=READ_SURFACE, arguments={})).payload
+        == view.decision_surface
+    )
+    assert (
+        read(frozen, ToolCall(id="r3", name=READ_DECISIONS, arguments={})).payload == view.decisions
+    )
+    assert read(live, ToolCall(id="r4", name=READ_STATE, arguments={})).payload != game.render(
+        before, detail="full"
+    )

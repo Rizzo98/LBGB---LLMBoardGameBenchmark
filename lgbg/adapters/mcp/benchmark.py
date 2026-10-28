@@ -14,8 +14,9 @@ from __future__ import annotations
 import argparse
 import importlib
 import sys
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from pathlib import Path
+from typing import Any
 
 import anyio
 
@@ -27,7 +28,7 @@ from lgbg.adapters.mcp.server import (
     build_server,
     serve_stdio,
 )
-from lgbg.core.config import AssistLevel, ConfigError, RunConfig
+from lgbg.core.config import AssistLevel, ConfigError, GameConfig, RunConfig
 from lgbg.core.game import GamePluginError
 from lgbg.host.facade import SessionFacade
 
@@ -44,6 +45,8 @@ def benchmark_surface(
     directory: Path | None = None,
     assist: AssistLevel = AssistLevel.L1,
     detail: str = DEFAULT_DETAIL,
+    protocol: str = "decline_only",
+    game_config: Mapping[str, Any] | None = None,
 ) -> McpSurface:
     """Build the benchmark profile over one session, as the runner would hand it to a model."""
     facade = SessionFacade()
@@ -52,8 +55,9 @@ def benchmark_surface(
         RunConfig(
             seed=seed,
             players=players,
-            interaction_protocol="decline_only",
+            interaction_protocol=protocol,
             assist=assist,
+            game_config=GameConfig(dict(game_config or {})),
         ),
         game_id=session_id,
         directory=directory,

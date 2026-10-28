@@ -26,9 +26,17 @@ from pathlib import Path
 from typing import Any
 
 import lgbg.games  # noqa: F401 - importing the package registers the in-repo plugins
+from lgbg.adapters.cli.inspect_run import inspect_run as read_run
 from lgbg.adapters.cli.live import play_live as run_live
 from lgbg.adapters.cli.mcp_client import ClientError
+from lgbg.adapters.cli.runfile import run_from_file
 from lgbg.adapters.cli.script import ScriptError, drive, load_script
+from lgbg.adapters.cli.serve import serve as serve_command
+from lgbg.adapters.mcp.benchmark import DEFAULT_SESSION_ID
+from lgbg.agents.context import ContextError
+from lgbg.agents.pricing import UnknownPriceError
+from lgbg.agents.prompting import PromptError
+from lgbg.agents.providers.base import ProviderError
 from lgbg.core.assist import render_decision
 from lgbg.core.canonical import hash_state, to_canonical_json
 from lgbg.core.config import DEFAULT_PLAYERS, AssistLevel, ConfigError, GameConfig, RunConfig
@@ -39,6 +47,10 @@ from lgbg.core.log import GOD_LOG_SUFFIX, GameLogReader, LogError
 from lgbg.core.replay import ReplayError, replay, verify
 from lgbg.core.run import AmbiguousRequestError, GameRun
 from lgbg.core.types import Action, DecisionRequest, JsonValue
+from lgbg.runner.design import DesignError
+from lgbg.runner.game import GameError
+from lgbg.runner.manifest import ManifestError
+from lgbg.runner.results import ResultsError
 
 EXPECTED_FAILURES: tuple[type[Exception], ...] = (
     ConfigError,
@@ -49,6 +61,14 @@ EXPECTED_FAILURES: tuple[type[Exception], ...] = (
     AmbiguousRequestError,
     ClientError,
     OSError,
+    ContextError,
+    PromptError,
+    ProviderError,
+    UnknownPriceError,
+    DesignError,
+    GameError,
+    ManifestError,
+    ResultsError,
 )
 """Failures an operator is expected to cause, and so deserves a sentence, not a stack trace."""
 
@@ -124,6 +144,56 @@ def build_parser() -> argparse.ArgumentParser:
         help="what the resources reveal, fixed for the run",
     )
     live.add_argument("--detail", default="full", help="the renderer's detail level")
+
+    serve = commands.add_parser("serve", help="start the HTTP host or one MCP profile over stdio")
+    _add_plugin_option(serve)
+    serve.add_argument("--game", default=None, help="the game an MCP surface serves")
+    serve.add_argument("--http", default=None, metavar="HOST:PORT", help="serve the HTTP host")
+    serve.add_argument(
+        "--mcp",
+        choices=["sandbox", "benchmark"],
+        default=None,
+        help="serve an MCP profile over stdio",
+    )
+    serve.add_argument(
+        "--player", type=int, default=None, help="the seat a benchmark surface serves"
+    )
+    serve.add_argument("--seed", type=int, default=1, help="the seed the session starts from")
+    serve.add_argument("--players", type=int, default=DEFAULT_PLAYERS, help="seats in the session")
+    serve.add_argument(
+        "--session-id", default=DEFAULT_SESSION_ID, help="the id the session is recorded under"
+    )
+    serve.add_argument("--protocol", default="decline_only", help="the interaction protocol")
+    serve.add_argument("--record-dir", default=None, help="the run directory to record into")
+    serve.add_argument(
+        "--assist",
+        choices=[level.value for level in AssistLevel],
+        default=AssistLevel.L1.value,
+        help="what the resources reveal, fixed for the process",
+    )
+    serve.add_argument("--detail", default="full", help="the renderer's detail level")
+
+    run_command = commands.add_parser("run", help="play a run declared in a config file")
+    _add_plugin_option(run_command)
+    run_command.add_argument("--config", required=True, help="the run config file")
+    run_command.add_argument("--out", default=None, help="the run directory to write")
+    run_command.add_argument("--run-id", default=None, help="the id the run is recorded under")
+    run_command.add_argument(
+        "--concurrency",
+        type=int,
+        default=None,
+        help="how many games may be in flight at once",
+    )
+
+    inspect_run_command = commands.add_parser(
+        "inspect-run", help="read a run directory: games, one game, or one seat's turns"
+    )
+    _add_plugin_option(inspect_run_command)
+    inspect_run_command.add_argument("path", help="a run directory holding results.json")
+    inspect_run_command.add_argument("--game", default=None, help="one game's summary")
+    inspect_run_command.add_argument(
+        "--seat", type=int, default=None, help="with --game, that seat's decision turns"
+    )
 
     replay_command = commands.add_parser("replay", help="replay a record, verifying every hash")
     _add_plugin_option(replay_command)
@@ -208,7 +278,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         for module in args.plugin:
             importlib.import_module(module)
-        if extra and args.command not in ("new", "fuzz", "play-live"):
+        if extra and args.command not in ("new", "fuzz", "play-live", "serve"):
             parser.error(f"unrecognised arguments: {' '.join(extra)}")
         match args.command:
             case "new":
@@ -219,6 +289,12 @@ def main(argv: Sequence[str] | None = None) -> int:
                 return _play(args)
             case "play-live":
                 return _play_live(args, _game_options(extra))
+            case "serve":
+                return _serve(args, _game_options(extra))
+            case "run":
+                return _run(args)
+            case "inspect-run":
+                return read_run(root=Path(args.path), game=args.game, seat=args.seat)
             case "replay":
                 return _replay(args)
             case "inspect":
@@ -311,6 +387,47 @@ def _play_live(args: argparse.Namespace, game_options: dict[str, JsonValue]) -> 
         game_options=game_options,
         player=args.player,
     )
+
+
+def _serve(args: argparse.Namespace, game_options: dict[str, JsonValue]) -> int:
+    """Start the HTTP host or one MCP profile (FR-14.1)."""
+    return serve_command(
+        game=args.game,
+        http=args.http,
+        mcp=args.mcp,
+        player=args.player,
+        seed=args.seed,
+        players=args.players,
+        session_id=args.session_id,
+        protocol=args.protocol,
+        record_dir=None if args.record_dir is None else Path(args.record_dir),
+        assist=AssistLevel(args.assist),
+        detail=args.detail,
+        game_options=game_options,
+    )
+
+
+def _run(args: argparse.Namespace) -> int:
+    """Play a run declared in a config file, unattended, and report what it wrote (FR-14.2)."""
+    result = run_from_file(
+        Path(args.config),
+        out=None if args.out is None else Path(args.out),
+        run_id=args.run_id,
+        concurrency=args.concurrency,
+    )
+    payload = json.loads(result.results_path.read_text(encoding="utf-8"))
+    summary = payload["summary"]
+    print(f"run: {result.run_id}  root: {result.root}")
+    print(
+        f"games: {summary['games']}  completed: {summary['completed']}  "
+        f"abandoned: {summary['abandoned']}"
+    )
+    print(
+        f"tokens: {summary['total_tokens']}  cost: {summary['cost_micro_usd']}µ$  "
+        f"latency: {summary['latency_ms']}ms"
+    )
+    print(f"results: {result.results_path}")
+    return 0
 
 
 def _play_interactively(args: argparse.Namespace) -> int:

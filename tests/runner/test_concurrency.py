@@ -22,6 +22,7 @@ from lgbg.agents.providers.base import (
     CompletionConfig,
     Message,
     Provider,
+    ProviderTimeoutError,
     ToolCall,
     ToolSpec,
 )
@@ -29,7 +30,7 @@ from lgbg.agents.providers.mock import Behaviour, MockProvider
 from lgbg.agents.sidecar import DecisionSidecar
 from lgbg.core.config import RunConfig
 from lgbg.core.log import GameLogReader, god_log_path
-from lgbg.runner import GameResult, LlmAgent, run_game
+from lgbg.runner import ExperimentDesign, GameResult, LlmAgent, run_experiment, run_game
 
 PLAYERS: Final[int] = 4
 MODEL: Final[str] = "mock-model"
@@ -66,6 +67,40 @@ class RendezvousProvider:
             self._release.set()
         try:
             await asyncio.wait_for(self._release.wait(), timeout=2.0)
+        finally:
+            self._in_flight -= 1
+        return await self._inner.complete(messages, tools, config)
+
+
+class InFlightProbe:
+    """Count provider calls in flight, and refuse to answer until a chosen number overlap.
+
+    Used across games rather than within one: a run that plays its games one at a time can never
+    reach the barrier, so this is how bounded concurrency across games is proved rather than
+    timed. The inner mock supplies the recorded exchange every completion must carry.
+    """
+
+    def __init__(self, expected: int, action: ToolCall) -> None:
+        self._expected = expected
+        self._inner = MockProvider(Behaviour.ALWAYS_ILLEGAL, action=action)
+        self._release = asyncio.Event()
+        self._in_flight = 0
+        self.max_in_flight = 0
+
+    async def complete(
+        self,
+        messages: Sequence[Message],
+        tools: Sequence[ToolSpec],
+        config: CompletionConfig,
+    ) -> Completion:
+        self._in_flight += 1
+        self.max_in_flight = max(self.max_in_flight, self._in_flight)
+        if self._in_flight >= self._expected:
+            self._release.set()
+        try:
+            await asyncio.wait_for(self._release.wait(), timeout=2.0)
+        except TimeoutError as error:
+            raise ProviderTimeoutError("the games did not overlap") from error
         finally:
             self._in_flight -= 1
         return await self._inner.complete(messages, tools, config)
@@ -223,3 +258,53 @@ def test_the_record_is_identical_whether_answered_serially_or_in_parallel(tmp_pa
     assert serial_log == parallel_log, "the god log is the deterministic record"
     assert serial_side == parallel_side, "the sidecar tells the same story once timing is removed"
     assert sum(1 for record in serial_side if record.get("t") == "decision") == PLAYERS
+
+
+def test_games_run_concurrently_up_to_the_declared_bound(tmp_path: Path) -> None:
+    """PRD-v2 FR-11.5: many games unattended, with bounded concurrency, plan order kept.
+
+    The probe releases only when twice a game's decision batch is in flight, so a runner that
+    starts one game at a time can never get past it. The bound is what the second half checks:
+    with a limit of one, only one game's four calls are ever in flight.
+    """
+    action = ToolCall(id="mark", name="mark", arguments={})
+    two_games = InFlightProbe(expected=PLAYERS * 2, action=action)
+
+    concurrent = asyncio.run(
+        run_experiment(
+            game="concurrent",
+            config=RunConfig(seed=7, players=PLAYERS, interaction_protocol="concurrent"),
+            root=tmp_path / "concurrent",
+            run_id=RUN_ID,
+            seats=list(agents([two_games] * PLAYERS).values()),
+            prompts=prompts(tmp_path / "prompts"),
+            price_table=price_table(),
+            design=ExperimentDesign(seating="fixed", replicates=2),
+            max_concurrent_games=2,
+            clock=lambda: AT,
+        )
+    )
+
+    one_game = InFlightProbe(expected=PLAYERS, action=action)
+    serial = asyncio.run(
+        run_experiment(
+            game="concurrent",
+            config=RunConfig(seed=7, players=PLAYERS, interaction_protocol="concurrent"),
+            root=tmp_path / "serial",
+            run_id=RUN_ID,
+            seats=list(agents([one_game] * PLAYERS).values()),
+            prompts=prompts(tmp_path / "prompts"),
+            price_table=price_table(),
+            design=ExperimentDesign(seating="fixed", replicates=2),
+            max_concurrent_games=1,
+            clock=lambda: AT,
+        )
+    )
+
+    assert concurrent.completed == 2
+    assert serial.completed == 2
+    assert two_games.max_in_flight == PLAYERS * 2, "two games' batches were in flight together"
+    assert one_game.max_in_flight == PLAYERS, "a limit of one keeps one game's batch in flight"
+    assert [game.game_id for game in concurrent.games] == ["g-0000", "g-0001"], (
+        "results stay in plan order, not completion order"
+    )

@@ -14,40 +14,6 @@
 
 
 
-### K-033 · CLI completion
-
-  - tags: [slice-7, cli, fr-14]
-  - priority: medium
-  - workload: Normal
-  - steps:
-      - [ ] serve, run, inspect-run and play-live
-      - [ ] Every command exits non-zero on failure and prints no traceback for an expected failure
-      - [ ] inspect-run shows the decision turns of one seat in one game, with the exact messages and responses
-      - [ ] v1's replay, verify, inspect and fuzz are unchanged, and still verify v1 records exactly as before
-    ```md
-    - **Cuts through:** adapters/cli, the facade, results, the run directory
-    - **Depends on:** K-032
-    - **PRD:** FR-14.1 to FR-14.6
-    - **Why:** Keeping the v1 commands working unchanged is the regression net for the whole release. A v2 record must verify with the same command that verifies a v1 one.
-    ```
-
-### K-034 · Unattended CI campaign
-
-  - tags: [slice-7, test, sc-12, fr-14]
-  - priority: high
-  - workload: Normal
-  - steps:
-      - [ ] At least 50 games on the mock provider, deliberately including every failing behaviour
-      - [ ] Completes unattended, with bounded concurrency and no manual step
-      - [ ] Produces results.json with per-game and per-seat accounting
-      - [ ] Runs inside the existing gate, not beside it
-    ```md
-    - **Cuts through:** runner, agents, the mock, results, the gate
-    - **Depends on:** K-033
-    - **PRD:** SC-12, NFR-4
-    - **Why:** Unattended operation is exactly what a mock can stress at scale and for free, which is why this criterion is the mock's and not the real provider's.
-    ```
-
 ### K-035 · Budget-bounded real demonstration
 
   - tags: [slice-7, test, fr-13, sc-16]
@@ -650,4 +616,40 @@
     - **PRD:** FR-10.6, FR-11.8, FR-11.12
     - **Why:** v2 emits facts, not inferences. `results.json` is where a run states what happened; anything that would be a claim about models belongs to v3.
     - **Evidence:** `lgbg/runner/results.py` now builds the whole artefact from the run directory: `_game_facts` reads `run.json`, the god log and the sidecar to record per game the design point, outcome, place, actions, rejection counts by code, failure counts by kind, tokens, cost, latency, partiality and the abandonment; `_model_rows` and `_seat_rows` aggregate per model and per seat, counting a game once for a model that holds several seats, keeping abandonment out of wins and losses, and leaving reference/scripted-only seats out of the scored aggregates. `experiment_results` keeps the K-029 design block and uncontrolled marking, adds the summary, games, per_model and per_seat arrays, and `run_experiment` validates the payload against the new `RESULTS_SCHEMA` in `lgbg/core/contracts.py` before writing `results.json`. `tests/runner/test_results.py` holds a two-model, four-seat rotated run on the concurrent game - four games, each model in every seat twice, two wins and two losses apiece, per-game place and tokens/cost for every seat, and per-model/per-seat totals - and an abandoned fixture game whose responsible model gets an abandonment row and no loss, with the fixture's seating caveat still in the design. A deliberate mutation counting a model's games per seat rather than per game failed the repeated-agent test and was reverted. Gate: 1214 passed, 1 skipped.
+    ```
+
+### K-033 · CLI completion
+
+  - tags: [slice-7, cli, fr-14]
+  - priority: medium
+  - workload: Normal
+  - steps:
+      - [x] serve, run, inspect-run and play-live
+      - [x] Every command exits non-zero on failure and prints no traceback for an expected failure
+      - [x] inspect-run shows the decision turns of one seat in one game, with the exact messages and responses
+      - [x] v1's replay, verify, inspect and fuzz are unchanged, and still verify v1 records exactly as before
+    ```md
+    - **Cuts through:** adapters/cli, the facade, results, the run directory
+    - **Depends on:** K-032
+    - **PRD:** FR-14.1 to FR-14.6
+    - **Why:** Keeping the v1 commands working unchanged is the regression net for the whole release. A v2 record must verify with the same command that verifies a v1 one.
+    - **Evidence:** `lgbg/adapters/cli/runfile.py` reads the run config file PRD-v2 section 11.2 declares - game, config, seats, design, policies, prompts and prices - and refuses unknown keys, a table that does not cover the configuration, several providers in one run, a mock declaration on a real provider, and a model with no price. It builds the mock from the declared behaviour and its scripted actions, or the OpenRouter adapter from `OPENROUTER_API_KEY` with the price table read from the gateway's own listing before the first game (FR-13.2), and plays the experiment through `run_experiment`. `lgbg/adapters/cli/inspect_run.py` reads a run directory alone: every game from `results.json`, one game's outcome, design, abandonment and per-seat split, and with `--seat` the sidecar's decision records printed as the exact messages and the exact response in canonical JSON. `lgbg/adapters/cli/serve.py` starts the HTTP host (uvicorn over `HttpHost`) or one MCP profile over stdio, with the profile fixed at construction; `benchmark_surface` gained the protocol and game options a standalone benchmark process needs. `main.py` adds the three commands, keeps `play-live` as it was, and puts every new failure into the expected-failure set, so it exits non-zero with a sentence rather than a traceback (FR-14.5). `tests/cli/test_run_command.py` (9 tests) plays a run from a file, reads it back three ways, verifies the v2 record with the unchanged v1 `verify` (FR-14.6), and fails legibly on a missing file, a missing seat and an unknown provider; `tests/cli/test_serve.py` (5 tests) covers address parsing and the profile choice, and drives `serve --mcp sandbox` as a real stdio process that creates a session and reads it. One boundary is recorded rather than hidden: `serve` starts one surface per process, because a stdio server owns the process, and it offers the HTTP host as this release's HTTP surface rather than an MCP-over-HTTP transport. A deliberate mutation making inspect-run select the wrong seat failed the exact-transcript test and was reverted. Gate: 1231 passed, 1 skipped.
+    ```
+
+### K-034 · Unattended CI campaign
+
+  - tags: [slice-7, test, sc-12, fr-14]
+  - priority: high
+  - workload: Normal
+  - steps:
+      - [x] At least 50 games on the mock provider, deliberately including every failing behaviour
+      - [x] Completes unattended, with bounded concurrency and no manual step
+      - [x] Produces results.json with per-game and per-seat accounting
+      - [x] Runs inside the existing gate, not beside it
+    ```md
+    - **Cuts through:** runner, agents, the mock, results, the gate
+    - **Depends on:** K-033
+    - **PRD:** SC-12, NFR-4
+    - **Why:** Unattended operation is exactly what a mock can stress at scale and for free, which is why this criterion is the mock's and not the real provider's.
+    - **Evidence:** `run_experiment` gained `max_concurrent_games` (default 1) and `_play_all`, which bounds the games with a semaphore and gathers them back in plan order, so concurrency changes the wall clock and not the record (FR-11.5). `tests/runner/test_concurrency.py` proves the bound with a provider that releases only when two games' decision batches are in flight: a limit of two completes, a limit of one keeps a single batch in flight. `tests/games/campaign_game.py` is a six-seat simultaneous asset with one declared-but-never-offered action, so a deliberately illegal agent sends an action the engine knows and refuses - a record replay can read, unlike an undeclared one. `tests/runner/test_campaign.py::test_cli_unattended_run` invokes the real `run` command with a config file of ten rotated replicates over six seats: 60 games, one seat per mock behaviour (correct play, timeout, malformed arguments, prose, always-illegal, runaway). It asserts 10 completed and 50 abandoned, every failing kind present in decision records or abandonments, `rejections_by_code` `{REFUSED: 20}`, a per-game design point, six per-seat rows (seat 0: 60 games, 10 wins, 50 abandoned; seats 1-5: 10 games, 10 losses), six per-model rows (each failing model 20 games, 10 completed, 10 abandoned, no win) and every god log verifying with v1's `verify` - abandoned games with no terminal record. The second test reads the campaign back with `inspect-run`, so the campaign's artefact is the operator's artefact. Two deliberate mutations - playing every game serially despite the bound, and ignoring the declared design - each failed and were reverted. Gate: 1231 passed, 1 skipped; the 60-game campaign itself is 0.43 s of the suite, which is why it is in the gate rather than beside it.
     ```

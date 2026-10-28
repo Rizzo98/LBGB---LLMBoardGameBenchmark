@@ -17,7 +17,8 @@ one game at a time, each in its own resolution order, is the record the rest bui
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping, Sequence
+import asyncio
+from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass, replace
 from pathlib import Path
 
@@ -77,13 +78,26 @@ async def run_experiment(
     design: ExperimentDesign | None = None,
     policy: TurnPolicy | None = None,
     context: ContextPolicy | None = None,
+    max_concurrent_games: int = 1,
     clock: Callable[[], str] | None = None,
 ) -> ExperimentResult:
     """Plan the design, then play every game it declares under one root directory.
 
     A caller that declares no design gets the single-game exploration case (FR-11.13): one game,
     random seats, and the starting configuration the plugin says it can draw.
+
+    'max_concurrent_games' bounds how many games are in flight at once (FR-11.5). The default is
+    one, so an ordinary experiment plays one game at a time; a campaign sets it higher and the
+    games are independent, which is what makes the wall clock fall without the record moving.
+    The results are still returned in plan order, because the plan - not completion order - is
+    what a reader compares.
+
+    The agents are shared by every game: a provider whose answer depends on which game reaches it
+    first is exercised in whatever order the games are scheduled, so a stateful double belongs in
+    a serial design or a script whose actions do not depend on the order.
     """
+    if max_concurrent_games < 1:
+        raise DesignError("max_concurrent_games must be at least 1")
     plugin = get_game(game)
     if len(seats) != config.players:
         raise DesignError(
@@ -92,25 +106,25 @@ async def run_experiment(
     profile = plugin.benchmark_profile()
     chosen = ExperimentDesign.exploration(profile) if design is None else design
     planned = plan(design=chosen, table=seats, seed=config.seed, profile=profile)
-    games: list[GameResult] = []
-    for planned_game in planned:
+
+    async def play(planned_game: PlannedGame) -> GameResult:
         game_id = f"{GAME_DIRECTORY_PREFIX}{planned_game.index:04d}"
-        games.append(
-            await run_game(
-                game=game,
-                config=replace(config, seed=planned_game.seed),
-                directory=root / game_id,
-                run_id=f"{run_id}-{game_id}",
-                requested_id=game_id,
-                seats=planned_game.seat_map(),
-                prompts=prompts,
-                price_table=price_table,
-                design=planned_game.design,
-                policy=policy,
-                context=context,
-                clock=clock,
-            )
+        return await run_game(
+            game=game,
+            config=replace(config, seed=planned_game.seed),
+            directory=root / game_id,
+            run_id=f"{run_id}-{game_id}",
+            requested_id=game_id,
+            seats=planned_game.seat_map(),
+            prompts=prompts,
+            price_table=price_table,
+            design=planned_game.design,
+            policy=policy,
+            context=context,
+            clock=clock,
         )
+
+    games = await _play_all(planned, play, limit=max_concurrent_games)
     result = ExperimentResult(
         run_id=run_id,
         root=root,
@@ -132,6 +146,29 @@ async def run_experiment(
         raise ResultsError("; ".join(problems))
     result.results_path.write_text(to_canonical_json(record) + "\n", encoding="utf-8")
     return result
+
+
+async def _play_all(
+    planned: Sequence[PlannedGame],
+    play: Callable[[PlannedGame], Awaitable[GameResult]],
+    *,
+    limit: int,
+) -> list[GameResult]:
+    """Play every planned game, never more than 'limit' at once, in plan order (FR-11.5).
+
+    A semaphore bounds the games and the gather keeps the answers in plan order, so a campaign
+    that finishes game 7 before game 3 still records game 3 first. Concurrency is across games,
+    not within one: the facade already dispatches one game's open decisions together (FR-11.2).
+    """
+    if limit == 1:
+        return [await play(planned_game) for planned_game in planned]
+    semaphore = asyncio.Semaphore(limit)
+
+    async def bounded(planned_game: PlannedGame) -> GameResult:
+        async with semaphore:
+            return await play(planned_game)
+
+    return list(await asyncio.gather(*(bounded(planned_game) for planned_game in planned)))
 
 
 __all__: list[str] = [

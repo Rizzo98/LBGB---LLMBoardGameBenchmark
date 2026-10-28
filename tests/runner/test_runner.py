@@ -40,6 +40,7 @@ from lgbg.core.rng import Purpose
 from lgbg.core.types import Action, JsonValue
 from lgbg.runner import (
     AgentKind,
+    DesignError,
     GameDesign,
     LlmAgent,
     ManifestError,
@@ -186,7 +187,7 @@ def manifest_for(
         price_table=price_table(),
         policy=TurnPolicy(),
         context=ContextPolicy(),
-        design=design or GameDesign.single_game(),
+        design=design,
     )
     return manifest
 
@@ -399,6 +400,33 @@ def test_the_manifest_records_the_design_it_was_given() -> None:
     assert manifest["design"] == design.to_mapping()
     assert manifest["config"]["board"] == "fixed:mystery", "game options are carried, not read"
     assert validate_manifest(manifest) == []
+
+
+def test_an_undeclared_design_gets_the_single_game_exploration_default() -> None:
+    """FR-11.13: no design means one game, random seats, and the configuration the game can give."""
+    manifest = manifest_for({0: llm(), 1: ReferenceAgent(SpendFirst())})
+
+    assert manifest["design"]["seating"] == "random", "exploration assigns seats at random"
+    assert manifest["design"]["initial_configuration"] == "fixed", (
+        "the fixture has one starting position, so it is not asked for another"
+    )
+    assert manifest["design"]["replicates"] == 1
+    assert manifest["design"]["uncontrolled"] == []
+    assert manifest["design"]["derivation"] == {
+        "rule": "games = replicates x seatings",
+        "replicates": 1,
+        "seatings": 1,
+        "games": 1,
+    }
+    assert validate_manifest(manifest) == []
+
+
+def test_a_manifest_cannot_ask_a_fixed_game_for_a_random_configuration() -> None:
+    """FR-11.11 even at the single-game seam: a request the game cannot honour is refused."""
+    design = GameDesign(seating="random", initial_configuration="random")
+
+    with pytest.raises(DesignError, match="single fixed starting position"):
+        manifest_for({0: llm(), 1: ReferenceAgent(SpendFirst())}, design=design)
 
 
 def test_the_manifest_records_every_policy_and_hash() -> None:

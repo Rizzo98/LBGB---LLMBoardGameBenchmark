@@ -55,7 +55,12 @@ def build_manifest(
     design: GameDesign | None = None,
 ) -> dict[str, JsonValue]:
     """The `run.json` one game writes, checked against the declared shape before it is stored."""
-    chosen = GameDesign.single_game() if design is None else design
+    chosen = (
+        GameDesign.exploration(game.benchmark_profile(), seats=config.players)
+        if design is None
+        else design
+    )
+    chosen.check(game.benchmark_profile())
     game_config = dict(config.to_mapping().items())
     game_config.pop("prompt_hashes", None)
     timeout = int(policy.decision_timeout_s)

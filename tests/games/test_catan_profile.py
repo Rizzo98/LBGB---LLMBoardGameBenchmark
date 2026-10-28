@@ -62,6 +62,7 @@ def test_the_profile_is_complete_and_says_what_catan_is() -> None:
     profile = GAME.benchmark_profile()
 
     assert profile.positional_asymmetry is True, "seat order is a real advantage in Catan"
+    assert profile.configuration_is_variable is True, "Catan deals a different board every game"
     assert profile.outcome_shape is OutcomeShape.SINGLE_WINNER
     assert profile.variance_class is VarianceClass.HIGH
     assert profile.interaction_character is InteractionCharacter.MIXED

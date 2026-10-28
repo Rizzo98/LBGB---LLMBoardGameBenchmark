@@ -75,6 +75,7 @@ def plan(
         raise DesignError("an experiment needs at least two seats")
     if not isinstance(seed, int) or isinstance(seed, bool):
         raise DesignError(f"the experiment seed must be an integer, got {seed!r}")
+    design.check(profile, seats)
     derivation = design.derivation(seats)
     uncontrolled = design.uncontrolled(profile, seats)
     planned: list[PlannedGame] = []

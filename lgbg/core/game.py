@@ -79,6 +79,7 @@ class BenchmarkProfile:
     """
 
     positional_asymmetry: bool
+    configuration_is_variable: bool
     outcome_shape: OutcomeShape
     variance_class: VarianceClass
     interaction_character: InteractionCharacter

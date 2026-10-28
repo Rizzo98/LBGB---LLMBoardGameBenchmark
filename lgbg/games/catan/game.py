@@ -360,6 +360,7 @@ class CatanGame:
         """
         return BenchmarkProfile(
             positional_asymmetry=True,
+            configuration_is_variable=True,
             outcome_shape=OutcomeShape.SINGLE_WINNER,
             variance_class=VarianceClass.HIGH,
             interaction_character=InteractionCharacter.MIXED,

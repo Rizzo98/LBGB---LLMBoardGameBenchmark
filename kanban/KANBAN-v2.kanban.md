@@ -13,23 +13,6 @@
 
 
 
-### K-029 · Axes a game does not have
-
-  - tags: [slice-6, design, fr-11]
-  - priority: high
-  - workload: Normal
-  - defaultExpanded: true
-  - steps:
-      - [ ] Initial configuration varies only where the plugin declares configuration_is_variable
-      - [ ] Asking a game with a single fixed starting position for a random configuration is a clear configuration error, never a silently ignored request
-      - [ ] The single-game exploration case is first-class and is what an undeclared design gives
-      - [ ] An uncontrolled axis is allowed but marked, and the marking travels into results.json
-    ```md
-    - **Cuts through:** runner, the plugin declaration in ARCHITECTURE section 7.10, results
-    - **Depends on:** K-028
-    - **PRD:** FR-11.11, FR-11.12, FR-11.13
-    - **Why:** Seating and starting configuration are independent axes. A game whose starting position is fixed still gives one seat the first move, so it varies the first and not the second. A design model that assumed every game can be randomised would be wrong about such a game the day it arrived.
-    ```
 
 ### K-031 · Concurrent decision dispatch
 
@@ -646,4 +629,23 @@
     - **PRD:** FR-11.3, FR-11.4, FR-11.9, FR-11.10, SC-7
     - **Why:** Randomness is fought by declaring which axes vary and recording where each game sits in the design, not by mandating one rotation. The cyclic-shift rule handles a table mixing distinct and repeated agents without a special case.
     - **Evidence:** `lgbg/runner/design.py` splits the design in two: `ExperimentDesign` is what a run asks for - seating, initial configuration, configuration scope and replicate count - and `GameDesign` is what one game records, now carrying `replicate` and `rotation` beside the derivation, which must add up before it can be recorded. `lgbg/runner/matrix.py` turns the request into the games: fixed keeps the declared order, rotated is the N cyclic shifts (`seat i is played by table[(i + k) mod N]`), random is one drawn permutation per replicate from a source seeded by the run, and every seed is derived from the run's - replicate 0 keeps the run's own seed and the rotations of a replicate share it, so a replicate is a mirrored pairing, except where a random configuration is drawn per game, which is the declared exception. The game count is `replicates x seatings` and the derivation travels with every game (FR-11.4); the plugin's benchmark profile is consulted for `positional_asymmetry`, so a pinned seat order in a game that rewards moving first is marked `uncontrolled` rather than silently flattering seat 0 (ARCHITECTURE 7.10, FR-11.12) - whether a fixed *configuration* is a caveat depends on K-029's declaration and is not guessed at here. `lgbg/runner/experiment.py` plans first and then plays every game, each in its own directory and under its own requested id, so a directory, a record and a plan entry agree; its result reports completed and abandoned counts. The manifest's design shape now requires `replicate` and `rotation` (the fixture carries them), so every `run.json` answers where its game sits in the experiment. `tests/runner/test_matrix.py` (12 tests) holds the SC-7 case - five replicates of a four-seat rotation is twenty games, each table position occupying each seat five times - the repeated-agent balance (each agent holding two seats occupies every seat index twice), the cyclic-shift identity, deterministic random seating, the three scope cases (mirrored, per-experiment and per-game seeds, and a fixed configuration ignoring the scope), the positional-asymmetry marking, the derivation on all three seating rules, and a played fixture experiment whose four `run.json` files record replicate, rotation, seat names and a mirrored seed. Two deliberate mutations - dropping the seatings factor from the game count, and giving every rotation its own seed regardless of scope - each failed and were reverted. A real collision surfaced while writing the matrix: a per-game rotation seed was hashed exactly like a replicate seed and repeated a seed from the previous replicate, which is why the two derivations now carry different labels. Gate: 1193 passed, 1 skipped.
+    ```
+
+### K-029 · Axes a game does not have
+
+  - tags: [slice-6, design, fr-11]
+  - priority: high
+  - workload: Normal
+  - defaultExpanded: true
+  - steps:
+      - [x] Initial configuration varies only where the plugin declares configuration_is_variable
+      - [x] Asking a game with a single fixed starting position for a random configuration is a clear configuration error, never a silently ignored request
+      - [x] The single-game exploration case is first-class and is what an undeclared design gives
+      - [x] An uncontrolled axis is allowed but marked, and the marking travels into results.json
+    ```md
+    - **Cuts through:** runner, the plugin declaration in ARCHITECTURE section 7.10, results
+    - **Depends on:** K-028
+    - **PRD:** FR-11.11, FR-11.12, FR-11.13
+    - **Why:** Seating and starting configuration are independent axes. A game whose starting position is fixed still gives one seat the first move, so it varies the first and not the second. A design model that assumed every game can be randomised would be wrong about such a game the day it arrived.
+    - **Evidence:** `BenchmarkProfile` now declares `configuration_is_variable` as a required fact, and both plugins answer it: Catan `True` because it deals a board per game, the fixture `False` because it has one opening position. `ExperimentDesign.check` refuses `initial_configuration="random"` when the profile says the start is fixed, and `GameDesign.check` repeats the refusal at the manifest seam, so neither the matrix nor a direct single-game write can silently ignore the request. `ExperimentDesign.exploration` is the first-class one-game default: random seats, a random configuration only where the game declares it can draw one, one replicate; `run_experiment(design=None)` and `build_manifest(design=None)` use it, so an undeclared run plays one exploration game and records it in `run.json`. `ExperimentDesign.uncontrolled` now marks `initial_configuration` when a variable game's design pins it - and still marks `seating` when a positional-asymmetric game pins the order - so a design that controls neither carries both marks, while a game that cannot vary its start carries none because there is no variance to caveat. `lgbg/runner/results.py` writes `results.json` at the experiment root with schema `lgbg.results.v1`, the design axes, the derivation, the completed and abandoned counts and the `uncontrolled` list, and `ExperimentResult.results_path` names the file (K-032 extends it with per-game and per-seat detail). `tests/runner/test_matrix.py` adds the config rejection and acceptance, the pinned-configuration, controlled-configuration, fixed-start and both-axes markings, the three exploration-default cases including a played run, and the results.json caveat path; `tests/runner/test_runner.py` adds the undeclared-manifest default and the refusal at that seam; the catan and fixture profile tests assert the new declaration. Four deliberate mutations - disabling the configuration check, dropping the configuration mark, pinning exploration seats to fixed, and emptying the results marking - each failed the tests above and was reverted. Gate: 1206 passed, 1 skipped.
     ```

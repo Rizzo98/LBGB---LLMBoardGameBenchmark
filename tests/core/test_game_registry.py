@@ -73,6 +73,7 @@ ARCHITECTURE_MEMBERS: Final[frozenset[str]] = frozenset(
 
 TOY_PROFILE: Final[BenchmarkProfile] = BenchmarkProfile(
     positional_asymmetry=False,
+    configuration_is_variable=False,
     outcome_shape=OutcomeShape.SINGLE_WINNER,
     variance_class=VarianceClass.LOW,
     interaction_character=InteractionCharacter.ADVERSARIAL,

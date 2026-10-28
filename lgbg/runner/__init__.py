@@ -52,6 +52,13 @@ from lgbg.runner.game import (
 )
 from lgbg.runner.manifest import DEFAULT_GAME_TIMEOUT_S, ManifestError, build_manifest
 from lgbg.runner.matrix import PlannedGame, plan
+from lgbg.runner.results import (
+    RESULTS_FILENAME,
+    RESULTS_SCHEMA_NAME,
+    ModelTally,
+    OutcomeSummary,
+    experiment_record,
+)
 
 __all__: list[str] = [
     "AXES",
@@ -61,6 +68,8 @@ __all__: list[str] = [
     "DEFAULT_GAME_TIMEOUT_S",
     "DERIVATION_RULE",
     "RANDOM_CONFIGURATION",
+    "RESULTS_FILENAME",
+    "RESULTS_SCHEMA_NAME",
     "ROTATED_SEATING",
     "SEATING",
     "Abandonment",
@@ -75,6 +84,8 @@ __all__: list[str] = [
     "GameResult",
     "LlmAgent",
     "ManifestError",
+    "ModelTally",
+    "OutcomeSummary",
     "PlannedGame",
     "ReferenceAgent",
     "ReferencePlayer",
@@ -82,6 +93,7 @@ __all__: list[str] = [
     "ScriptedAgent",
     "build_manifest",
     "declared_seating",
+    "experiment_record",
     "plan",
     "run_experiment",
     "run_game",

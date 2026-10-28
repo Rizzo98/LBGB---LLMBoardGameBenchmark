@@ -275,6 +275,7 @@ class FixtureGame:
     def benchmark_profile(self) -> BenchmarkProfile:
         return BenchmarkProfile(
             positional_asymmetry=True,
+            configuration_is_variable=False,
             outcome_shape=OutcomeShape.SINGLE_WINNER,
             variance_class=VarianceClass.LOW,
             interaction_character=InteractionCharacter.ADVERSARIAL,

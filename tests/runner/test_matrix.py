@@ -30,12 +30,15 @@ from lgbg.core.game import (
 )
 from lgbg.core.types import Action
 from lgbg.runner import (
+    AXIS_INITIAL_CONFIGURATION,
+    AXIS_SEATING,
     DERIVATION_RULE,
     DesignError,
     ExperimentDesign,
     ReferenceAgent,
     ReferenceView,
     ScriptedAgent,
+    experiment_record,
     plan,
     run_experiment,
 )
@@ -46,6 +49,7 @@ AT: Final[str] = "2026-02-11T09:30:00+00:00"
 
 ASYMMETRIC: Final[BenchmarkProfile] = BenchmarkProfile(
     positional_asymmetry=True,
+    configuration_is_variable=False,
     outcome_shape=OutcomeShape.SINGLE_WINNER,
     variance_class=VarianceClass.LOW,
     interaction_character=InteractionCharacter.ADVERSARIAL,
@@ -54,8 +58,20 @@ ASYMMETRIC: Final[BenchmarkProfile] = BenchmarkProfile(
 )
 """A game where seat order matters, which is the fact the seating axis exists for."""
 
+VARIABLE: Final[BenchmarkProfile] = BenchmarkProfile(
+    positional_asymmetry=True,
+    configuration_is_variable=True,
+    outcome_shape=OutcomeShape.SINGLE_WINNER,
+    variance_class=VarianceClass.LOW,
+    interaction_character=InteractionCharacter.ADVERSARIAL,
+    typical_decisions=12,
+    worst_case_decisions=60,
+)
+"""A game that can deal more than one opening position, so its configuration can vary."""
+
 SYMMETRIC: Final[BenchmarkProfile] = BenchmarkProfile(
     positional_asymmetry=False,
+    configuration_is_variable=False,
     outcome_shape=OutcomeShape.SINGLE_WINNER,
     variance_class=VarianceClass.LOW,
     interaction_character=InteractionCharacter.ADVERSARIAL,
@@ -231,7 +247,7 @@ def test_a_rotated_replicate_shares_one_seed_and_a_per_game_configuration_does_n
         ),
         table=table,
         seed=5,
-        profile=ASYMMETRIC,
+        profile=VARIABLE,
     )
     per_experiment = plan(
         design=ExperimentDesign(
@@ -242,7 +258,7 @@ def test_a_rotated_replicate_shares_one_seed_and_a_per_game_configuration_does_n
         ),
         table=table,
         seed=5,
-        profile=ASYMMETRIC,
+        profile=VARIABLE,
     )
 
     for replicate in range(2):
@@ -272,7 +288,81 @@ def test_a_fixed_configuration_ignores_a_per_game_scope() -> None:
     assert {game.design.initial_configuration for game in planned} == {"fixed:standard_a"}
 
 
+# --- configuration variability (FR-11.11) --------------------------------------------------------
+
+
+def test_config_variability_a_fixed_start_rejects_a_random_draw() -> None:
+    """A game with one starting position cannot be asked to draw another: that is an error."""
+    with pytest.raises(DesignError, match="single fixed starting position"):
+        plan(
+            design=ExperimentDesign(seating="random", initial_configuration="random"),
+            table=four_seats(),
+            seed=5,
+            profile=ASYMMETRIC,
+        )
+
+
+def test_config_variability_a_variable_game_accepts_a_random_draw() -> None:
+    """The same request is the axis working as intended where the game can vary its start."""
+    planned = plan(
+        design=ExperimentDesign(seating="rotated", initial_configuration="random"),
+        table=four_seats(),
+        seed=5,
+        profile=VARIABLE,
+    )
+
+    assert {game.design.initial_configuration for game in planned} == {"random"}
+
+
 # --- the profile's declaration (FR-11.12, ARCHITECTURE 7.10) ------------------------------------
+
+
+def test_a_pinned_configuration_of_a_variable_game_is_marked_uncontrolled() -> None:
+    """A fixed start where the game could have varied it is a caveat the record must carry."""
+    planned = plan(
+        design=ExperimentDesign(seating="rotated", initial_configuration="fixed:standard_a"),
+        table=four_seats(),
+        seed=1,
+        profile=VARIABLE,
+    )
+
+    assert planned[0].design.uncontrolled == (AXIS_INITIAL_CONFIGURATION,)
+
+
+def test_a_random_configuration_of_a_variable_game_is_controlled() -> None:
+    """Drawing the start is the axis being controlled, so there is nothing to mark."""
+    planned = plan(
+        design=ExperimentDesign(seating="rotated", initial_configuration="random"),
+        table=four_seats(),
+        seed=1,
+        profile=VARIABLE,
+    )
+
+    assert planned[0].design.uncontrolled == ()
+
+
+def test_a_game_without_configuration_variation_needs_no_configuration_marking() -> None:
+    """The game has one starting position, so the axis is not a caveat: there is nothing to vary."""
+    planned = plan(
+        design=ExperimentDesign(seating="rotated", initial_configuration="fixed"),
+        table=four_seats(),
+        seed=1,
+        profile=ASYMMETRIC,
+    )
+
+    assert planned[0].design.uncontrolled == ()
+
+
+def test_both_axes_can_be_uncontrolled_at_once() -> None:
+    """The marks are independent, and the record names both in the declared axis order."""
+    planned = plan(
+        design=ExperimentDesign(seating="fixed", initial_configuration="fixed:standard_a"),
+        table=four_seats(),
+        seed=1,
+        profile=VARIABLE,
+    )
+
+    assert planned[0].design.uncontrolled == (AXIS_INITIAL_CONFIGURATION, AXIS_SEATING)
 
 
 def test_positional_asymmetry_marks_a_fixed_seating_uncontrolled() -> None:
@@ -288,6 +378,74 @@ def test_positional_asymmetry_marks_a_fixed_seating_uncontrolled() -> None:
     assert (
         plan(design=rotated, table=table, seed=1, profile=ASYMMETRIC)[0].design.uncontrolled == ()
     )
+
+
+# --- the single-game default (FR-11.13) ---------------------------------------------------------
+
+
+def test_one_game_default_uses_random_seats_and_a_random_configuration() -> None:
+    """The exploration case is one game, with both axes drawn where the game can vary them."""
+    design = ExperimentDesign.exploration(VARIABLE)
+
+    planned = plan(design=design, table=four_seats(), seed=5, profile=VARIABLE)
+
+    assert (design.seating, design.initial_configuration, design.replicates) == (
+        "random",
+        "random",
+        1,
+    )
+    assert len(planned) == 1
+    assert planned[0].design.uncontrolled == ()
+
+
+def test_one_game_default_does_not_ask_a_fixed_game_for_a_start_it_cannot_draw() -> None:
+    """A game with one opening position explores at that position rather than failing."""
+    design = ExperimentDesign.exploration(ASYMMETRIC)
+
+    planned = plan(design=design, table=four_seats(), seed=5, profile=ASYMMETRIC)
+
+    assert (design.seating, design.initial_configuration, design.replicates) == (
+        "random",
+        "fixed",
+        1,
+    )
+    assert len(planned) == 1
+    assert planned[0].design.uncontrolled == ()
+
+
+def test_one_game_default_is_what_an_undeclared_experiment_plays(tmp_path: Path) -> None:
+    """FR-11.13: a caller who declares no design gets exactly one exploration game."""
+    table = [
+        ReferenceAgent(SpendWhenPossible("alpha")),
+        ReferenceAgent(SpendWhenPossible("beta")),
+    ]
+
+    result = asyncio.run(
+        run_experiment(
+            game="fixture",
+            config=config(),
+            root=tmp_path / "run",
+            run_id=RUN_ID,
+            seats=table,
+            prompts=prompts(tmp_path / "prompts"),
+            price_table=price_table(),
+            clock=lambda: AT,
+        )
+    )
+
+    assert len(result.games) == 1
+    manifest: dict[str, Any] = json.loads(result.games[0].manifest_path.read_text(encoding="utf-8"))
+    assert manifest["design"]["seating"] == "random"
+    assert manifest["design"]["initial_configuration"] == "fixed"
+    assert manifest["design"]["replicates"] == 1
+    assert manifest["design"]["replicate"] == 0
+    assert manifest["design"]["rotation"] == 0
+    assert manifest["design"]["derivation"] == {
+        "rule": DERIVATION_RULE,
+        "replicates": 1,
+        "seatings": 1,
+        "games": 1,
+    }
 
 
 # --- the point each game occupies (FR-11.10, SC-7) ----------------------------------------------
@@ -369,3 +527,58 @@ def test_a_rotated_design_needs_at_least_two_seats() -> None:
             seed=1,
             profile=ASYMMETRIC,
         )
+
+
+# --- the caveat travels into the results (FR-11.12) ----------------------------------------------
+
+
+def test_uncontrolled_design_marked(tmp_path: Path) -> None:
+    """A run that pins an axis says so in results.json, so the data carries its own caveat."""
+    table = [
+        ReferenceAgent(SpendWhenPossible("alpha")),
+        ReferenceAgent(SpendWhenPossible("beta")),
+    ]
+
+    result = asyncio.run(
+        run_experiment(
+            game="fixture",
+            config=config(),
+            root=tmp_path / "run",
+            run_id=RUN_ID,
+            seats=table,
+            prompts=prompts(tmp_path / "prompts"),
+            price_table=price_table(),
+            design=ExperimentDesign(seating="fixed"),
+            clock=lambda: AT,
+        )
+    )
+
+    payload: dict[str, Any] = json.loads(result.results_path.read_text(encoding="utf-8"))
+    assert payload["schema"] == "lgbg.results.v1"
+    assert payload["design"]["seating"] == "fixed"
+    assert payload["design"]["uncontrolled"] == ["seating"]
+    assert payload["games"] == {"planned": 1, "completed": 1, "abandoned": 0}
+
+
+def test_results_carry_a_configuration_caveat() -> None:
+    """The same record carries the other axis when the game could have varied its start."""
+    record = experiment_record(
+        run_id=RUN_ID,
+        design=ExperimentDesign(seating="rotated", initial_configuration="fixed:standard_a"),
+        profile=VARIABLE,
+        seats=4,
+        derivation={
+            "rule": DERIVATION_RULE,
+            "replicates": 1,
+            "seatings": 4,
+            "games": 4,
+        },
+        planned=4,
+        completed=4,
+        abandoned=0,
+    )
+
+    design_record = record["design"]
+    assert isinstance(design_record, dict)
+    assert design_record["initial_configuration"] == "fixed:standard_a"
+    assert design_record["uncontrolled"] == ["initial_configuration"]

@@ -7,10 +7,13 @@ those decisions into a game count rather than a number somebody stated.
 
 Two values live here, and the split is the whole point. `ExperimentDesign` is what a run *asks
 for*: three independent axes and a replicate count. `GameDesign` is what one game *records*: those
-axes, the derivation they produced, and the game's own replicate and rotation index. K-028's matrix
-turns the first into the second; K-029 decides what happens when a game cannot vary an axis. A game
-that cannot say which design produced it cannot be compared with any other run (FR-11.10), and that
-is true even for a single exploration game.
+axes, the derivation they produced, and the game's own replicate and rotation index. The matrix
+turns the first into the second. A game that cannot vary an axis is not asked to - a random
+configuration from a single fixed start is a configuration error - and a design that pins an axis
+the game could have varied carries that axis as uncontrolled (FR-11.11, FR-11.12). The single-game
+exploration case is first-class and is what an undeclared design gives (FR-11.13). A game that
+cannot say which design produced it cannot be compared with any other run (FR-11.10), and that is
+true even for a single exploration game.
 
 Nothing in this module names a game. A configuration is a label the caller declares - the game's own
 options travel opaquely in the run config - so a game with one fixed starting position, and a game
@@ -54,6 +57,15 @@ DERIVATION_RULE: Final[str] = "games = replicates x seatings"
 
 class DesignError(ValueError):
     """The declared design cannot be recorded as a point in an experiment."""
+
+
+def _check_configuration(initial_configuration: str, profile: BenchmarkProfile) -> None:
+    """A random draw is a request the game must be able to honour (FR-11.11)."""
+    if initial_configuration == RANDOM_CONFIGURATION and not profile.configuration_is_variable:
+        raise DesignError(
+            "this game declares a single fixed starting position, so a random initial "
+            "configuration cannot be drawn; declare a fixed configuration instead"
+        )
 
 
 def _check_axes(
@@ -100,6 +112,24 @@ class ExperimentDesign:
             replicates=self.replicates,
         )
 
+    @classmethod
+    def exploration(cls, profile: BenchmarkProfile) -> ExperimentDesign:
+        """The one-game design an undeclared run gives (FR-11.13).
+
+        Exploration draws both axes where the game can draw them: seats are assigned at random
+        and, when the plugin declares a variable starting position, so is the configuration. A
+        game with a single opening position is explored at that position rather than asked for a
+        draw it cannot make (FR-11.11), which is what keeps the one-game case first-class for
+        every game and not only for the ones with a setup.
+        """
+        return cls(
+            seating="random",
+            initial_configuration=(
+                RANDOM_CONFIGURATION if profile.configuration_is_variable else "fixed"
+            ),
+            replicates=1,
+        )
+
     @property
     def draws_per_game(self) -> bool:
         """Whether a random starting position is drawn for every game rather than per replicate."""
@@ -108,10 +138,22 @@ class ExperimentDesign:
             and self.configuration_scope == CONFIGURATION_SCOPES[1]
         )
 
+    def check(self, profile: BenchmarkProfile, seats: int) -> None:
+        """Refuse a design the game cannot carry out (FR-11.11).
+
+        A game with a single fixed starting position cannot draw another one, so asking for a
+        random configuration is a configuration error rather than a request to ignore. The
+        seating rule is checked here too, so a rotated design over one seat fails before any
+        game is planned.
+        """
+        _check_configuration(self.initial_configuration, profile)
+        self.seatings(seats)
+
     def seatings(self, seats: int) -> int:
         """How many seat assignments one replicate contains (FR-11.4, FR-11.9).
 
-        A rotated design is exactly one game per seat; every other rule is one game per replicate.
+        A rotated design is exactly one seat assignment per seat; every other rule is one game
+        per replicate.
         """
         if self.seating != ROTATED_SEATING:
             return 1
@@ -135,15 +177,20 @@ class ExperimentDesign:
     def uncontrolled(self, profile: BenchmarkProfile, seats: int) -> tuple[str, ...]:
         """The axes this design does not vary, as far as the game's declaration lets us know.
 
-        A pinned seat order is a caveat only when the game says seat order matters, which is what
-        the plugin's profile declares (ARCHITECTURE 7.10). Randomised seating controls the axis in
-        expectation and rotation controls it exactly, so neither is marked. Whether a *fixed*
-        starting configuration is a caveat depends on whether the game could have varied it, which
-        is K-029's declaration; this slice does not guess at it.
+        Both marks are caveats, not facts about the game. A pinned seat order is a caveat only
+        when the game says seat order matters, which is what the plugin's profile declares
+        (ARCHITECTURE 7.10); randomised seating controls the axis in expectation and rotation
+        controls it exactly, so neither is marked. A fixed starting configuration is a caveat
+        only when the game could have varied it: a game with a single opening position has no
+        configuration variance to control, and marking it would invent a caveat where there is
+        nothing to caveat. A random configuration is the axis being controlled.
         """
+        uncontrolled: list[str] = []
+        if self.initial_configuration != RANDOM_CONFIGURATION and profile.configuration_is_variable:
+            uncontrolled.append(AXIS_INITIAL_CONFIGURATION)
         if self.seating == SEATING[0] and seats > 1 and profile.positional_asymmetry:
-            return (AXIS_SEATING,)
-        return ()
+            uncontrolled.append(AXIS_SEATING)
+        return tuple(uncontrolled)
 
 
 @dataclass(frozen=True, slots=True)
@@ -182,9 +229,29 @@ class GameDesign:
         object.__setattr__(self, "derivation", MappingProxyType(derivation))
 
     @classmethod
-    def single_game(cls, *, initial_configuration: str = "fixed") -> GameDesign:
-        """The one-game exploration case: no replicates, one seating, a declared configuration."""
-        return cls(initial_configuration=initial_configuration)
+    def exploration(cls, profile: BenchmarkProfile, *, seats: int = 1) -> GameDesign:
+        """The one-game point an undeclared run records (FR-11.13).
+
+        It is the record side of `ExperimentDesign.exploration`: random seats, the configuration
+        the game can offer, one game, and the caveat the profile's declarations imply.
+        """
+        request = ExperimentDesign.exploration(profile)
+        return cls(
+            seating=request.seating,
+            initial_configuration=request.initial_configuration,
+            configuration_scope=request.configuration_scope,
+            replicates=request.replicates,
+            uncontrolled=request.uncontrolled(profile, seats),
+        )
+
+    def check(self, profile: BenchmarkProfile) -> None:
+        """Refuse a recorded design that asks for an axis the game does not have (FR-11.11).
+
+        The matrix checks the request before it plans; this is the same refusal at the manifest
+        seam, so a caller that hands one game a design directly cannot smuggle in a random draw
+        the game will silently ignore.
+        """
+        _check_configuration(self.initial_configuration, profile)
 
     def to_mapping(self) -> dict[str, JsonValue]:
         """The `design` object of run.json, exactly as the manifest shape declares it."""

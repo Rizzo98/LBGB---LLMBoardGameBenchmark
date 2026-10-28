@@ -336,6 +336,7 @@ def test_the_benchmark_profile_is_declared_and_complete() -> None:
     assert profile.typical_decisions > 0
     assert profile.worst_case_decisions >= profile.typical_decisions
     assert profile.positional_asymmetry is True, "the fixture rewards acting first"
+    assert profile.configuration_is_variable is False, "the fixture has one opening position"
 
 
 def test_decision_requests_name_a_declared_schema() -> None:

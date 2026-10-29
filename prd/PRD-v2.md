@@ -22,8 +22,14 @@ provider-agnostic agent layer, and a runner — and produces the first real meas
 directories containing complete, replayable games played by models, with every prompt, every
 response, every token and every cost recorded.
 
-It deliberately does **not** produce statistics. v2 answers *"what happened in these games?"* v3
+It deliberately does **not** produce statistics. v2 answers *"what happened in these games?"* v4
 answers *"what does that mean?"*
+
+> **Roadmap note (post-v2).** PRD-v3 is the **operator console and replay viewer**: a read-only
+> post-hoc surface over the records this release produces. The statistics originally assigned to v3
+> move to PRD-v4. Forward references to "v3" below that concern inference are read as v4; the web UI
+> reference is fulfilled by PRD-v3. PRD-v3 also amends this document's run-directory layout (§11.1)
+> by writing a root experiment manifest and keeping a per-game directory.
 
 ---
 
@@ -87,15 +93,15 @@ there is a framework.
 
 | Out of scope | Note |
 |---|---|
-| **Statistics**: Elo, Bradley-Terry, confidence intervals, sample-size planning | PRD-v3. v2 emits *facts* per run; v3 draws *inferences* across runs. |
-| **Leaderboards, dashboards, reports, a web UI** | PRD-v3. |
-| **A second game plugin** | PRD-v3, deliberately: it is the true test of the v1 plugin boundary, and it should not be confounded with the agent layer landing. |
-| **A non-LLM baseline opponent** | v2 compares models with each other under a recorded design. Absolute skill — including blunder rates against an oracle — belongs to v3. A reference seat remains test infrastructure and is never scored. |
+| **Statistics**: Elo, Bradley-Terry, confidence intervals, sample-size planning | PRD-v4. v2 emits *facts* per run; v4 draws *inferences* across runs. |
+| **Leaderboards, dashboards, reports** | PRD-v4. The post-hoc operator console and replay viewer are PRD-v3; neither is a dashboard. |
+| **A second game plugin** | A later release, deliberately: it is the true test of the v1 plugin boundary, and it should not be confounded with the agent layer landing. PRD-v3 proves the view seam with a test-only second view, not a second game. |
+| **A non-LLM baseline opponent** | v2 compares models with each other under a recorded design. Absolute skill — including blunder rates against an oracle — belongs to v4. A reference seat remains test infrastructure and is never scored. |
 | Free-text negotiation between models | Permanently out of scope (`ARCHITECTURE.md` §3). Trading stays structured. |
 | Self-play optimisation, fine-tuning, model training | — |
 | Long-term agent memory across games | Each game starts clean. Memory is an experimental variable, not infrastructure. |
 | Multi-process distributed execution | Single machine, single process pool. Parallelism within a run, not across machines. |
-| Human play UI | The MCP **sandbox** profile is the human-facing surface, and it is a CLI client, not a UI. |
+| Human play UI | The MCP **sandbox** profile is the human-facing play surface, and it is a CLI client, not a UI. The PRD-v3 console is a post-hoc replay surface; it cannot play a live game. |
 | Closing v1's accepted deviations | They stay accepted. Q5 in §15.1 settles the one that could have blocked a card. |
 
 ---
@@ -131,7 +137,8 @@ Each is binary and maps to an automated check in §12.
 |---|---|
 | **The researcher** | Runs configurations, reads `results.json`, drills into a specific decision that looked wrong. |
 | **A result reviewer** | Replays a published run's games and verifies its hashes without re-running any model. |
-| **PRD-v3 implementers** | Consume the run directory format and `results.json` as their input. |
+| **PRD-v4 implementers** | Consume the run directory format and `results.json` as their input. |
+| **PRD-v3 console implementers** | Read the run directory and the sidecar; the console verifies and replays, it never re-runs a model. |
 | **A future game-plugin author** | Confirms the MCP surface needs no per-game adapter code (SC-6). |
 
 ---
@@ -524,9 +531,9 @@ otherwise is how benchmarks become unfalsifiable.
   would quietly reward a model that plays badly-but-legally over a model that fails decisively, so
   abandonment is reported as its own count and never folded into a win rate.
 
-### 10.3 What v2 MUST record so that v3 can reason statistically
+### 10.3 What v2 MUST record so that v4 can reason statistically
 
-Sampling parameters, provider identity and version, timestamps, and per-decision usage — so that v3 can
+Sampling parameters, provider identity and version, timestamps, and per-decision usage — so that v4 can
 state how much of the observed variance is the model and how much is everything else.
 
 ---
@@ -537,12 +544,19 @@ state how much of the observed variance is the model and how much is everything 
 
 ```text
 runs/<run_id>/
-  run.json                  manifest: config, seats, models, policies, prompt hashes, price table
-  results.json              per-game and per-seat accounting
-  games/
-    <game_id>.god.jsonl     unchanged v1 format - deterministic, hash-chained
-    <game_id>.meta.jsonl    extended: model interactions per decision turn
+  run.json                    experiment manifest: declaration, derivation and plan (written before play)
+  results.json                per-game and per-seat accounting
+  <game_id>/
+    game.json                 the game's own manifest (renamed from `run.json`)
+    games/
+      <game_id>.god.jsonl     unchanged v1 format - deterministic, hash-chained
+      <game_id>.meta.jsonl    extended: model interactions per decision turn
 ```
+
+The root manifest is the experiment's declaration and its plan, written before the first game so a
+run that crashes half-way still records what it intended to play. The per-game manifest is the
+game's own record and is self-sufficient for replay. PRD-v3 §11 and its FR-12 amend the exact shape;
+the per-game directory is the portable unit.
 
 ### 11.2 Run config file
 
@@ -669,7 +683,7 @@ in the surface and a bug in the agent look identical.
 | R9 | v1's dependency-free core erodes under v2 pressure | Medium | Medium | FR-16.1, SC-11 |
 | R10 | Records lack enough to reconstruct a decision | Medium | High | FR-10.4, SC-4 tested from the artefact alone |
 | R11 | Concurrency produces records that look complete but are torn | Medium | High | NFR-6, FR-11.6 |
-| R12 | Two runs produce numbers that look comparable but were designed differently | High | High | FR-11.10 records each game's point in the design; FR-11.12 marks every uncontrolled axis in `results.json`; v3 refuses to compare across designs |
+| R12 | Two runs produce numbers that look comparable but were designed differently | High | High | FR-11.10 records each game's point in the design; FR-11.12 marks every uncontrolled axis in `results.json`; v4 refuses to compare across designs |
 
 ---
 
@@ -681,13 +695,13 @@ in the surface and a bug in the agent look identical.
 |---|---|---|
 | Q1 | Which providers ship in v2? | **OpenRouter**, one gateway reaching many vendors, so every model is driven through the same request path and a difference between two models is not a difference between two client libraries (FR-5.2). Model id, upstream route and native-tool-calling support are recorded per request (FR-5.8); pricing is read from the gateway and recorded with its read time (FR-5.9). The mock ships alongside it. |
 | Q2 | HTTP framework? | **ASGI**, with routing written directly against the ASGI interface and no framework until a concrete need appears (FR-2.7). |
-| Q3 | Default illegal-action resolution? | **Redo loop.** An illegal action is answered by asking the model again with one shared redo prompt, under a retry budget identical for every model — the table blocking a move and asking the player to redo it, not a forfeit and not a substitute choice. Exhausting the budget abandons the game rather than completing it with fabricated play. Illegal-move counts are recorded in v2 and become a reported metric in v3 (FR-7.1–FR-7.5, SC-15). |
+| Q3 | Default illegal-action resolution? | **Redo loop.** An illegal action is answered by asking the model again with one shared redo prompt, under a retry budget identical for every model — the table blocking a move and asking the player to redo it, not a forfeit and not a substitute choice. Exhausting the budget abandons the game rather than completing it with fabricated play. Illegal-move counts are recorded in v2 and become a reported metric in v4 (FR-7.1–FR-7.5, SC-15). |
 | Q4 | Default context strategy? | **Delta with periodic full refresh** (FR-8.1). |
-| Q5 | Close v1's event-sufficiency gap? | **Carry it to v3**, and consider formally withdrawing the requirement there. Closing it needs a second implementation of every state transition, which would drift from `apply`; nothing in v2 depends on it, and adding a protocol member while landing the agent layer would confound two changes at once. |
+| Q5 | Close v1's event-sufficiency gap? | **Carry it to v4**, and consider formally withdrawing the requirement there. Closing it needs a second implementation of every state transition, which would drift from `apply`; nothing in v2 depends on it, and adding a protocol member while landing the agent layer would confound two changes at once. |
 | Q6 | Sandbox profile: a flag, or a separate entry point? | **Separate entry points over one implementation**, profile fixed at construction, with the lifecycle tools *absent* from the benchmark process rather than gated behind a value — and a test asserting the absence (FR-3.4–FR-3.4c). The rule underneath: **a model is a player, never an operator.** |
 | Q7 | How many games is "an unattended run"? | **Split into two criteria.** SC-12 is a CI campaign of ≥ 50 games on the mock provider, where unattended operation is the thing being proved and cost is zero. SC-16 is a real-provider demonstration bounded by **declared budget** rather than by a game count, because the same count costs roughly $4 on a cheap model and roughly $90 on a frontier one. |
 | Q8 | Is mirroring mandatory, or a default? | **Replaced by an experiment-design model.** Randomness is fought by declaring which axes vary and recording them per game, not by mandating a single rotation. Seating and initial configuration are independent axes — a game with a fixed start varies only the first — and the game count is derived from the design rather than stated (FR-11.3–FR-11.13). |
-| Q9 | Is a non-LLM baseline part of the benchmark? | **No.** v2 compares models with each other: the unit of analysis is a model in a recorded design point, not a model against an opponent. A reference seat remains test infrastructure — it exercises the runner without a provider — but it is never scored, never reported and never used to interpret a result. Absolute claims and oracle-based metrics are v3, and would arrive with the second game and a frozen benchmark version. |
+| Q9 | Is a non-LLM baseline part of the benchmark? | **No.** v2 compares models with each other: the unit of analysis is a model in a recorded design point, not a model against an opponent. A reference seat remains test infrastructure — it exercises the runner without a provider — but it is never scored, never reported and never used to interpret a result. Absolute claims and oracle-based metrics are v4, and would arrive with the second game and a frozen benchmark version. |
 
 ### 15.2 Open
 

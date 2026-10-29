@@ -1,8 +1,10 @@
 # LBGB — LLM Board Game Benchmark
 
 A benchmark that uses board games to measure reasoning and planning in LLMs.
-Version 1 delivers the game engine core, the verifiable-replay machinery, and the
-first game plugin: Settlers of Catan, base game, 4 players.
+Version 1 is accepted: the game engine core, the verifiable-replay machinery and the first game
+plugin (Settlers of Catan, base game, 4 players). Version 2 is in acceptance: the agent layer, the
+runner and the run artefacts. Version 3, the operator console and replay viewer, is specified in
+`prd/PRD-v3.md`.
 
 ## Documentation map
 
@@ -10,7 +12,9 @@ first game plugin: Settlers of Catan, base game, 4 players.
 |---|---|
 | [`ARCHITECTURE.md`](ARCHITECTURE.md) | How the system is built. Versionless, game-agnostic, the source of truth. |
 | [`prd/PRD-v1.md`](prd/PRD-v1.md) | What release v1 delivers: scope, requirements, acceptance criteria. |
-| [`kanban/KANBAN-v1.kanban.md`](kanban/KANBAN-v1.kanban.md) | What to do next. One board per release, work cut into horizontal slices. |
+| [`prd/PRD-v2.md`](prd/PRD-v2.md) | What release v2 delivers: the agent layer, the runner and the run artefacts. |
+| [`prd/PRD-v3.md`](prd/PRD-v3.md) | What release v3 delivers: the operator console and the replay viewer. |
+| [`kanban/KANBAN-v2.kanban.md`](kanban/KANBAN-v2.kanban.md) | What to do next: the current release board, cut into horizontal slices. |
 | [`AGENTS.md`](AGENTS.md) | Contributor and agent orientation. |
 
 Requires [uv](https://docs.astral.sh/uv/). Python 3.12 or newer is installed and used
@@ -46,7 +50,7 @@ uv run python -m lgbg.adapters.cli new --game catan --seed 123 --board fixed:sta
 # play a scripted action file into a run directory
 uv run python -m lgbg.adapters.cli play --script game.json --out runs/demo
 
-# replay a record, verifying every hash, optionally dumping every intermediate state
+# replay the standalone record `play` wrote, verifying every hash
 uv run python -m lgbg.adapters.cli replay runs/demo/games/g-0001.god.jsonl --print-states
 
 # verify one record, or every record in a run directory; exits non-zero on failure
@@ -56,9 +60,12 @@ uv run python -m lgbg.adapters.cli verify runs/demo
 A game defined outside the engine is loaded with `--plugin MODULE`, which imports a module
 that registers its games. `tests/cli/test_cli.py` drives the suite's fixture game that way.
 
-A run directory holds two files per game (`ARCHITECTURE.md` section 8.2): the
-`<game_id>.god.jsonl` deterministic record, and a `<game_id>.meta.jsonl` sidecar holding
-everything that is real and not reproducible — wall-clock time, host, process id.
+An experiment directory written by `run` holds a root manifest (`run.json`), the aggregates
+(`results.json`), and one directory per game (`ARCHITECTURE.md` section 8.2). A game directory holds
+its manifest (`game.json`) and, under `games/`, two records: the `<game_id>.god.jsonl` deterministic
+record, and a `<game_id>.meta.jsonl` sidecar holding everything that is real and not reproducible —
+wall-clock time, host, process id. `play` writes a standalone record under `<out>/games/`; the
+console can open either.
 
 A scripted action file declares the game, the configuration and an ordered list of actions.
 The example below is the shape, using the suite's fixture game:
@@ -97,6 +104,8 @@ lgbg/host/     HTTP/JSON API over the engine (v2)
 lgbg/adapters/ MCP, CLI, python client
 lgbg/agents/   LLM providers and the provider-agnostic tool loop (v2)
 lgbg/runner/   seats, matchmaking, run orchestration (v2)
-lgbg/eval/     scoring, statistics, reporting (v3)
-tests/         core, games, and tooling suites
+lgbg/console/  read-only operator console and replay read model (v3)
+lgbg/eval/     scoring, statistics, reporting (v4)
+web/           browser client served by the console; build-time toolchain only (v3)
+tests/         core, games, console, and tooling suites
 ```

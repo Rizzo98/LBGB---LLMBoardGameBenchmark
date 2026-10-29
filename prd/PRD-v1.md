@@ -88,8 +88,8 @@ Explicitly **not** in this release. Each of these requires its own PRD.
 | MCP server or any network surface | PRD-v2 |
 | Heuristic, search-based, or random **bots** | Scored players are out of scope. See §8.22 for the fuzz driver, which is a test harness and is never scored. |
 | HTTP host / session registry | PRD-v2 |
-| Scoring, Elo, statistics, dashboards | PRD-v3 |
-| Web UI or replay viewer | Later; the CLI's `replay` command is the v1 substitute. |
+| Scoring, Elo, statistics, dashboards | PRD-v4 |
+| Web UI or replay viewer | PRD-v3 (operator console and replay viewer); the CLI's `replay` command is the v1 substitute until then. |
 | Free-text trade negotiation | Permanently out of scope for benchmark runs (`ARCHITECTURE.md` §3). |
 | Expansions (Seafarers, Cities & Knights) | A new plugin, not a flag on this one. |
 | Variable player counts (3 or 5–6) | Base 4-player only. |

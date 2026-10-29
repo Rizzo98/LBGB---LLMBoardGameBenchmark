@@ -48,6 +48,9 @@ The system's single most important output is:
 Everything else — MCP surfaces, LLM agents, scoring, dashboards — is built on top of that artefact.
 If the record is not trustworthy, no result computed from it is falsifiable.
 
+Every presentation surface — the CLI, the operator console, the replay viewer — is a **derived view**
+of that artefact. None of them may produce it, alter it, or stand in for it as evidence.
+
 ---
 
 ## 2. Design principles
@@ -64,7 +67,8 @@ If the record is not trustworthy, no result computed from it is falsifiable.
 | P8 | **One canonical serialisation function.** | The same function produces hashes and replay inputs. Two implementations would drift. |
 | P9 | **Timestamps and agent payloads live outside the deterministic core.** | They go in a sidecar file so the hashed record stays stable. |
 | P10 | **Rules fidelity is verified against the rulebook, not against memory.** | Each game pins its rule interpretations in a cited document before implementation (§7.9). |
-| P11 | **Nothing game-specific may reach the core, the host, or the runner.** | Game facts reach the platform as *declarations* from the plugin (§7.10, §7.11), never as branches in shared code. |
+| P11 | **Nothing game-specific may reach the core, the host, the runner, or the console.** | Game facts reach the platform as *declarations* from the plugin (§7.10, §7.11, §7.12), never as branches in shared code. |
+| P12 | **Presentation is derived, never authored.** | A view is a pure function of a record plus the game's declarations (its projection, geometry and standings). It cannot produce, alter, or become evidence for a record, and it holds no game facts of its own. |
 
 ---
 
@@ -81,7 +85,9 @@ principles above and do not move as the project progresses.
 | **No agent-framework behaviour that is not logged and constant across models.** | Any unlogged convenience silently becomes the thing being measured (§13). |
 | **No engine instrumentation for metrics.** Metrics are folds over the event log. | Keeps the engine pure (P1) and lets any metric be recomputed retroactively from existing records. |
 | **No expansions as flags on an existing plugin.** An expansion that changes the decision structure or the information model is a new plugin. | Feature flags would distort the plugin interface away from the base game's shape and make both configurations harder to verify. |
-| **No game-specific branches in the core, host, or runner.** | A game fact that shared code must act on becomes a declared capability, not an `if` (§7.10, §7.11). |
+| **No game-specific branches in the core, host, runner, or console.** | A game fact that shared code must act on becomes a declared capability, not an `if` (§7.10, §7.11, §7.12). |
+| **No presentation surface may act.** | The console reads records, proposes a configuration, and launches the runner. It never owns a live session, and no graphical game surface exists during play (§12.4). |
+| **No game facts in the client.** | A presentation surface shows the projection or observation it is given. It never re-derives a rule, a score, a legal move, or hidden state from public data (§12.4). |
 
 ---
 
@@ -89,6 +95,9 @@ principles above and do not move as the project progresses.
 
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
+│  console/ + web/  read-only operator console and replay viewer       │
+│                   (reads records and declarations; never writes)     │
+├──────────────────────────────────────────────────────────────────────┤
 │  eval/       scoring, Elo / Bradley-Terry, dashboards                │
 ├──────────────────────────────────────────────────────────────────────┤
 │  runner/     seats, matchmaking, mirror seats, run orchestration     │
@@ -104,12 +113,17 @@ principles above and do not move as the project progresses.
 │              replay engine, projection replay, run config            │
 ├──────────────────────────────────────────────────────────────────────┤
 │  games/      one package per game: state, structure, rules, phase    │
-│              machine, projection, notation, schemas, prompts         │
+│              machine, projection, notation, schemas, prompts, view   │
 └──────────────────────────────────────────────────────────────────────┘
 ```
 
 **The core never imports a game. Games never import a transport.**
 The dependency arrow points strictly downward.
+
+**Nothing below the console imports it, except the CLI's `console` command, which is only a
+launcher.** It is a consumer of records and declarations, not a layer anything depends on. No core,
+host, runner, agent or game package imports it. It never imports `host/`, and a played game never
+passes through it.
 
 ### 4.1 Repository layout
 
@@ -153,16 +167,26 @@ lgbg/
       prompts/game.md       the shared rules/notation prompt (versioned, hashed)
       RULES.md              pinned rule interpretations, with citations (§7.9)
       game.py               the Game implementation
+      view.py               presentation geometry: static scene keyed by canonical ids
   host/                     HTTP/JSON API and session registry
+  console/                  read-only operator console and replay read model
+    app.py                  ASGI routes, response envelope, static assets
+    runs.py                 the one run-directory reader: layout, discovery, compatibility
+    replay.py               verify + replay, cached timelines, projections
+    operator.py             one run-config schema, validation, preflight, launch
   adapters/
     mcp/                    MCP server: generated tools + resources
-    cli/                    new, play, replay, verify, fuzz, inspect
+    cli/                    new, play, replay, verify, fuzz, inspect, console
   agents/                   LLM providers, tool loop, prompt assembly
   runner/                   seat orchestration, run records, benchmark profiles
   eval/                     scoring, statistics, reporting
+web/                        browser client served by the console; build-time toolchain only
+  src/shell/                run browser, config editor, timeline, panels
+  src/games/catan/          EXAMPLE: the Catan board renderer (SVG)
 tests/
   core/                     determinism, canonicalisation, log round-trip, replay
   games/                    per-game conformance: rules, structure, projection leaks, goldens
+  console/                  read model, API, seat-mode leaks, compatibility, operator config
   agents/  runner/  eval/   added with those layers
 scripts/                    ad-hoc analysis
 ARCHITECTURE.md             this document
@@ -369,20 +393,39 @@ class Game(Protocol):
     def observe(self, state: State, player: PlayerId) -> Observation: ...
     def observe_spectator(self, state: State) -> Observation: ...
 
-    # --- terminality ---
+    # --- terminality and standing ---
     def is_terminal(self, state: State) -> bool: ...
     def outcome(self, state: State) -> Outcome: ...
+    def standings(self, state: State) -> Mapping[PlayerId, int]: ...
 
     # --- serialisation and declared schemas ---
     def encode_state(self, state: State) -> JsonValue: ...
     def decode_state(self, blob: JsonValue) -> State: ...
     def action_schema(self) -> JsonSchema: ...
     def observation_schema(self) -> JsonSchema: ...
+    def config_schema(self) -> JsonSchema: ...
     def rejection_codes(self) -> list[RejectionCode]: ...
 
     # --- declarations the platform needs and must not guess ---
     def benchmark_profile(self) -> BenchmarkProfile: ...
     def check_invariants(self, state: State) -> list[InvariantViolation]: ...
+    def view(self) -> GameView | None: ...
+```
+
+`standings` is the current score of every seat in the god view. It exists so a replay can display a
+scoreboard without re-deriving a scoring rule in a renderer, and it is pure like every other query.
+It is not part of a player's projection: a player's view of the score remains `points`, which is
+observer-relative and gated by the projection allow-list.
+
+`config_schema` declares the game's own configuration options as JSON Schema, so an operator surface
+can render and validate them without knowing the game. `view` is optional and is described in §7.12.
+
+```python
+class GameView(Protocol):
+    schema_version: str
+
+    def view_schema(self) -> JsonSchema: ...
+    def scene(self, state: State) -> JsonValue: ...
 ```
 
 ```python
@@ -512,6 +555,9 @@ projection boundary.
 - A **spectator projection** MUST exist and MUST be separately tested. It is a distinct artefact:
   in a game with hidden information, "who is currently ahead" is not fully determinable from any
   player's view, and the spectator view is what analysis and replays use.
+- A presentation surface that shows a player's view MUST derive it from that player's projection.
+  The god view MUST NOT be sent to a client and filtered there: a client-side filter is not a
+  projection boundary, and the data has already left the server.
 
 ### 7.9 Rule authority, pinning, and versioning
 
@@ -550,6 +596,44 @@ The plugin MUST declare its invariants via `check_invariants(state)`, returning 
 violations. This is what lets one generic fuzzing harness (§15.4) validate every game, including games
 that do not yet exist, without the harness knowing anything about them.
 
+### 7.12 Declarations the operator console needs
+
+A console that sets up a run and draws a replay must not learn a game's options or geometry by being
+written for that game. Three declarations keep it game-agnostic.
+
+**Configuration.** `config_schema()` returns a JSON Schema for the options the game reads from
+`GameConfig`. The core carries those options opaquely (P11); the console uses the schema only to
+render a form and to validate an operator's declaration. One validator serves the console and the
+CLI.
+
+**Standings.** `standings(state)` returns the current score of every seat in the god view. It is
+pure, and it exists so a replay's scoreboard is the game's own arithmetic rather than a second
+implementation in a renderer. A player's own view of the score remains the observer-relative
+`points` field (§7.8).
+
+**View.** `view()` returns an optional `GameView`. A game without one is still fully replayable
+textually; a game with one declares the static geometry a graphical replay needs:
+
+- `scene(state)` is a pure function of the initial state. It is keyed by the **same canonical
+  identifiers** that appear in recorded actions and observations, so a drawn vertex, edge or cell is
+  the one an action names.
+- The geometry is **derived** from the game's coordinate system, never an authored table (§7.5).
+- Coordinates are integers in a fixed view box. The scene is serialised with the same canonical
+  rules as everything else (§6.3); a float in a scene is a defect.
+- A scene contains only public structure. Hidden facts belong to a projection, never to geometry.
+- `view_schema()` declares the scene's shape and `schema_version` versions the presentation
+  contract, independently of the action schema.
+
+A frame is **not** a second state model: the console serves the spectator projection for a god view
+and the player projection for a seat view. The view supplies static geometry and `standings()`
+supplies the scoreboard; neither supplies a rendered board on the engine's behalf, and neither
+decides a rule.
+
+The console MUST validate a scene against `view_schema()`, MUST test that every identifier an
+observation can reference is present in the scene, and MUST refuse to draw a record whose
+`rules_version` or `schema_version` the installed plugin does not match. A game with no view is
+listed and readable as text; absence of a renderer is not an error.
+
 ---
 
 ## 8. Logging and event sourcing
@@ -570,14 +654,23 @@ A log is a transcript; an event-sourced record is a *program*. The difference bu
 
 ```
 runs/<run_id>/
-  run.json                    run-level config and manifest
-  games/
-    <game_id>.god.jsonl       deterministic core record — the thing hashed and replayed
-    <game_id>.meta.jsonl      sidecar: timestamps, wall-clock, agent payloads, costs
+  run.json                    experiment manifest: declaration and plan, written before play
+  results.json                outcome aggregates, written when the run ends
+  <game_id>/                  one directory per game: the portable unit
+    game.json                 the game's own manifest: design point, seat map, versions
+    games/
+      <game_id>.god.jsonl     deterministic core record — the thing hashed and replayed
+      <game_id>.meta.jsonl    sidecar: timestamps, wall-clock, agent payloads, costs
 ```
 
 Splitting the deterministic record from the sidecar is what keeps P9 honest: nothing
 non-deterministic can enter the hash chain by accident, because it is physically in another file.
+
+The root manifest is written before the first action, so a run that crashes half-way still records
+what it intended to play. `results.json` is written only when the run ends; its absence is a fact
+about the run, not an error. The per-game directory is the portable unit: it carries everything
+needed to replay one game without the rest of the run. No derived presentation state is stored
+anywhere.
 
 ### 8.3 Record schemas
 
@@ -776,9 +869,14 @@ agent, schema mangling, and no path to running many games in parallel. Instead:
 
 ```
 core engine → canonical HTTP/JSON API → { MCP stdio bridge, MCP HTTP, CLI, python client, replay tool }
+
+records (runs/) → console read model → browser client
 ```
 
 The MCP layer is a thin, stateless translator in front of the same authority every other client uses.
+
+The console is a **second kind of frontend**: it reads completed records and the game's declarations,
+not live sessions. It never binds to the live host, and the live host never depends on it.
 
 ### 12.2 Resources for reading, tools for acting
 
@@ -796,6 +894,52 @@ Tool and resource definitions are **generated** from `action_schema()` and
 |---|---|---|
 | *Benchmark* | Curated read/act tools only. The runner owns game creation. | Scored runs. A model must not be able to spawn games. |
 | *Sandbox* | Adds lifecycle tools (`create_game`, `join`, `list_games`). | Exploration and manual play. |
+
+### 12.4 The operator console and the replay viewer
+
+A human needs two things the CLI does not give: a way to declare an experiment without hand-editing
+JSON, and a way to **see** a game that has already been played. They are one post-hoc surface — the
+console — with two halves.
+
+```
+config declaration ──validate──> cli run ──> run directory ──read+replay──> browser
+        ^                                      (run.json, results.json,
+     operator form                            <game_id>/{game.json, games/*.god.jsonl})
+```
+
+Rules:
+
+- **The console is read-only over records.** It reads `run.json`, `results.json`, `game.json`, the
+  god log and the sidecar. It never writes a record, never edits a prompt, and never synthesises a
+  terminal state. The only thing it produces is a configuration file it hands to the runner and the
+  run directory the runner writes.
+- **Execution is not reimplemented.** The console launches the existing `run` entry point as a
+  separate process with a configuration file. It does not import the runner into its own request
+  path, and killing the console does not kill a run. There is one execution path for the CLI, the
+  tests and the console.
+- **No live graphical game surface exists.** During a run the console may show counts and status
+  derived from the files; it may not show the board, a decision, or a projection of a game still in
+  flight. A live board invites live hints, live intervention, and a second assist surface — and then
+  the GUI is part of what is being measured.
+- **A seat view is a projection, not a filter.** The console asks the engine for the observer's
+  observation and the game's own `render`. It never sends the god view to the browser and hides
+  fields there (§7.8). The god view is a separate, explicitly labelled spectator mode; raw records
+  and other seats' decision transcripts are not available through a seat's view.
+- **One shell, one renderer per game.** Navigation, configuration, replay controls, verification
+  and decision inspection are game-agnostic. A game declares its geometry (§7.12) and provides a
+  drawing component; adding a game does not touch the shell.
+- **Compatibility is checked before drawing.** A record is drawn only when the installed plugin's
+  `rules_version` and `schema_version` match the header. A mismatch is reported, not rendered; a
+  successful replay is the proof that the reconstruction is exact.
+- **Local by default, scoped to declared roots.** The console binds to loopback, reads only under
+  roots the operator named, and refuses a path outside them. Model and prompt text is untrusted
+  content and is rendered as text, never as markup.
+- **The record remains the evidence.** A screenshot, a permalink, or a rendered frame is a view of a
+  record; it is never a substitute for the record. The console persists no derived state, so every
+  frame can be recomputed from the artefacts alone.
+
+The CLI, the runner and the tests MUST work with the console absent. The console is a reader and an
+operator convenience, not a runtime dependency of the benchmark.
 
 ---
 
@@ -893,6 +1037,33 @@ invariants (§7.11), one harness validates every game. Asserted after **every** 
 
 The driver is a test harness, not a competitor: it is never scored and never appears in a result.
 
+### 15.5 Presentation tests
+
+The console is derived, so its tests are about fidelity to the record, not about pixels:
+
+- **Every golden game opens.** For each record in the corpus, the replay read model produces the
+  same states as `replay()`, and the timeline is aligned one-to-one with the action records,
+  rejections included.
+- **Scene contract.** Every declared view validates against `view_schema()`, every identifier an
+  observation can reference exists in the scene, and no coordinate is a float.
+- **Seat-mode leaks.** For every hidden field and every seat, the seat-mode payload contains no
+  hidden data, no other seat's decision transcript, and no god-view event. The existing leak matrix
+  is reused where it already states the rule.
+- **Version and integrity.** A record whose `rules_version` or `schema_version` does not match is
+  refused with a stated reason; a tampered record fails at a localised seq rather than drawing a
+  plausible game.
+- **Run artefacts.** Discovery reads exactly the declared layout; the root manifest exists before
+  the first game; a run without `results.json` is reported as unfinished, and an abandoned game is
+  never given a terminal state.
+- **One operator validator.** The console's validation and the CLI's validation accept and reject
+  the same declarations, with the same messages, and a saved declaration round-trips.
+- **Generic shell.** A test-only second game view proves the shell, the reader and the API contain no
+  Catan branch; a scan refuses a game name in the generic console modules.
+- **Local safety.** Path traversal, a symlink escape, and a root outside the declared roots are
+  refused; model and prompt text is escaped rather than rendered as markup.
+- **Frontend.** Pure layout and frame-selection functions are unit-tested. A browser smoke test is
+  optional and never part of the offline Python gate.
+
 ---
 
 ## 16. Architectural decisions
@@ -913,6 +1084,11 @@ The driver is a test harness, not a competitor: it is never scored and never app
 | Invariants | Declared by the plugin, checked by a generic harness | One harness validates every game, present and future (§7.11) |
 | Rejection codes | Core set owned by the runtime; the rest declared by the plugin | Makes rejection metrics game-agnostic (§10) |
 | MCP | Frontend over a canonical HTTP API | Avoids per-agent state and enables parallel runs (§12.1) |
+| Presentation | Read-only console over records; setup declares, never executes | Keeps the GUI off the measurement path; replay is the only reconstruction (P12, §12.4) |
+| Game view | Optional static geometry declared by the plugin, keyed by canonical ids | The client cannot invent a board or compute a game fact (§7.12) |
+| Replay scoreboard | `standings()` declared by the plugin | The score is the game's arithmetic, not a renderer's second implementation (§7.12) |
+| Operator configuration | One declared schema and one validator for CLI and console | A form with its own rules would be a second truth (§7.12) |
+| Run artefacts | Root experiment manifest plus nested per-game directory | The plan is recorded before play; one game directory is portable (§8.2) |
 | Metrics | Folds over the event log | Keeps the engine pure; metrics recomputable retroactively (§14) |
 
 ---
@@ -930,6 +1106,16 @@ The driver is a test harness, not a competitor: it is never scored and never app
    expressiveness. Whether a richer protocol materially changes what is measured is an empirical
    question, and protocols are declared per game (§7.7).
 5. **Game-interface stability.** The plugin interface is expected to change when a second game is
-   implemented. That change is a planned, versioned architectural revision, not a defect.
+   implemented. That change is a planned, versioned architectural revision, not a defect. The
+   operator-facing declarations of §7.12 are the first such extension.
 6. **Benchmark profile form.** Whether the profile should be declarative data or computed by plugin
    code. Declarative is more inspectable; computed allows per-configuration variation.
+7. **Third-party renderers.** A plugin may declare geometry, but the browser component that draws a
+   game is currently in-repo. Whether an external plugin may ship a renderer, and under what trust
+   and loading model, is unresolved; until it is, an external game is replayable as text.
+8. **Static replay export.** A self-contained bundle that opens a recorded game without a server
+   would suit a published result. It is deferred, and the console API is kept data-driven so it
+   remains possible.
+9. **Historical presentation.** A record is replayable while its `rules_version` matches an installed
+   plugin. How many historical rules versions to retain, so that old records remain viewable, is a
+   policy question for the benchmark archive rather than an engine question.

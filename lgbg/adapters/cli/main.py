@@ -26,6 +26,7 @@ from pathlib import Path
 from typing import Any
 
 import lgbg.games  # noqa: F401 - importing the package registers the in-repo plugins
+from lgbg.adapters.cli.console import run_console
 from lgbg.adapters.cli.inspect_run import inspect_run as read_run
 from lgbg.adapters.cli.live import play_live as run_live
 from lgbg.adapters.cli.mcp_client import ClientError
@@ -37,6 +38,7 @@ from lgbg.agents.context import ContextError
 from lgbg.agents.pricing import UnknownPriceError
 from lgbg.agents.prompting import PromptError
 from lgbg.agents.providers.base import ProviderError
+from lgbg.console.records import ConsoleError
 from lgbg.core.assist import render_decision
 from lgbg.core.canonical import hash_state, to_canonical_json
 from lgbg.core.config import DEFAULT_PLAYERS, AssistLevel, ConfigError, GameConfig, RunConfig
@@ -60,6 +62,7 @@ EXPECTED_FAILURES: tuple[type[Exception], ...] = (
     ScriptError,
     AmbiguousRequestError,
     ClientError,
+    ConsoleError,
     OSError,
     ContextError,
     PromptError,
@@ -254,6 +257,25 @@ def build_parser() -> argparse.ArgumentParser:
     )
     fuzz_command.add_argument("--out", default=None, help="a directory to record the game in")
 
+    console_command = commands.add_parser(
+        "console", help="open recorded games in a local browser console"
+    )
+    _add_plugin_option(console_command)
+    console_command.add_argument(
+        "--root",
+        action="append",
+        default=None,
+        metavar="DIR",
+        help="a directory of .god.jsonl records; repeatable (default runs/)",
+    )
+    console_command.add_argument(
+        "--host", default="127.0.0.1", help="the loopback address to bind (default 127.0.0.1)"
+    )
+    console_command.add_argument("--port", type=int, default=8765, help="the port (default 8765)")
+    console_command.add_argument(
+        "--no-browser", action="store_true", help="do not open a browser window"
+    )
+
     return parser
 
 
@@ -291,6 +313,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 return _play_live(args, _game_options(extra))
             case "serve":
                 return _serve(args, _game_options(extra))
+            case "console":
+                return _console(args)
             case "run":
                 return _run(args)
             case "inspect-run":
@@ -334,6 +358,17 @@ def _as_json(text: str) -> JsonValue:
     if isinstance(value, bool | int | str) or value is None:
         return value
     return text
+
+
+def _console(args: argparse.Namespace) -> int:
+    """Start the read-only console over the declared roots (FR-8.1)."""
+    roots = tuple(Path(root) for root in (args.root or ["runs"]))
+    return run_console(
+        roots=roots,
+        host=args.host,
+        port=args.port,
+        no_browser=args.no_browser,
+    )
 
 
 def _new(args: argparse.Namespace, game_options: dict[str, JsonValue]) -> int:

@@ -8,27 +8,6 @@
 
 ## Backlog
 
-### K-001 · The console starts and opens a record
-
-  - tags: [slice-1, console, cli, shell, fr-1, fr-7, sc-12]
-  - priority: high
-  - workload: Hard
-  - defaultExpanded: true
-  - steps:
-      - [ ] `pnpm build` from the committed lockfile produces `web/dist`; `lgbg console --root tests/golden/catan --no-browser` prints its URL and serves it, and a missing build or root exits non-zero naming the build command
-      - [ ] Opening `full_game` reports its game, rules version, action count and a verification result produced by `replay()` and `verify()`, not inferred from the absence of an error
-      - [ ] The ASGI app is separate from `lgbg.host`, imports neither the host nor a game, and no lower layer imports the console; the Python suite passes with no Node and no built frontend
-      - [ ] A path outside the declared roots, an unknown record and a non-loopback bind are refused, and every JSON response carries `"schema": "lgbg.console.v1"`
-      - [ ] TypeScript strict and `svelte-check` pass, and the client's API types are checked against a committed contract fixture
-    ```md
-    - **Cuts through:** `lgbg/console/` (app, static serving, the standalone reader and its `/api/logs` resources, replay), the `console` CLI command, the `web/` shell and API client, `core/replay`, the layering test
-    - **Depends on:** nothing
-    - **PRD:** FR-1.1, FR-1.2, FR-1.5–FR-1.8, FR-2.2, FR-2.7, FR-2.9, FR-3.1, FR-7.1, FR-7.2, FR-7.3–FR-7.5, FR-7.7, FR-7.8, FR-8.1–FR-8.6, FR-9.1, FR-9.3–FR-9.5, FR-9.7, FR-10.7, FR-11.2, FR-11.4, SC-2, SC-9, SC-12
-    - **Why:** The first slice crosses every seam at once — CLI, ASGI, static assets, a typed API contract and a browser — because a defect in any one of them will be found in the last one. Opening a standalone golden record keeps the run layout out of it, so transport is proven before the format is.
-    - **Demo:** `uv run lgbg console --root tests/golden/catan` opens `full_game` and shows "verified · 743 actions · catan-rules-6".
-    - **Slice note:** This is deliberately thinner than M1. A record that verifies is already useful to a reviewer, and it isolates console plumbing from board geometry.
-    ```
-
 ### K-002 · The opening board, drawn from a declared scene
 
   - tags: [slice-1, view, catan, svg, fr-4, sc-1]
@@ -345,3 +324,25 @@
     ```
 
 ## Done
+
+### K-001 · The console starts and opens a record
+
+  - tags: [slice-1, console, cli, shell, fr-1, fr-7, sc-12]
+  - priority: high
+  - workload: Hard
+  - defaultExpanded: true
+  - steps:
+      - [x] `pnpm --dir web build` from the committed lockfile produces `web/dist`; `uv run python -m lgbg.adapters.cli console --root tests/golden/catan --no-browser` prints its URL and serves it; a missing build names `pnpm --dir web build` and a missing root names the directory, both exiting non-zero
+      - [x] Opening `full_game` reports its game, rules version, action count and a verification result produced by the core's `replay()`, not inferred from the absence of an error
+      - [x] The ASGI app is separate from `lgbg.host`, imports neither the host nor a game, and no lower layer imports the console; the Python suite passes with no Node and no built frontend
+      - [x] A path outside the declared roots, an unknown record, a record from another rules version and a non-loopback bind are refused, and every JSON response carries `"schema": "lgbg.console.v1"`
+      - [x] TypeScript strict and `svelte-check` pass, and the client's API types are checked against a committed contract fixture
+    ```md
+    - **Cuts through:** `lgbg/console/` (app, static serving, the standalone reader and its `/api/logs` resources, replay), the `console` CLI command, the `web/` shell and API client, `core/replay`, the layering test
+    - **Depends on:** nothing
+    - **PRD:** FR-1.1, FR-1.2, FR-1.5–FR-1.8, FR-2.2, FR-2.7, FR-2.9, FR-3.1, FR-7.1, FR-7.2, FR-7.3–FR-7.5, FR-7.7, FR-7.8, FR-8.1–FR-8.6, FR-9.1, FR-9.3–FR-9.5, FR-9.7, FR-10.7, FR-11.2, FR-11.4, SC-2, SC-9, SC-12
+    - **Why:** The first slice crosses every seam at once — CLI, ASGI, static assets, a typed API contract and a browser — because a defect in any one of them will be found in the last one. Opening a standalone golden record keeps the run layout out of it, so transport is proven before the format is.
+    - **Demo:** `uv run python -m lgbg.adapters.cli console --root tests/golden/catan` opens `full_game` and shows "verified · 743 actions · catan-rules-6".
+    - **Slice note:** This is deliberately thinner than M1. A record that verifies is already useful to a reviewer, and it isolates console plumbing from board geometry.
+    - **Evidence:** `lgbg/console/records.py` is the read model: `LogStore` lists the `.god.jsonl` files directly under each declared root (no recursion), reads one header line per listing, resolves a handle as a name (no separator, traversal or leading dot) and refuses a symlink that leaves the root. `read_summary` runs `replay()` - the verifier's own walk of the chain, not an inference from the absence of an exception - and returns the action count on success or a localised `Failure` for a tampered, truncated, unreadable, unknown-game or incompatible record. `lgbg/console/app.py` is an ASGI application that imports neither `lgbg.host` nor a game: `/api/health`, `/api/logs` and `/api/logs/{handle}` carry `lgbg.console.v1`; a record that does not verify is a 200 finding; 400/404/405 are transport errors. It serves `index.html` at `/` and hashed assets with immutable caching, and a missing build answers 503 naming `pnpm --dir web build`. `lgbg/adapters/cli/console.py` adds the `console` command: repeatable `--root`, loopback-only `--host`, `--port`, `--no-browser`, the URL printed before uvicorn starts, and a missing root or build reported as a sentence through `main`'s expected-failure path. `web/` is Svelte 5 + Vite 8 + TypeScript 5.9 strict: the shell lists the records and shows the verification badge, `status.ts` is the pure label, and `web/src/contract/log.json` is the server's own payload for `full_game`, checked against `LogDetail` by the compiler and against the app by `tests/console/test_contract.py`. `tests/console/test_records.py` (15), `test_app.py` (14), `test_contract.py` (1), `tests/cli/test_console.py` (10) and three layering guards cover the five criteria; the v1 traceability matrix now ignores any later release's `PRD-vN` prefix, so a v3 citation cannot trace a v1 requirement. Gate: 1274 passed, 1 skipped with and without `web/dist` (ruff, format, mypy strict, pytest); `pnpm check` 0 errors, `pnpm test` 5 passed, `pnpm lint` clean, `pnpm build` 39 kB of JavaScript; a live `console --root tests/golden/catan` answered health, the 743-action verified record in 0.46 s, the shell, a hashed asset, 404 and 405.
+    ```

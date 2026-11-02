@@ -64,7 +64,7 @@ addopts = "-q --strict-markers --strict-config"
 line-length = 100
 target-version = "py312"
 # Documents are normative and their code samples are illustrative: never touch them.
-extend-exclude = ["*.md", "prd", "kanban"]
+extend-exclude = ["*.md", "prd", "kanban", "web"]
 
 [tool.ruff.lint]
 select = [

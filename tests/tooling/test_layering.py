@@ -146,3 +146,74 @@ def test_no_source_in_the_runner_names_a_game() -> None:
     ]
 
     assert offenders == [], "a game name in the runner is a game-specific path: " + str(offenders)
+
+
+def test_the_console_layer_never_imports_a_game_or_the_host() -> None:
+    """PRD-v3 FR-1.1, PRD-v3 FR-1.5, PRD-v3 FR-4.8.
+
+    The console is a consumer of records, not a surface over a live session and not a view
+    written for one game.
+
+    A game reaches it as a record header and a registered name; a live session never reaches it at
+    all. Either import would make the console a second authority rather than a derived view.
+    """
+    console_sources = sorted((PACKAGE_ROOT / "console").rglob("*.py"))
+
+    assert console_sources, "control: the console layer must have sources to scan"
+
+    offenders = sorted(
+        f"{path.relative_to(REPO_ROOT)} imports {module}"
+        for path in console_sources
+        for module in _imported_modules(path)
+        if module == "lgbg.host"
+        or module.startswith("lgbg.host.")
+        or module == "lgbg.games"
+        or module.startswith("lgbg.games.")
+    )
+
+    assert offenders == [], "the console must not import a host or a game: " + ", ".join(offenders)
+
+
+def test_no_source_in_the_console_names_a_game() -> None:
+    """The same rule for the edit a convenience would actually make: a literal game name."""
+    console_sources = sorted((PACKAGE_ROOT / "console").rglob("*.py"))
+
+    assert console_sources, "control: the console layer must have sources to scan"
+    offenders = [
+        f"{path.name}: {name}"
+        for path in console_sources
+        for name in ("catan",)
+        if name in path.read_text(encoding="utf-8").lower()
+    ]
+
+    assert offenders == [], "a game name in the console is a game-specific path: " + str(offenders)
+
+
+def test_no_layer_below_the_cli_imports_the_console() -> None:
+    """PRD-v3 FR-1.5: the arrow points down. Only the CLI launcher may import the console.
+
+    The launcher is not an exception to the layering rule; it is the one caller whose job is to
+    start the application. Everything the console itself needs lives below it.
+    """
+    launcher = PACKAGE_ROOT / "adapters" / "cli" / "console.py"
+    main = PACKAGE_ROOT / "adapters" / "cli" / "main.py"
+    allowed = {launcher, main}
+    console_root = PACKAGE_ROOT / "console"
+    sources = [
+        path
+        for path in _python_sources()
+        if path not in allowed and not path.is_relative_to(console_root)
+    ]
+
+    offenders = sorted(
+        f"{path.relative_to(REPO_ROOT)} imports {module}"
+        for path in sources
+        for module in _imported_modules(path)
+        if module == "lgbg.console" or module.startswith("lgbg.console.")
+    )
+
+    assert offenders == [], "nothing below the CLI may import the console: " + ", ".join(offenders)
+    assert any(
+        module == "lgbg.console" or module.startswith("lgbg.console.")
+        for module in _imported_modules(launcher)
+    ), "control: the launcher must import the console, or the guard scans the wrong tree"

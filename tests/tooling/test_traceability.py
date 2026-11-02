@@ -50,9 +50,11 @@ def _cites(source: str, requirement: str) -> bool:
 
     'PRD-v2 FR-1.2' is a different requirement that happens to share a number, so a citation that
     names its release is not a citation of this document's, and counting it would trace a v1
-    requirement to a test that was never about it.
+    requirement to a test that was never about it. The same holds for every later release, which
+    is why the prefix is matched rather than a particular version.
     """
-    return re.search(rf"(?<!v2 ){re.escape(requirement)}", source) is not None
+    later_release = r"(?<!v[2-9] )(?<!v[1-9][0-9] )"
+    return re.search(rf"{later_release}{re.escape(requirement)}", source) is not None
 
 
 def test_every_requirement_is_traced_or_recorded_with_a_reason() -> None:

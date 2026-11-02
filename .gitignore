@@ -24,3 +24,7 @@ runs/
 .vscode/
 .DS_Store
 Thumbs.db
+
+# Frontend build and dependencies (Node is build-time only, PRD-v3 FR-9.3)
+web/node_modules/
+web/dist/

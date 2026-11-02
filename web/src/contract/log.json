@@ -1,0 +1,14 @@
+{
+  "actions": 743,
+  "completed": true,
+  "engine_version": "0.1.0",
+  "failure": null,
+  "game": "catan",
+  "log": "full_game",
+  "rejections": 0,
+  "rules_version": "catan-rules-6",
+  "schema": "lgbg.console.v1",
+  "schema_version": "catan-actions-1",
+  "terminal_hash": "e57e23d3c4839159",
+  "verified": true
+}

@@ -27,7 +27,8 @@ This file is a map, not a manual. Read only the document your task actually need
 │   └── PRD-v3.md                 release v3 - operator console and replay viewer (next)
 ├── kanban/
 │   ├── KANBAN-v1.kanban.md       release v1 task board - done
-│   └── KANBAN-v2.kanban.md       release v2 task board - current
+│   ├── KANBAN-v2.kanban.md       release v2 task board - current
+│   └── KANBAN-v3.kanban.md       release v3 task board - next
 ├── .agents/skills/
 │   ├── horizontal-slicing/       how to cut and read the board
 │   └── test-driven-development/  how to write the code

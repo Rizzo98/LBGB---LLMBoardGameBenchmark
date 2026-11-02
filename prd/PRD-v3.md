@@ -416,9 +416,22 @@ Each is binary and maps to at least one named test in §12.
 | `GET` | `/api/runs/{run}/games/{game}/record/{seq}` | One god-log record (spectator only). |
 | `GET` | `/api/runs/{run}/games/{game}/decision/{seq}` | Decision attempts for the turn containing `seq`. |
 | `GET` | `/api/runs/{run}/games/{game}/notation` | The exact textual rendering for a seq and mode. |
+| `GET` | `/api/logs` | Standalone records under the declared roots, with header and status. |
+| `GET` | `/api/logs/{log}` | One standalone record: header and verification summary. |
+| `GET` | `/api/logs/{log}/scene` | The static scene. |
+| `GET` | `/api/logs/{log}/timeline` | Verified frames and per-step metadata for a mode. |
+| `GET` | `/api/logs/{log}/record/{seq}` | One god-log record (spectator only). |
+| `GET` | `/api/logs/{log}/decision/{seq}` | Decision attempts for the turn containing `seq`. |
+| `GET` | `/api/logs/{log}/notation` | The exact textual rendering for a seq and mode. |
 | `POST` | `/api/runs` | Validate, write and launch a declaration. |
 | `POST` | `/api/runs/{run}/cancel` | Signal a run this process launched. |
 | `GET` | `/api/health` | Liveness and version. |
+
+`{run}`, `{game}` and `{log}` are handles assigned at discovery, never filesystem paths. A standalone
+record is addressed as a log: its scene, timeline, record, decision and notation resources have the
+same semantics and mode filtering as the run-scoped ones, and are served by the same handlers. A log
+is a `.god.jsonl` directly under a declared root; the list does not recurse, so a run directory is
+never mistaken for a folder of standalone records.
 
 - **FR-7.3** Read endpoints MUST be pure: no mutation, no RNG, no replay of a different game.
 - **FR-7.4** A missing path MUST be `404`; a malformed request `400`; an unsupported method `405`; an
@@ -499,8 +512,8 @@ Each is binary and maps to at least one named test in §12.
 ### 8.12 Artefact prerequisites (delivered under v2)
 
 These are not console features. They are the record changes the console needs, and they MUST land
-before the first console milestone. They MUST be cut onto the v2 board as a hardening card before
-M1; they are not on it yet.
+before the first console capability that reads a run directory. They are cut onto the v2 board as
+K-038 and MUST land before M1.
 
 - **FR-12.1** The canonical layout MUST be:
 

@@ -15,6 +15,7 @@ runner and the run artefacts. Version 3, the operator console and replay viewer,
 | [`prd/PRD-v2.md`](prd/PRD-v2.md) | What release v2 delivers: the agent layer, the runner and the run artefacts. |
 | [`prd/PRD-v3.md`](prd/PRD-v3.md) | What release v3 delivers: the operator console and the replay viewer. |
 | [`kanban/KANBAN-v2.kanban.md`](kanban/KANBAN-v2.kanban.md) | What to do next: the current release board, cut into horizontal slices. |
+| [`kanban/KANBAN-v3.kanban.md`](kanban/KANBAN-v3.kanban.md) | The next release board: the console and replay viewer, cut into horizontal slices. |
 | [`AGENTS.md`](AGENTS.md) | Contributor and agent orientation. |
 
 Requires [uv](https://docs.astral.sh/uv/). Python 3.12 or newer is installed and used

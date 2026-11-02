@@ -14,6 +14,25 @@
 
 
 
+### K-038 · The run layout the console will read
+
+  - tags: [slice-9, records, fr-12, sc-4]
+  - priority: high
+  - workload: Normal
+  - steps:
+      - [ ] `runs/<run>/run.json` is written atomically before the first game starts, validates against `lgbg.experiment.v1`, and carries the declaration, derivation and plan
+      - [ ] The per-game manifest is `game.json`, and every writer and reader uses it
+      - [ ] Both manifests are written atomically, so a crash leaves no plausible half-manifest
+      - [ ] `inspect-run`, `verify` and the results reader read the new layout and still verify a standalone `.god.jsonl`
+      - [ ] No game rule, action, observation, hash or `results.json` field changes
+    ```md
+    - **Cuts through:** the runner's manifests and experiment, results, inspect-run, the CLI's verify path, the docs
+    - **Depends on:** nothing
+    - **PRD:** PRD-v3 FR-12.1–FR-12.10; PRD-v2 §11.1
+    - **Why:** The console's discovery layer is a consumer of this format, and freezing a consumer against a format the runner does not write is how two layouts become permanent (PRD-v3 R4).
+    - **Slice note:** Delivered under v2 and cut here, not on the v3 board, because it changes v2's record and nothing of the console's. KANBAN-v3 K-007, K-009 and K-011 consume it.
+    ```
+
 ### K-035 · Budget-bounded real demonstration
 
   - tags: [slice-7, test, fr-13, sc-16]
@@ -399,6 +418,7 @@
     - **Depends on:** K-018, K-009
     - **PRD:** FR-6.1 to FR-6.6
     - **Why:** The single place where a convenience would become a confound. Every line of help added here is invisible in the results and permanent in the comparison.
+    ```
 
 ### K-020 · Prompt assembly and hash enforcement
 
@@ -415,6 +435,7 @@
     - **Depends on:** K-019
     - **PRD:** FR-9.1 to FR-9.6, SC-5
     - **Why:** A prompt edited mid-run turns one experiment into two, and nothing in the results would show it. Rehashing before every game is cheap and makes that failure impossible.
+    ```
 
 ### K-021 · Cost and token accounting
 
@@ -429,6 +450,7 @@
     - **Cuts through:** agents, the manifest, the sidecar, results
     - **Depends on:** K-020
     - **PRD:** FR-13.1 to FR-13.4
+    ```
 
 ### K-022 · A model plays a complete game
 
